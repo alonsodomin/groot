@@ -1,0 +1,12 @@
+version: '2'
+services:
+  localstack:
+    build: ./sandbox/localstack
+    tty: true
+    environment:
+      SERVICES: s3
+    ports:
+      - "4572:4572"
+      - "9010:8080"
+    volumes:
+      - "./sandbox/localstack/startup.sh:/project/startup.sh"

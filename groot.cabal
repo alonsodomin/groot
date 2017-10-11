@@ -1,0 +1,88 @@
+name:                groot
+version:             0.0.1.0
+-- synopsis:
+-- description:
+homepage:            https://github.com/alonsodomin/groot
+license:             Apache
+license-file:        LICENSE
+author:              A. Alonso Dominguez
+maintainer:          alonso.domin@gmail.com
+copyright:           2017 A. Alonso Dominguez
+category:            Command Line
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Groot
+                     , Groot.Compose
+                     , Groot.Core
+                     , Groot.Data.Base
+                     , Groot.Data.Cluster
+                     , Groot.Data.Instance
+                     , Groot.Data.Service
+                     , Groot.Data.Task
+                     , Groot.Data.TaskDef
+                     , Groot.Data
+  build-depends:       base >= 4.7 && < 5
+                     , aeson
+                     , lens
+                     , text
+                     , conduit
+                     , conduit-combinators
+                     , mtl
+                     , transformers
+                     , vector
+                     , time
+                     , amazonka
+                     , amazonka-autoscaling
+                     , amazonka-ecs
+  default-language:    Haskell2010
+
+executable groot
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , optparse-applicative
+                     , conduit
+                     , directory
+                     , http-types
+                     , lens
+                     , text
+                     , time
+                     , mtl
+                     , transformers
+                     , yaml
+                     , amazonka
+                     , amazonka-core
+                     , amazonka-ecs
+                     , pptable
+                     , groot
+  other-modules:       Groot.App.Cli
+                     , Groot.App.Cli.Parsers
+                     , Groot.App.Compose
+                     , Groot.App.Events
+                     , Groot.App.List.Base
+                     , Groot.App.List.Cluster
+                     , Groot.App.List.Instance
+                     , Groot.App.List.Task
+                     , Groot.App.List.TaskDef
+                     , Groot.App.List.Service
+                     , Groot.App.List
+                     , Groot.App
+  default-language:    Haskell2010
+
+test-suite groot-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base
+                     , groot
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/githubuser/hask-roller

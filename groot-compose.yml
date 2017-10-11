@@ -1,0 +1,8 @@
+- task:
+    name: pluto
+    role: "Hi"
+    containers:
+      - name: pluto
+        image: 140821111621.dkr.ecr.eu-west-1.amazonaws.com/cf-rideways-qa/pluto:{{IMAGE_TAG}}
+  service:
+    role: "Bye"

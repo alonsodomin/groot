@@ -1,0 +1,8 @@
+name: groot-test
+instance-groups:
+  group1:
+    instance-type: t2.medium
+    ami: ami-9283290
+    desired-instances: 2
+    min-instances: 0
+    max-instances: 4
