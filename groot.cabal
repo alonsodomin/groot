@@ -47,6 +47,7 @@ executable groot
   build-depends:       base
                      , optparse-applicative
                      , conduit
+                     , ini
                      , directory
                      , http-types
                      , lens
@@ -62,6 +63,7 @@ executable groot
                      , groot
   other-modules:       Groot.App.Cli
                      , Groot.App.Cli.Parsers
+                     , Groot.App.Config
                      , Groot.App.Compose
                      , Groot.App.Events
                      , Groot.App.List.Base

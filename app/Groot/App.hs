@@ -5,40 +5,42 @@ module Groot.App
        groot
      ) where
 
+import Control.Applicative
 import Control.Lens
-import Data.Text (Text, unpack)
+import Control.Monad.Trans.Maybe
+import Data.Text (unpack)
 import Network.AWS
 import Network.AWS.Data.Text
 import Network.HTTP.Types.Status
-import System.Directory
 
 import Groot.App.Cli
+import Groot.App.Config
 import Groot.App.Compose
 import Groot.App.Events
 import Groot.App.List
 
-defaultProfileName :: Text
-defaultProfileName = "default"
-
-defaultCredsFile :: IO FilePath
-defaultCredsFile = (++ "/.aws/credentials") <$> getHomeDirectory
-
 loadEnv :: CliOptions -> IO Env
 loadEnv opts = do
-  creds <- buildCreds $ awsCreds opts
-  env   <- newEnv creds
-  return $ assignRegion (awsRegion opts) env
-    where buildCreds :: AwsCredentials -> IO Credentials
+  configFile       <- defaultConfigFile
+  (creds, profile) <- buildCreds $ awsCreds opts
+  env              <- newEnv creds
+  assignRegion (findRegion configFile profile) env
+    where buildCreds :: AwsCredentials -> IO (Credentials, Maybe Text)
           buildCreds (AwsProfile profile file) = do
-            profileName <- return $ maybe defaultProfileName id profile
+            profileName <- return $ maybe defaultAwsProfileName id profile
             credsFile   <- maybe defaultCredsFile return file
-            return $ FromFile profileName credsFile
+            return $ (FromFile profileName credsFile, Just profileName)
           buildCreds (AwsKeys accessKey secretKey) =
-            return $ FromKeys accessKey secretKey
+            return $ (FromKeys accessKey secretKey, Nothing)
       
-          assignRegion :: Maybe Region -> Env -> Env
-          assignRegion (Just r) = envRegion .~ r
-          assignRegion _        = id
+          findRegion :: FilePath -> Maybe Text -> MaybeT IO Region
+          findRegion confFile profile = regionFromOpts <|> regionFromConfig confFile profile
+            where regionFromOpts = MaybeT $ return $ awsRegion opts
+
+          assignRegion :: MaybeT IO Region -> Env -> IO Env
+          assignRegion r env = do
+            maybeRegion <- runMaybeT r
+            return $ maybe id (\x -> envRegion .~ x) maybeRegion env
 
 grootCmd :: Cmd -> Env -> IO ()
 grootCmd (ComposeCmd opts) = runGrootCompose opts
