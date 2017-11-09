@@ -3,7 +3,7 @@
 module Groot.App.Config
        (
        -- Default config values
-         defaultAwsProfileName
+         defaultProfileName
        , defaultConfigFile
        , defaultCredsFile
        -- Utilities
@@ -20,8 +20,8 @@ import Network.AWS (Region(..))
 import Network.AWS.Data.Text
 import System.Directory
 
-defaultAwsProfileName :: Text
-defaultAwsProfileName = "default"
+defaultProfileName :: Text
+defaultProfileName = "default"
 
 defaultConfigFile :: IO FilePath
 defaultConfigFile = (++ "/.aws/config") <$> getHomeDirectory
@@ -32,12 +32,12 @@ defaultCredsFile = (++ "/.aws/credentials") <$> getHomeDirectory
 regionFromConfig :: FilePath -> Maybe Text -> MaybeT IO Region
 regionFromConfig filename profile = exceptToMaybeT $ do
   ini <- ExceptT $ readIniFile filename
-  rid <- ExceptT $ return $ lookupValue (maybe defaultAwsProfileName id profile) "region" ini
+  rid <- ExceptT . return $ lookupValue (maybe defaultProfileName id profile) "region" ini
   liftIO $ parseRegion rid
     where parseRegion :: Text -> IO Region
           parseRegion rid = do
             parsed <- return $ fromText rid
             case parsed of
-              Left err -> fail $ "Could not parse region from file " 
+              Left err -> fail $ "Could not parse region from file "
                               ++ filename ++ " - " ++ err
               Right r  -> return r

@@ -28,12 +28,12 @@ loadEnv opts = do
   assignRegion (findRegion configFile profile) env
     where buildCreds :: AwsCredentials -> IO (Credentials, Maybe Text)
           buildCreds (AwsProfile profile file) = do
-            profileName <- return $ maybe defaultAwsProfileName id profile
+            profileName <- return $ maybe defaultProfileName id profile
             credsFile   <- maybe defaultCredsFile return file
             return (FromFile profileName credsFile, Just profileName)
           buildCreds (AwsKeys accessKey secretKey) =
             return (FromKeys accessKey secretKey, Nothing)
-      
+
           findRegion :: FilePath -> Maybe Text -> MaybeT IO Region
           findRegion confFile profile = regionFromOpts <|> regionFromConfig confFile profile
             where regionFromOpts = MaybeT . return $ awsRegion opts
