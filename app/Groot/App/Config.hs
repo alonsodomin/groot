@@ -15,6 +15,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
 import Data.Ini
 import Data.Text (Text)
+import qualified Data.Text as T
 import Network.AWS (Region(..))
 import Network.AWS.Data.Text
 import System.Directory
@@ -37,5 +38,6 @@ regionFromConfig filename profile = exceptToMaybeT $ do
           parseRegion rid = do
             parsed <- return $ fromText rid
             case parsed of
-              Left err -> fail err
+              Left err -> fail $ "Could not parse region from file " 
+                              ++ filename ++ " - " ++ err
               Right r  -> return r

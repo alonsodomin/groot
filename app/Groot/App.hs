@@ -8,7 +8,8 @@ module Groot.App
 import Control.Applicative
 import Control.Lens
 import Control.Monad.Trans.Maybe
-import Data.Text (unpack)
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.Text as T
 import Network.AWS
 import Network.AWS.Data.Text
 import Network.HTTP.Types.Status
@@ -29,13 +30,13 @@ loadEnv opts = do
           buildCreds (AwsProfile profile file) = do
             profileName <- return $ maybe defaultAwsProfileName id profile
             credsFile   <- maybe defaultCredsFile return file
-            return $ (FromFile profileName credsFile, Just profileName)
+            return (FromFile profileName credsFile, Just profileName)
           buildCreds (AwsKeys accessKey secretKey) =
-            return $ (FromKeys accessKey secretKey, Nothing)
+            return (FromKeys accessKey secretKey, Nothing)
       
           findRegion :: FilePath -> Maybe Text -> MaybeT IO Region
           findRegion confFile profile = regionFromOpts <|> regionFromConfig confFile profile
-            where regionFromOpts = MaybeT $ return $ awsRegion opts
+            where regionFromOpts = MaybeT . return $ awsRegion opts
 
           assignRegion :: MaybeT IO Region -> Env -> IO Env
           assignRegion r env = do
@@ -54,7 +55,7 @@ groot opts = catching _ServiceError exec handler
 
         handler :: ServiceError -> IO ()
         handler err =
-          let servName  = unpack . toText $ err ^. serviceAbbrev
-              statusMsg = show $ statusMessage $ err ^. serviceStatus
-              message   = maybe "" (unpack . toText) $ err ^. serviceMessage
+          let servName  = T.unpack . toText $ err ^. serviceAbbrev
+              statusMsg = BS.unpack . statusMessage $ err ^. serviceStatus
+              message   = maybe "" (T.unpack . toText) $ err ^. serviceMessage
           in putStrLn $ servName ++ " Error (" ++ statusMsg ++ "): " ++ message
