@@ -18,7 +18,7 @@ import Network.AWS.ECS hiding (cluster)
 import Groot.Data
 
 data GrootError =
-    ServiceNotFound Text ClusterId
+    ServiceNotFound Text (Maybe ClusterId)
   | AmbiguousServiceName Text [ClusterId]
 
 type GrootAction = ExceptT GrootError AWS
@@ -27,8 +27,9 @@ runActionM :: Env -> GrootAction a -> (a -> IO b) -> IO b
 runActionM env action success = do
   result <- runResourceT . runAWS env . runExceptT $ action
   case result of
-    Left (ServiceNotFound serviceName (ClusterId clusterId)) ->
-      fail $ "Could not find service '" ++ (T.unpack serviceName) ++ "' in cluster " ++ (T.unpack clusterId)
+    Left (ServiceNotFound serviceName cid) ->
+      fail $ "Could not find service '" ++ (T.unpack serviceName) ++ "'" ++
+           maybe "" (\x -> " in cluster " ++ (show x)) cid
     Left (AmbiguousServiceName serviceName clusters) ->
       fail $ "Service name '" ++ (T.unpack serviceName) ++ "' is ambiguous. It was found in the following clusters:\n" ++ (clusterList clusters)
       where clusterList cls = intercalate "\n  - " $ map show cls
@@ -160,15 +161,15 @@ fetchAllServices =
 findService :: Text -> Maybe ClusterId -> GrootAction ContainerService
 findService serviceName (Just cid) = do
   found <- liftAWS . runMaybeT $ getService serviceName cid
-  maybe (throwError $ ServiceNotFound serviceName cid) return found
+  maybe (throwError $ ServiceNotFound serviceName (Just cid)) return found
 findService serviceName _ = do
   found <- liftAWS . sourceToList $ fetchClusters
            =$= CL.mapMaybe clusterId
            =$= CL.mapMaybeM (\x -> runMaybeT $ fmap (\y -> (y,x)) $ getService serviceName x)
   if (length found) > 1
   then throwError $ AmbiguousServiceName serviceName (map snd found)
-  else return $ fst . head $ found
-
+  else maybe (throwError $ ServiceNotFound serviceName Nothing) (return . fst) $ listToMaybe found
+  
 serviceEvents :: ContainerService -> Maybe UTCTime -> GrootAction [ServiceEvent]
 serviceEvents service lastEventTime = do
   events <- return $ service ^. csEvents
