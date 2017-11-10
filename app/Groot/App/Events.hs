@@ -21,14 +21,14 @@ import qualified Text.PrettyPrint.Boxes as B
 import Options.Applicative
 
 data EventOptions = EventOptions
-  { _clusterId   :: ClusterId
+  { _clusterId   :: Maybe ClusterId
   , _follow      :: Bool
   , _serviceName :: Text
   } deriving (Eq, Show)
 
 grootEventsCli :: Parser EventOptions
 grootEventsCli = EventOptions
-             <$> clusterIdParser
+             <$> optional clusterIdParser
              <*> switch
                ( long "follow"
               <> short 'f'
@@ -47,10 +47,12 @@ layoutEvent event =
           | length str < n = str ++ replicate (n - length str) ' '
           | otherwise      = str
 
-fetchEvents :: Env -> Text -> ClusterId -> Maybe UTCTime -> IO ([ECS.ServiceEvent], Maybe UTCTime)
+fetchEvents :: Env -> Text -> Maybe ClusterId -> Maybe UTCTime -> IO ([ECS.ServiceEvent], Maybe UTCTime)
 fetchEvents env name cid lastEvtTime =
   runAction env latestEvents eventsAndLastTime
-  where latestEvents = serviceEvents name cid lastEvtTime
+  where latestEvents = do
+          service <- findService name cid
+          serviceEvents service lastEvtTime
 
         eventsAndLastTime :: [ECS.ServiceEvent] -> ([ECS.ServiceEvent], Maybe UTCTime)
         eventsAndLastTime events = (events, listToMaybe events >>= view ECS.seCreatedAt)

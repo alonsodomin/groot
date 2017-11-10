@@ -8,14 +8,18 @@ import Control.Monad.Trans.Maybe
 import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Data.Maybe (listToMaybe, maybeToList)
-import Data.Text hiding (foldr, takeWhile)
+import Data.List (intercalate)
+import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Time.Clock
 import Network.AWS hiding (await)
-import Network.AWS.ECS
+import Network.AWS.ECS hiding (cluster)
 
 import Groot.Data
 
-data GrootError = ServiceNotFound Text ClusterId
+data GrootError =
+    ServiceNotFound Text ClusterId
+  | AmbiguousServiceName Text [ClusterId]
 
 type GrootAction = ExceptT GrootError AWS
 
@@ -24,13 +28,19 @@ runActionM env action success = do
   result <- runResourceT . runAWS env . runExceptT $ action
   case result of
     Left (ServiceNotFound serviceName (ClusterId clusterId)) ->
-      fail $ "Could not find service '" ++ (unpack serviceName) ++ "' in cluster " ++ (unpack clusterId)
+      fail $ "Could not find service '" ++ (T.unpack serviceName) ++ "' in cluster " ++ (T.unpack clusterId)
+    Left (AmbiguousServiceName serviceName clusters) ->
+      fail $ "Service name '" ++ (T.unpack serviceName) ++ "' is ambiguous. It was found in the following clusters:\n" ++ (clusterList clusters)
+      where clusterList cls = intercalate "\n  - " $ map show cls
     Right a -> success a
 
 runAction :: Env -> GrootAction a -> (a -> b) -> IO b
 runAction env action success = runActionM env action (\x -> return $ success x)
 
 -- Clusters
+
+clusterId :: Cluster -> Maybe ClusterId
+clusterId cluster = ClusterId <$> cluster ^. cClusterName
 
 getCluster :: ClusterId -> MaybeT AWS Cluster
 getCluster (ClusterId clusterId) = MaybeT $ do
@@ -66,7 +76,7 @@ fetchAllInstances =
       fetchInstancesC =
         awaitForever (\x -> yieldM $ sourceToList $ fetchInstances x)
   in fetchClusters
-     =$= CL.mapMaybe (\x -> ClusterId <$> x ^. cClusterName)
+     =$= CL.mapMaybe clusterId
      =$= fetchInstancesC
      =$= CL.concat
 
@@ -91,7 +101,7 @@ fetchAllTasks =
       fetchTasksC =
         awaitForever (\x -> yieldM $ sourceToList $ fetchTasks x)
   in fetchClusters
-     =$= CL.mapMaybe (\x -> ClusterId <$> x ^. cClusterName)
+     =$= CL.mapMaybe clusterId
      =$= fetchTasksC
      =$= CL.concat
     
@@ -147,17 +157,24 @@ fetchAllServices =
      =$= fetchServicesC
      =$= CL.concat
 
-serviceEvents :: Text -> ClusterId -> Maybe UTCTime -> GrootAction [ServiceEvent]
-serviceEvents serviceName clusterId lastEventTime = do
-  maybeEvts <- liftAWS $ runMaybeT $ do
-    service <- getService serviceName clusterId
-    return $ service ^. csEvents
-  evts <- case maybeEvts of
-    Nothing -> throwError $ ServiceNotFound serviceName clusterId
-    Just x  -> return x
+findService :: Text -> Maybe ClusterId -> GrootAction ContainerService
+findService serviceName (Just cid) = do
+  found <- liftAWS . runMaybeT $ getService serviceName cid
+  maybe (throwError $ ServiceNotFound serviceName cid) return found
+findService serviceName _ = do
+  found <- liftAWS . sourceToList $ fetchClusters
+           =$= CL.mapMaybe clusterId
+           =$= CL.mapMaybeM (\x -> runMaybeT $ fmap (\y -> (y,x)) $ getService serviceName x)
+  if (length found) > 1
+  then throwError $ AmbiguousServiceName serviceName (map snd found)
+  else return $ fst . head $ found
+
+serviceEvents :: ContainerService -> Maybe UTCTime -> GrootAction [ServiceEvent]
+serviceEvents service lastEventTime = do
+  events <- return $ service ^. csEvents
   return $ case lastEventTime of
-    Nothing -> evts
-    Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. seCreatedAt) $ evts
+    Nothing -> events
+    Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. seCreatedAt) $ events
 
 serviceEventLog :: Env -> Text -> ClusterId -> Source IO ServiceEvent
 serviceEventLog env serviceName clusterId =
