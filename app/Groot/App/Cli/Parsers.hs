@@ -10,14 +10,17 @@ module Groot.App.Cli.Parsers
      ) where
 
 import Options.Applicative
+import qualified Data.Attoparsec.Text as A
 import Data.Semigroup ((<>))
-import Data.Text (Text, pack)
+import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import Network.AWS (
     AccessKey(..)
   , SecretKey(..)
   , Region
   )
+import Network.AWS.Data.Text
 
 import Groot.Data (
     ClusterRef(..)
@@ -32,16 +35,16 @@ data AwsCredentials =
 
 credsOpt :: Parser AwsCredentials
 credsOpt =
-  let profile = pack <$> strOption
+  let profile = T.pack <$> strOption
                 ( long "profile"
                <> short 'p'
                <> metavar "AWS_PROFILE"
                <> help "AWS Profile" )
-      accessKey = (AccessKey . encodeUtf8 . pack) <$> strOption
+      accessKey = (AccessKey . encodeUtf8 . T.pack) <$> strOption
                   ( long "accessKey"
                  <> metavar "ACCESS_KEY"
                  <> help "AWS Access Key" )
-      secretKey = (SecretKey . encodeUtf8 . pack) <$> strOption
+      secretKey = (SecretKey . encodeUtf8 . T.pack) <$> strOption
                   ( long "secretKey"
                  <> metavar "SECRET_KEY"
                  <> help "AWS Secret Key" )
@@ -53,12 +56,15 @@ credsOpt =
          fromKeys    = AwsKeys <$> accessKey <*> secretKey
      in fromKeys <|> fromProfile
 
+attoReadM :: A.Parser a -> ReadM a
+attoReadM p = eitherReader (A.parseOnly p . T.pack)
+
 regionOpt :: Parser Region
-regionOpt = option auto
+regionOpt = option (attoReadM parser)
           ( long "region"
          <> short 'r'
          <> metavar "AWS_REGION"
-         <> help "AWS Region" )
+         <> help "AWS Region identifier" )
 
 clusterOpt :: Parser ClusterRef
 clusterOpt = mkClusterRef <$> strOption
@@ -68,7 +74,7 @@ clusterOpt = mkClusterRef <$> strOption
           <> help "ECS Cluster reference (name or ARN)" )
 
 taskFamilyOpt :: Parser TaskFamily
-taskFamilyOpt = TaskFamily . pack <$> strOption
+taskFamilyOpt = TaskFamily . T.pack <$> strOption
               ( long "family"
              <> metavar "TASK_FAMILY"
              <> help "ECS Task Family" )
