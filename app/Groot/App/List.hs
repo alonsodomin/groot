@@ -12,8 +12,8 @@ import Network.AWS
 import Options.Applicative
 
 import Groot.App.Cli.Parsers
-     ( clusterIdParser
-     , taskFamilyParser
+     ( clusterOpt
+     , taskFamilyOpt
      )
 import Groot.App.List.Cluster
 import Groot.App.List.Instance
@@ -23,11 +23,11 @@ import Groot.App.List.Service
 import Groot.Data
 
 data ListCmd =
-    ClustersCmd (Maybe ClusterId)
-  | InstancesCmd (Maybe ClusterId)
-  | TasksCmd (Maybe ClusterId)
+    ClustersCmd (Maybe ClusterRef)
+  | InstancesCmd (Maybe ClusterRef)
+  | TasksCmd (Maybe ClusterRef)
   | TaskDefsCmd Bool (Maybe TaskFamily)
-  | ServicesCmd (Maybe ClusterId)
+  | ServicesCmd (Maybe ClusterRef)
   deriving (Eq, Show)
 
 data ListOptions = ListOptions ListCmd deriving (Eq, Show)
@@ -35,13 +35,13 @@ data ListOptions = ListOptions ListCmd deriving (Eq, Show)
 -- CLI
 
 clustersCli :: Parser ListCmd
-clustersCli = ClustersCmd <$> optional clusterIdParser
+clustersCli = ClustersCmd <$> optional clusterOpt
 
 instancesCli :: Parser ListCmd
-instancesCli = InstancesCmd <$> optional clusterIdParser
+instancesCli = InstancesCmd <$> optional clusterOpt
 
 tasksCli :: Parser ListCmd
-tasksCli = TasksCmd <$> optional clusterIdParser
+tasksCli = TasksCmd <$> optional clusterOpt
 
 taskDefsCli :: Parser ListCmd
 taskDefsCli = TaskDefsCmd
@@ -49,10 +49,10 @@ taskDefsCli = TaskDefsCmd
             ( long "inactive"
            <> short 'i'
            <> help "Show inactive task definitions" )
-          <*> optional taskFamilyParser
+          <*> optional taskFamilyOpt
 
 servicesCli :: Parser ListCmd
-servicesCli = ServicesCmd <$> optional clusterIdParser
+servicesCli = ServicesCmd <$> optional clusterOpt
 
 listCmds :: Parser ListCmd
 listCmds = hsubparser

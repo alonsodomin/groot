@@ -36,8 +36,8 @@ commands = hsubparser
 
 cliParser :: Parser CliOptions
 cliParser = CliOptions
-          <$> credsParser
-          <*> optional regionParser
+          <$> credsOpt
+          <*> optional regionOpt
           <*> commands
 
 runGroot :: (CliOptions -> IO ()) -> IO ()

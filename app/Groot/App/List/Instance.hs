@@ -43,13 +43,13 @@ instance HasSummary ECS.ContainerInstance InstanceSummary where
           iAgentV  = unpack <$> (inst ^. ECS.ciVersionInfo >>= view ECS.viAgentVersion)
           iDockerV = unpack <$> (inst ^. ECS.ciVersionInfo >>= view ECS.viDockerVersion)
 
-summarizeInstances :: Maybe ClusterId -> AWS [InstanceSummary]
+summarizeInstances :: Maybe ClusterRef -> AWS [InstanceSummary]
 summarizeInstances cId = 
   sourceToList $ instanceSource cId =$= CL.mapMaybe summarize
   where instanceSource Nothing  = fetchAllInstances
         instanceSource (Just x) = fetchInstances x
 
-printInstanceSummary :: Maybe ClusterId -> Env -> IO ()
+printInstanceSummary :: Maybe ClusterRef -> Env -> IO ()
 printInstanceSummary cId env = do
   xs <- runResourceT . runAWS env $ summarizeInstances cId
   printTable' "No container instances found" xs

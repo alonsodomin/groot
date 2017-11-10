@@ -36,6 +36,7 @@ library
                      , vector
                      , time
                      , amazonka
+                     , amazonka-core
                      , amazonka-autoscaling
                      , amazonka-ecs
   default-language:    Haskell2010

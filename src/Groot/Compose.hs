@@ -106,13 +106,13 @@ instance FromJSON GrootCompose where
                  fieldLabelModifier = drop 1 }
 
 -- Validates that the given id points to an active cluster
-findCluster :: ClusterId -> MaybeT AWS Cluster
-findCluster clusterId =
-  filterM (ClusterStatusFilter ClusterActive) (getCluster clusterId)
+findCluster :: ClusterRef -> MaybeT AWS Cluster
+findCluster clusterRef =
+  filterM (ClusterStatusFilter ClusterActive) (getCluster clusterRef)
 
-findContainerService :: Text -> ClusterId -> MaybeT AWS ContainerService
-findContainerService serviceName clusterId =
-  filterM (ServiceStatusFilter ServiceActive) (getService serviceName clusterId)
+findContainerService :: Text -> ClusterRef -> MaybeT AWS ContainerService
+findContainerService serviceName clusterRef =
+  filterM (ServiceStatusFilter ServiceActive) (getService serviceName clusterRef)
   
 grootDeploy :: GrootCompose -> NEL.NonEmpty Text -> AWS ()
 grootDeploy = undefined

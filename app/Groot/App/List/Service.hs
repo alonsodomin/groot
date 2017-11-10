@@ -41,13 +41,13 @@ instance HasSummary ECS.ContainerService ServiceSummary where
           sPending    = service ^. ECS.csPendingCount
           sDesired    = service ^. ECS.csDesiredCount
 
-summarizeServices :: Maybe ClusterId -> AWS [ServiceSummary]
+summarizeServices :: Maybe ClusterRef -> AWS [ServiceSummary]
 summarizeServices clusterId =
   sourceToList $ serviceSource clusterId =$= CL.mapMaybe summarize
     where serviceSource Nothing    = fetchAllServices
           serviceSource (Just cid) = fetchServices cid
 
-printServiceSummary :: Maybe ClusterId -> Env -> IO ()
+printServiceSummary :: Maybe ClusterRef -> Env -> IO ()
 printServiceSummary clusterId env = do
   xs <- runResourceT . runAWS env $ summarizeServices clusterId
   printTable' "No services found" xs

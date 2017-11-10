@@ -11,7 +11,7 @@ import Data.Maybe (listToMaybe)
 import Data.Semigroup ((<>))
 import Data.Text (Text, pack, unpack)
 import Data.Time.Clock
-import Groot.App.Cli.Parsers (clusterIdParser)
+import Groot.App.Cli.Parsers (clusterOpt)
 import Groot.Core
 import Groot.Data
 import Network.AWS
@@ -21,14 +21,14 @@ import qualified Text.PrettyPrint.Boxes as B
 import Options.Applicative
 
 data EventOptions = EventOptions
-  { _clusterId   :: Maybe ClusterId
+  { _clusterId   :: Maybe ClusterRef
   , _follow      :: Bool
   , _serviceName :: Text
   } deriving (Eq, Show)
 
 grootEventsCli :: Parser EventOptions
 grootEventsCli = EventOptions
-             <$> optional clusterIdParser
+             <$> optional clusterOpt
              <*> switch
                ( long "follow"
               <> short 'f'
@@ -47,7 +47,7 @@ layoutEvent event =
           | length str < n = str ++ replicate (n - length str) ' '
           | otherwise      = str
 
-fetchEvents :: Env -> Text -> Maybe ClusterId -> Maybe UTCTime -> IO ([ECS.ServiceEvent], Maybe UTCTime)
+fetchEvents :: Env -> Text -> Maybe ClusterRef -> Maybe UTCTime -> IO ([ECS.ServiceEvent], Maybe UTCTime)
 fetchEvents env name cid lastEvtTime =
   runAction env latestEvents eventsAndLastTime
   where latestEvents = do

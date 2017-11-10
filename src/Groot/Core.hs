@@ -13,13 +13,14 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Clock
 import Network.AWS hiding (await)
+import Network.AWS.Data.Text
 import Network.AWS.ECS hiding (cluster)
 
 import Groot.Data
 
 data GrootError =
-    ServiceNotFound Text (Maybe ClusterId)
-  | AmbiguousServiceName Text [ClusterId]
+    ServiceNotFound Text (Maybe ClusterRef)
+  | AmbiguousServiceName Text [ClusterRef]
 
 type GrootAction = ExceptT GrootError AWS
 
@@ -29,10 +30,10 @@ runActionM env action success = do
   case result of
     Left (ServiceNotFound serviceName cid) ->
       fail $ "Could not find service '" ++ (T.unpack serviceName) ++ "'" ++
-           maybe "" (\x -> " in cluster " ++ (show x)) cid
+           maybe "" (\x -> " in cluster " ++ (T.unpack . toText $ x)) cid
     Left (AmbiguousServiceName serviceName clusters) ->
       fail $ "Service name '" ++ (T.unpack serviceName) ++ "' is ambiguous. It was found in the following clusters:\n" ++ (clusterList clusters)
-      where clusterList cls = intercalate "\n  - " $ map show cls
+      where clusterList cls = intercalate "\n  - " $ map (T.unpack . toText) cls
     Right a -> success a
 
 runAction :: Env -> GrootAction a -> (a -> b) -> IO b
@@ -40,12 +41,12 @@ runAction env action success = runActionM env action (\x -> return $ success x)
 
 -- Clusters
 
-clusterId :: Cluster -> Maybe ClusterId
-clusterId cluster = ClusterId <$> cluster ^. cClusterName
+clusterName :: Cluster -> Maybe ClusterRef
+clusterName cluster = ClusterRef <$> cluster ^. cClusterName
 
-getCluster :: ClusterId -> MaybeT AWS Cluster
-getCluster (ClusterId clusterId) = MaybeT $ do
-  res <- send $ dcClusters .~ [clusterId] $ describeClusters
+getCluster :: ClusterRef -> MaybeT AWS Cluster
+getCluster (ClusterRef cref) = MaybeT $ do
+  res <- send $ dcClusters .~ [cref] $ describeClusters
   return $ listToMaybe (res ^. dcrsClusters)
 
 fetchClusters :: Source AWS Cluster
@@ -58,51 +59,51 @@ fetchClusters =
 
 -- Container Instances
 
-getInstance :: ClusterId -> InstanceARN -> MaybeT AWS ContainerInstance
-getInstance (ClusterId cId) (InstanceARN iArn) = MaybeT $ do
-  res <- send $ dciCluster ?~ cId $ dciContainerInstances .~ [iArn] $ describeContainerInstances
+getInstance :: ClusterRef -> InstanceARN -> MaybeT AWS ContainerInstance
+getInstance (ClusterRef cref) (InstanceARN iArn) = MaybeT $ do
+  res <- send $ dciCluster ?~ cref $ dciContainerInstances .~ [iArn] $ describeContainerInstances
   return $ listToMaybe (res ^. dcisrsContainerInstances)
 
-fetchInstances :: ClusterId -> Source AWS ContainerInstance
-fetchInstances (ClusterId cId) =
+fetchInstances :: ClusterRef -> Source AWS ContainerInstance
+fetchInstances (ClusterRef cref) =
   let getInstanceBatch batch = do
-        res <- send $ dciCluster ?~ cId $ dciContainerInstances .~ batch $ describeContainerInstances
+        res <- send $ dciCluster ?~ cref $ dciContainerInstances .~ batch $ describeContainerInstances
         return $ res ^. dcisrsContainerInstances
-  in paginate (lciCluster ?~ cId $ listContainerInstances)
+  in paginate (lciCluster ?~ cref $ listContainerInstances)
      =$= CL.concatMapM (\x -> getInstanceBatch (view lcirsContainerInstanceARNs x))
 
 fetchAllInstances :: Source AWS ContainerInstance
 fetchAllInstances =
-  let fetchInstancesC :: Conduit ClusterId AWS [ContainerInstance]
+  let fetchInstancesC :: Conduit ClusterRef AWS [ContainerInstance]
       fetchInstancesC =
         awaitForever (\x -> yieldM $ sourceToList $ fetchInstances x)
   in fetchClusters
-     =$= CL.mapMaybe clusterId
+     =$= CL.mapMaybe clusterName
      =$= fetchInstancesC
      =$= CL.concat
 
 -- Tasks
 
-getTask :: ClusterId -> TaskARN -> MaybeT AWS Task
-getTask (ClusterId cId) (TaskARN tArn) = MaybeT $ do
-  res <- send $ dtCluster ?~ cId $ dtTasks .~ [tArn] $ describeTasks
+getTask :: ClusterRef -> TaskARN -> MaybeT AWS Task
+getTask (ClusterRef cref) (TaskARN tArn) = MaybeT $ do
+  res <- send $ dtCluster ?~ cref $ dtTasks .~ [tArn] $ describeTasks
   return $ listToMaybe $ res ^. dtrsTasks
 
-fetchTasks :: ClusterId -> Source AWS Task
-fetchTasks (ClusterId cId) =
+fetchTasks :: ClusterRef -> Source AWS Task
+fetchTasks (ClusterRef cref) =
   let getTaskBatch batch = do
-        res <- send $ dtCluster ?~ cId $ dtTasks .~ batch $ describeTasks
+        res <- send $ dtCluster ?~ cref $ dtTasks .~ batch $ describeTasks
         return $ res ^. dtrsTasks
-  in paginate (ltCluster ?~ cId $ listTasks)
+  in paginate (ltCluster ?~ cref $ listTasks)
      =$= CL.concatMapM (\x -> getTaskBatch (view ltrsTaskARNs x))
 
 fetchAllTasks :: Source AWS Task
 fetchAllTasks =
-  let fetchTasksC :: Conduit ClusterId AWS [Task]
+  let fetchTasksC :: Conduit ClusterRef AWS [Task]
       fetchTasksC =
         awaitForever (\x -> yieldM $ sourceToList $ fetchTasks x)
   in fetchClusters
-     =$= CL.mapMaybe clusterId
+     =$= CL.mapMaybe clusterName
      =$= fetchTasksC
      =$= CL.concat
     
@@ -135,36 +136,36 @@ fetchTaskDefs filters =
 
 -- Services
 
-getService :: Text -> ClusterId -> MaybeT AWS ContainerService
-getService serviceName (ClusterId clusterId) = MaybeT $ do
-  res <- send $ dCluster ?~ clusterId $ dServices .~ [serviceName] $ describeServices
+getService :: Text -> ClusterRef -> MaybeT AWS ContainerService
+getService serviceName (ClusterRef cref) = MaybeT $ do
+  res <- send $ dCluster ?~ cref $ dServices .~ [serviceName] $ describeServices
   return $ listToMaybe (res ^. dssrsServices)
 
-fetchServices :: ClusterId -> Source AWS ContainerService
-fetchServices (ClusterId clusterId) =
+fetchServices :: ClusterRef -> Source AWS ContainerService
+fetchServices (ClusterRef cref) =
   let getServiceBatch batch = do
-        res <- send $ dCluster ?~ clusterId $ dServices .~ batch $ describeServices
+        res <- send $ dCluster ?~ cref $ dServices .~ batch $ describeServices
         return $ res ^. dssrsServices
-  in paginate (lsCluster ?~ clusterId $ listServices)
+  in paginate (lsCluster ?~ cref $ listServices)
      =$= CL.concatMapM (\x -> getServiceBatch (view lsrsServiceARNs x))
 
 fetchAllServices :: Source AWS ContainerService
 fetchAllServices =
-  let fetchServicesC :: Conduit ClusterId AWS [ContainerService]
+  let fetchServicesC :: Conduit ClusterRef AWS [ContainerService]
       fetchServicesC =
         awaitForever (\x -> yieldM $ sourceToList $ fetchServices x)
   in fetchClusters
-     =$= CL.mapMaybe (\x -> ClusterId <$> x ^. cClusterName)
+     =$= CL.mapMaybe clusterName
      =$= fetchServicesC
      =$= CL.concat
 
-findService :: Text -> Maybe ClusterId -> GrootAction ContainerService
+findService :: Text -> Maybe ClusterRef -> GrootAction ContainerService
 findService serviceName (Just cid) = do
   found <- liftAWS . runMaybeT $ getService serviceName cid
   maybe (throwError $ ServiceNotFound serviceName (Just cid)) return found
 findService serviceName _ = do
   found <- liftAWS . sourceToList $ fetchClusters
-           =$= CL.mapMaybe clusterId
+           =$= CL.mapMaybe clusterName
            =$= CL.mapMaybeM (\x -> runMaybeT $ fmap (\y -> (y,x)) $ getService serviceName x)
   if (length found) > 1
   then throwError $ AmbiguousServiceName serviceName (map snd found)
@@ -177,12 +178,12 @@ serviceEvents service lastEventTime = do
     Nothing -> events
     Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. seCreatedAt) $ events
 
-serviceEventLog :: Env -> Text -> ClusterId -> Source IO ServiceEvent
-serviceEventLog env serviceName clusterId =
+serviceEventLog :: Env -> Text -> ClusterRef -> Source IO ServiceEvent
+serviceEventLog env serviceName cref =
   let events :: Maybe UTCTime -> AWS [ServiceEvent] 
       events lastEvtTime = do
         maybeEvts <- runMaybeT $ do
-          service <- getService serviceName clusterId
+          service <- getService serviceName cref
           return $ service ^. csEvents
         evts <- return $ maybe [] id maybeEvts
         return $ case lastEvtTime of

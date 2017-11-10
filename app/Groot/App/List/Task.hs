@@ -35,12 +35,12 @@ instance HasSummary ECS.Task TaskSummary where
           tStatus     = unpack <$> task ^. ECS.tLastStatus
           tClusterArn = unpack <$> task ^. ECS.tClusterARN
 
-summarizeTasks :: Maybe ClusterId -> AWS [TaskSummary]
+summarizeTasks :: Maybe ClusterRef -> AWS [TaskSummary]
 summarizeTasks mcid = sourceToList $ taskSource mcid =$= CL.mapMaybe summarize
   where taskSource Nothing    = fetchAllTasks
         taskSource (Just cid) = fetchTasks cid
 
-printTaskSummary :: Maybe ClusterId -> Env -> IO ()
+printTaskSummary :: Maybe ClusterRef -> Env -> IO ()
 printTaskSummary cId env = do
   xs <- runResourceT . runAWS env $ summarizeTasks cId
   printTable' "No tasks found" xs

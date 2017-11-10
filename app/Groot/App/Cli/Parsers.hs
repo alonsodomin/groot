@@ -3,10 +3,10 @@ module Groot.App.Cli.Parsers
      -- Data types
        AwsCredentials(..)
      -- Parsers
-     , credsParser
-     , clusterIdParser
-     , regionParser
-     , taskFamilyParser
+     , credsOpt
+     , clusterOpt
+     , regionOpt
+     , taskFamilyOpt
      ) where
 
 import Options.Applicative
@@ -16,20 +16,22 @@ import Data.Text.Encoding (encodeUtf8)
 import Network.AWS (
     AccessKey(..)
   , SecretKey(..)
-  , SessionToken(..)
-  , Credentials(..)
   , Region
   )
 
-import Groot.Data (ClusterId(..), TaskFamily(..))
+import Groot.Data (
+    ClusterRef(..)
+  , mkClusterRef
+  , TaskFamily(..)
+  )
 
 data AwsCredentials =
     AwsProfile (Maybe Text) (Maybe FilePath)
   | AwsKeys AccessKey SecretKey
   deriving Eq
 
-credsParser :: Parser AwsCredentials
-credsParser =
+credsOpt :: Parser AwsCredentials
+credsOpt =
   let profile = pack <$> strOption
                 ( long "profile"
                <> short 'p'
@@ -51,21 +53,22 @@ credsParser =
          fromKeys    = AwsKeys <$> accessKey <*> secretKey
      in fromKeys <|> fromProfile
 
-regionParser :: Parser Region
-regionParser = option auto
-             ( long "region"
-            <> short 'r'
-            <> metavar "AWS_REGION"
-            <> help "AWS Region" )
+regionOpt :: Parser Region
+regionOpt = option auto
+          ( long "region"
+         <> short 'r'
+         <> metavar "AWS_REGION"
+         <> help "AWS Region" )
 
-clusterIdParser :: Parser ClusterId
-clusterIdParser = ClusterId . pack <$> strOption
-                ( long "clusterId"
-               <> metavar "CLUSTER_ID"
-               <> help "ECS Cluster identifier" )
+clusterOpt :: Parser ClusterRef
+clusterOpt = mkClusterRef <$> strOption
+           ( long "cluster"
+          <> short 'c'
+          <> metavar "CLUSTER_REF"
+          <> help "ECS Cluster reference (name or ARN)" )
 
-taskFamilyParser :: Parser TaskFamily
-taskFamilyParser = TaskFamily . pack <$> strOption
-                 ( long "family"
-                <> metavar "TASK_FAMILY"
-                <> help "ECS Task Family" )
+taskFamilyOpt :: Parser TaskFamily
+taskFamilyOpt = TaskFamily . pack <$> strOption
+              ( long "family"
+             <> metavar "TASK_FAMILY"
+             <> help "ECS Task Family" )

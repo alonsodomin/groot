@@ -7,22 +7,21 @@ module Groot.Data.Cluster where
 
 import Control.Lens
 import Data.Data
-import Data.Text
+import Data.Text (Text)
+import qualified Data.Text as T
 import GHC.Generics
 import Groot.Data.Base
+import Network.AWS.Data.Text
 import qualified Network.AWS.ECS as ECS
 
-newtype ClusterARN = ClusterARN Text
-  deriving (Eq, Generic, Data)
+newtype ClusterRef = ClusterRef Text
+  deriving (Eq, Show, Generic, Data, Read)
 
-instance Show ClusterARN where
-  show (ClusterARN arn) = unpack arn
+mkClusterRef :: String -> ClusterRef
+mkClusterRef = ClusterRef . T.pack
 
-newtype ClusterId = ClusterId Text
-  deriving (Eq, Generic, Data)
-
-instance Show ClusterId where
-  show (ClusterId id) = unpack id
+instance ToText ClusterRef where
+  toText (ClusterRef ref) = ref
 
 data ClusterStatus =
     ClusterActive
@@ -41,6 +40,6 @@ instance FilterPredicate ClusterFilter where
   type CanBeFilteredBy ClusterFilter = ECS.Cluster
 
   matches (ClusterStatusFilter ClusterActive) cluster =
-    maybe False (== (pack "ACTIVE")) (cluster ^. ECS.cStatus)
+    maybe False (== (T.pack "ACTIVE")) (cluster ^. ECS.cStatus)
   matches (ClusterStatusFilter ClusterInactive) cluster =
-    maybe False (== (pack "INACTIVE")) (cluster ^. ECS.cStatus)
+    maybe False (== (T.pack "INACTIVE")) (cluster ^. ECS.cStatus)
