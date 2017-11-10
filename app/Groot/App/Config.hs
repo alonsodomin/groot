@@ -29,12 +29,25 @@ defaultConfigFile = (++ "/.aws/config") <$> getHomeDirectory
 defaultCredsFile :: IO FilePath
 defaultCredsFile = (++ "/.aws/credentials") <$> getHomeDirectory
 
+warnUser :: ExceptT String IO a -> MaybeT IO a
+warnUser result = MaybeT $ do
+  err <- runExceptT result
+  case err of
+    Left msg -> do
+      putStrLn $ "Warning: " ++ msg
+      return Nothing
+    Right a ->
+      return $ Just a
+
 regionFromConfig :: FilePath -> Maybe Text -> MaybeT IO Region
-regionFromConfig filename profile = exceptToMaybeT $ do
+regionFromConfig filename profile = warnUser $ do
   ini <- ExceptT $ readIniFile filename
-  rid <- ExceptT . return $ lookupValue (maybe defaultProfileName id profile) "region" ini
+  rid <- ExceptT . return $ lookupValue profileSection "region" ini
   liftIO $ parseRegion rid
-    where parseRegion :: Text -> IO Region
+    where profileSection :: Text
+          profileSection = maybe defaultProfileName (T.append "profile ") profile
+      
+          parseRegion :: Text -> IO Region
           parseRegion rid = do
             parsed <- return $ fromText rid
             case parsed of
