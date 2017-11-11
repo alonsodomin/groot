@@ -7,11 +7,11 @@ Groot is a command line application with the purpose of remote managing AWS ECS 
 
 ## Getting Started
 
-You will need Stack installed in your local machine. Once you´ve got that, then clone this
+You will need [Stack](http://haskellstack.org) installed in your local machine. Once you´ve got that, then clone this
  repository and install the binaries using Stack:
 
 ```
-git clone https://githum.com/alonsodomin/groot
+git clone https://github.com/alonsodomin/groot
 cd groot
 stack install
 ```
