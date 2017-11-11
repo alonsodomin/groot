@@ -1,7 +1,8 @@
 module Groot.Core where
 
+import Control.Applicative
+import Control.Concurrent (threadDelay)
 import Control.Lens
-import Control.Concurrent
 import Control.Monad.Except
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
@@ -50,7 +51,7 @@ getCluster (ClusterRef cref) = MaybeT $ do
   return $ listToMaybe (res ^. dcrsClusters)
 
 fetchClusters :: Source AWS Cluster
-fetchClusters = 
+fetchClusters =
   let getClusterBatch batch = do
         res <- send $ dcClusters .~ batch $ describeClusters
         return $ res ^. dcrsClusters
@@ -106,7 +107,7 @@ fetchAllTasks =
      =$= CL.mapMaybe clusterName
      =$= fetchTasksC
      =$= CL.concat
-    
+
 -- Task Definitions
 
 getTaskDef :: TaskDefARN -> MaybeT AWS TaskDefinition
@@ -135,6 +136,13 @@ fetchTaskDefs filters =
      =$= CL.mapMaybeM (\x -> runMaybeT (getTaskDef x))
 
 -- Services
+
+data ServiceRef = ServiceRef Text ClusterRef
+
+serviceRef :: ContainerService -> Maybe ServiceRef
+serviceRef service = ServiceRef <$> serviceName <*> clusterRef
+  where serviceName = service ^. csServiceName
+        clusterRef  = ClusterRef <$> service ^. csClusterARN
 
 getService :: Text -> ClusterRef -> MaybeT AWS ContainerService
 getService serviceName (ClusterRef cref) = MaybeT $ do
@@ -170,34 +178,48 @@ findService serviceName _ = do
   if (length found) > 1
   then throwError $ AmbiguousServiceName serviceName (map snd found)
   else maybe (throwError $ ServiceNotFound serviceName Nothing) (return . fst) $ listToMaybe found
-  
-serviceEvents :: ContainerService -> Maybe UTCTime -> GrootAction [ServiceEvent]
+
+serviceEvents :: Monad m => ContainerService -> Maybe UTCTime -> m [ServiceEvent]
 serviceEvents service lastEventTime = do
   events <- return $ service ^. csEvents
   return $ case lastEventTime of
     Nothing -> events
     Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. seCreatedAt) $ events
 
-serviceEventLog :: Env -> Text -> ClusterRef -> Source IO ServiceEvent
-serviceEventLog env serviceName cref =
-  let events :: Maybe UTCTime -> AWS [ServiceEvent] 
-      events lastEvtTime = do
-        maybeEvts <- runMaybeT $ do
-          service <- getService serviceName cref
-          return $ service ^. csEvents
-        evts <- return $ maybe [] id maybeEvts
-        return $ case lastEvtTime of
-          Nothing -> maybeToList . listToMaybe $ evts
-          Just t  -> takeWhile (\ev -> maybe False (< t) $ ev ^. seCreatedAt) $ evts
-      
-      lastEventTime :: [ServiceEvent] -> Maybe UTCTime
-      lastEventTime evts = listToMaybe evts >>= view seCreatedAt
+serviceEvents' :: ServiceRef -> Maybe UTCTime -> GrootAction [ServiceEvent]
+serviceEvents' (ServiceRef serviceName clusterRef) lastEventTime = do
+  service <- liftAWS . runMaybeT $ getService serviceName clusterRef
+  case service of
+    Nothing -> throwError $ ServiceNotFound serviceName (Just clusterRef)
+    Just s  -> do
+      events <- return $ s ^.csEvents
+      return $ case lastEventTime of
+        Nothing -> events
+        Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. seCreatedAt) events
 
-      loop :: Maybe UTCTime -> Source IO ([ServiceEvent], Maybe UTCTime)
-      loop lastEvtTime = do
-        yieldM $ do
-          evts     <- runResourceT . runAWS env $ events lastEvtTime
-          nextTime <- return $ lastEventTime evts
-          return (evts, nextTime)
-        
-  in loop Nothing =$= CL.map fst =$= CL.concat
+serviceEventLog :: ServiceRef
+                -> Bool
+                -> Source GrootAction ServiceEvent
+serviceEventLog serviceRef inf = start =$= loop
+  where start :: Source GrootAction (Maybe UTCTime)
+        start = yield Nothing
+
+        fetch :: Maybe UTCTime -> GrootAction ([ServiceEvent], Maybe UTCTime)
+        fetch lastEventTime = do
+          events <- serviceEvents' serviceRef lastEventTime
+          return $ (events, listToMaybe events >>= view seCreatedAt)
+
+        loop :: Conduit (Maybe UTCTime) GrootAction ServiceEvent
+        loop = do
+          prev <- await
+          case prev of
+            Nothing            -> return ()
+            Just lastEventTime -> do
+              (events, nextTime) <- lift $ fetch lastEventTime
+              CL.sourceList events
+              if inf then do
+                leftover $ nextTime <|> lastEventTime
+                liftIO $ threadDelay 1000000
+                loop
+              else return ()
+
