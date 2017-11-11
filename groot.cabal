@@ -51,11 +51,12 @@ executable groot
                      , attoparsec
                      , boxes
                      , bytestring
-                     , optparse-applicative
                      , conduit
-                     , ini
                      , directory
+                     , exceptions
                      , http-types
+                     , optparse-applicative                     
+                     , ini                                          
                      , lens
                      , text
                      , time

@@ -1,20 +1,24 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Groot.Data.Task where
 
 import Data.Data
-import Data.Text
+import Data.String
+import Data.Text (Text)
+import qualified Data.Text as T
 import GHC.Generics
+import Network.AWS.Data.Text
 
-newtype TaskARN = TaskARN Text
-  deriving (Eq, Generic, Data)
+newtype TaskRef = TaskRef Text
+  deriving (Eq, Show, Generic, Data, Read)
 
-instance Show TaskARN where
-  show (TaskARN arn) = unpack arn
+instance IsString TaskRef where
+  fromString = TaskRef . T.pack
+
+instance ToText TaskRef where
+  toText (TaskRef t) = t
 
 data TaskStatus =
     Running

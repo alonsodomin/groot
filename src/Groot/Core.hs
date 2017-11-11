@@ -100,7 +100,8 @@ getInstance iref cref = do
 
 fetchInstances :: MonadAWS m => ClusterRef -> Source m ContainerInstance
 fetchInstances (ClusterRef cref) =
-  let getInstanceBatch batch = do
+  let getInstanceBatch []    = return []
+      getInstanceBatch batch = do
         res <- send $ dciCluster ?~ cref $ dciContainerInstances .~ batch $ describeContainerInstances
         return $ res ^. dcisrsContainerInstances
   in paginate (lciCluster ?~ cref $ listContainerInstances)
@@ -113,28 +114,45 @@ fetchAllInstances = fetchClusters
 
 -- Tasks
 
-getTask :: ClusterRef -> TaskARN -> MaybeT AWS Task
-getTask (ClusterRef cref) (TaskARN tArn) = MaybeT $ do
-  res <- send $ dtCluster ?~ cref $ dtTasks .~ [tArn] $ describeTasks
-  return $ listToMaybe $ res ^. dtrsTasks
+fetchTasksC :: MonadAWS m => [TaskRef] -> Conduit ClusterRef m Task
+fetchTasksC tasks =
+  awaitForever (\cref -> yieldM $ do
+    res <- send $ dtCluster ?~ (toText cref) $ dtTasks .~ (toText <$> tasks) $ describeTasks
+    return $ listToMaybe $ res ^. dtrsTasks
+  ) =$= CL.concat
 
-fetchTasks :: ClusterRef -> Source AWS Task
+fetchAllTasksC :: MonadAWS m => Conduit ClusterRef m Task
+fetchAllTasksC = awaitForever (\cref -> yieldM . sourceToList $ fetchTasks cref) =$= CL.concat
+
+findTasks :: MonadAWS m => [TaskRef] -> Maybe ClusterRef -> Source m Task
+findTasks tasks (Just clusterRef) =
+  yield clusterRef =$= fetchTasksC tasks
+findTasks tasks _ =
+  fetchClusters =$= CL.mapMaybe clusterName =$= fetchTasksC tasks
+
+findTask :: MonadAWS m => TaskRef -> Maybe ClusterRef -> MaybeT m Task
+findTask tref cref = MaybeT . runConduit $ findTasks [tref] cref =$= CL.head
+
+getTask :: MonadAWS m => TaskRef -> Maybe ClusterRef -> m Task
+getTask tref cref = do
+  t <- runMaybeT $ findTask tref cref
+  case t of
+    Just x  -> return x
+    Nothing -> throwM $ taskNotFound tref cref
+
+fetchTasks :: MonadAWS m => ClusterRef -> Source m Task
 fetchTasks (ClusterRef cref) =
-  let getTaskBatch batch = do
+  let getTaskBatch []    = return []
+      getTaskBatch batch = do
         res <- send $ dtCluster ?~ cref $ dtTasks .~ batch $ describeTasks
         return $ res ^. dtrsTasks
   in paginate (ltCluster ?~ cref $ listTasks)
      =$= CL.concatMapM (\x -> getTaskBatch (view ltrsTaskARNs x))
 
-fetchAllTasks :: Source AWS Task
-fetchAllTasks =
-  let fetchTasksC :: Conduit ClusterRef AWS [Task]
-      fetchTasksC =
-        awaitForever (\x -> yieldM $ sourceToList $ fetchTasks x)
-  in fetchClusters
-     =$= CL.mapMaybe clusterName
-     =$= fetchTasksC
-     =$= CL.concat
+fetchAllTasks :: MonadAWS m => Source m Task
+fetchAllTasks = fetchClusters
+  =$= CL.mapMaybe clusterName
+  =$= fetchAllTasksC
 
 -- Task Definitions
 

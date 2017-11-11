@@ -6,7 +6,9 @@ module Groot.App
      ) where
 
 import Control.Applicative
+import Control.Exception.Lens
 import Control.Lens
+import Control.Monad.Catch
 import Control.Monad.Trans.Maybe
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Text as T
@@ -48,14 +50,17 @@ grootCmd (ComposeCmd opts) = runGrootCompose opts
 grootCmd (ListCmd opts)    = runGrootList opts
 grootCmd (EventsCmd opts)  = runGrootEvents opts
 
-groot :: CliOptions -> IO ()
-groot opts = catching _ServiceError exec handler
-  where exec :: IO ()
-        exec = loadEnv opts >>= grootCmd (cmd opts)
+serviceErrorHandler :: ServiceError -> IO ()
+serviceErrorHandler err =
+  let servName  = T.unpack . toText $ err ^. serviceAbbrev
+      statusMsg = BS.unpack . statusMessage $ err ^. serviceStatus
+      message   = maybe "" (T.unpack . toText) $ err ^. serviceMessage
+  in putStrLn $ servName ++ " Error (" ++ statusMsg ++ "): " ++ message
 
-        handler :: ServiceError -> IO ()
-        handler err =
-          let servName  = T.unpack . toText $ err ^. serviceAbbrev
-              statusMsg = BS.unpack . statusMessage $ err ^. serviceStatus
-              message   = maybe "" (T.unpack . toText) $ err ^. serviceMessage
-          in putStrLn $ servName ++ " Error (" ++ statusMsg ++ "): " ++ message
+handleExceptions :: IO () -> IO ()
+handleExceptions action = catches action [
+    handler _ServiceError serviceErrorHandler
+  ]
+
+groot :: CliOptions -> IO ()
+groot opts = handleExceptions $ loadEnv opts >>= grootCmd (cmd opts)

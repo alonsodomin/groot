@@ -14,18 +14,25 @@ import Network.AWS.Data.Text
 data GrootError =
     ClusterNotFound ClusterNotFound
   | InstanceNotFound InstanceNotFound
+  | TaskNotFound TaskNotFound
   | ServiceNotFound ServiceNotFound
   | AmbiguousServiceName AmbiguousServiceName
   deriving (Eq, Typeable)
 
 data ClusterNotFound = ClusterNotFound' ClusterRef
-  deriving (Eq, Typeable)
+  deriving (Eq, Typeable, Show)
+
 data InstanceNotFound = InstanceNotFound' InstanceRef (Maybe ClusterRef)
-  deriving (Eq, Typeable)
+  deriving (Eq, Typeable, Show)
+
+data TaskNotFound = TaskNotFound' TaskRef (Maybe ClusterRef)
+  deriving (Eq, Typeable, Show)
+
 data ServiceNotFound = ServiceNotFound' Text (Maybe ClusterRef)
-  deriving (Eq, Typeable)
+  deriving (Eq, Typeable, Show)
+
 data AmbiguousServiceName = AmbiguousServiceName' Text [ClusterRef]
-  deriving (Eq, Typeable)
+  deriving (Eq, Typeable, Show)
 
 -- Smart constructors
 
@@ -35,6 +42,10 @@ clusterNotFound = ClusterNotFound . ClusterNotFound'
 instanceNotFound :: InstanceRef -> Maybe ClusterRef -> GrootError
 instanceNotFound instanceRef clusterRef =
   InstanceNotFound (InstanceNotFound' instanceRef clusterRef)
+
+taskNotFound :: TaskRef -> Maybe ClusterRef -> GrootError
+taskNotFound taskRef clusterRef =
+  TaskNotFound (TaskNotFound' taskRef clusterRef)
 
 serviceNotFound :: Text -> Maybe ClusterRef -> GrootError
 serviceNotFound serviceName clusterRef =
@@ -55,6 +66,11 @@ _InstanceNotFound :: Prism' GrootError InstanceNotFound
 _InstanceNotFound = prism InstanceNotFound $ \case
   InstanceNotFound e -> Right e
   x                  -> Left x
+
+_TaskNotFound :: Prism' GrootError TaskNotFound
+_TaskNotFound = prism TaskNotFound $ \case
+  TaskNotFound e -> Right e
+  x              -> Left x
 
 _ServiceNotFound :: Prism' GrootError ServiceNotFound
 _ServiceNotFound = prism ServiceNotFound $ \case
