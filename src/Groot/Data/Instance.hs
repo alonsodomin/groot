@@ -6,25 +6,31 @@ module Groot.Data.Instance where
 
 import Data.Aeson
 import Data.Data
-import Data.Text
+import Data.String
+import Data.Text (Text)
+import qualified Data.Text as T
 import GHC.Generics
+import Network.AWS.Data.Text
 
 newtype AMI = AMI Text
   deriving (Eq, Show, Data, Read, Generic)
 
+instance IsString AMI where
+  fromString = AMI . T.pack
+
 instance FromJSON AMI
 
-newtype InstanceARN = InstanceARN Text
-  deriving (Eq, Data, Generic)
+instance ToText AMI where
+  toText (AMI s) = s
 
-instance Show InstanceARN where
-  show (InstanceARN arn) = unpack arn
+newtype InstanceRef = InstanceRef Text
+  deriving (Eq, Show, Data, Read, Generic)
 
-newtype InstanceId = InstanceId Text
-  deriving (Eq, Data, Generic)
+instance ToText InstanceRef where
+  toText (InstanceRef s) = s
 
-instance Show InstanceId where
-  show (InstanceId x) = unpack x
+instance IsString InstanceRef where
+  fromString = InstanceRef . T.pack
 
 data InstanceStatus =
     InstanceActive

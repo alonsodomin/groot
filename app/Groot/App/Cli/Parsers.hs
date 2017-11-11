@@ -12,6 +12,7 @@ module Groot.App.Cli.Parsers
 import Options.Applicative
 import qualified Data.Attoparsec.Text as A
 import Data.Semigroup ((<>))
+import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
@@ -24,7 +25,6 @@ import Network.AWS.Data.Text
 
 import Groot.Data (
     ClusterRef(..)
-  , mkClusterRef
   , TaskFamily(..)
   )
 
@@ -67,7 +67,7 @@ regionOpt = option (attoReadM parser)
          <> help "AWS Region identifier" )
 
 clusterOpt :: Parser ClusterRef
-clusterOpt = mkClusterRef <$> strOption
+clusterOpt = fromString <$> strOption
            ( long "cluster"
           <> short 'c'
           <> metavar "CLUSTER_REF"

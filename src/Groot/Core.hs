@@ -15,6 +15,7 @@ import Data.Maybe (listToMaybe, isJust)
 import Data.Text (Text)
 import Data.Time.Clock
 import Network.AWS hiding (await)
+import Network.AWS.Data.Text
 import Network.AWS.ECS hiding (cluster)
 
 import Groot.Data
@@ -71,15 +72,33 @@ fetchClusters =
 
 -- Container Instances
 
-findInstance :: MonadAWS m => InstanceARN -> Maybe ClusterRef -> MaybeT m ContainerInstance
-findInstance = undefined
+fetchInstancesC :: MonadAWS m => [InstanceRef] -> Conduit ClusterRef m ContainerInstance
+fetchInstancesC instances =
+  awaitForever (\cref -> yieldM $ do
+    res <- send $ dciCluster ?~ (toText cref) $ dciContainerInstances .~ (toText <$> instances) $ describeContainerInstances
+    return $ res ^. dcisrsContainerInstances
+  ) =$= CL.concat
 
-getInstance :: ClusterRef -> InstanceARN -> MaybeT AWS ContainerInstance
-getInstance (ClusterRef cref) (InstanceARN iArn) = MaybeT $ do
-  res <- send $ dciCluster ?~ cref $ dciContainerInstances .~ [iArn] $ describeContainerInstances
-  return $ listToMaybe (res ^. dcisrsContainerInstances)
+fetchAllInstancesC :: MonadAWS m => Conduit ClusterRef m ContainerInstance
+fetchAllInstancesC = awaitForever (\cref -> yieldM . sourceToList $ fetchInstances cref) =$= CL.concat
 
-fetchInstances :: ClusterRef -> Source AWS ContainerInstance
+findInstances :: MonadAWS m => [InstanceRef] -> Maybe ClusterRef -> Source m ContainerInstance
+findInstances instances (Just clusterRef) =
+  yield clusterRef =$= fetchInstancesC instances
+findInstances instances _ =
+  fetchClusters =$= CL.mapMaybe clusterName =$= fetchInstancesC instances
+
+findInstance :: MonadAWS m => InstanceRef -> Maybe ClusterRef -> MaybeT m ContainerInstance
+findInstance iref cref = MaybeT . runConduit $ findInstances [iref] cref =$= CL.head
+
+getInstance :: MonadAWS m => InstanceRef -> Maybe ClusterRef -> m ContainerInstance
+getInstance iref cref = do
+  inst <- runMaybeT $ findInstance iref cref
+  case inst of
+    Just x  -> return x
+    Nothing -> throwM $ instanceNotFound iref cref
+
+fetchInstances :: MonadAWS m => ClusterRef -> Source m ContainerInstance
 fetchInstances (ClusterRef cref) =
   let getInstanceBatch batch = do
         res <- send $ dciCluster ?~ cref $ dciContainerInstances .~ batch $ describeContainerInstances
@@ -87,15 +106,10 @@ fetchInstances (ClusterRef cref) =
   in paginate (lciCluster ?~ cref $ listContainerInstances)
      =$= CL.concatMapM (\x -> getInstanceBatch (view lcirsContainerInstanceARNs x))
 
-fetchAllInstances :: Source AWS ContainerInstance
-fetchAllInstances =
-  let fetchInstancesC :: Conduit ClusterRef AWS [ContainerInstance]
-      fetchInstancesC =
-        awaitForever (\x -> yieldM $ sourceToList $ fetchInstances x)
-  in fetchClusters
-     =$= CL.mapMaybe clusterName
-     =$= fetchInstancesC
-     =$= CL.concat
+fetchAllInstances :: MonadAWS m => Source m ContainerInstance
+fetchAllInstances = fetchClusters
+  =$= CL.mapMaybe clusterName
+  =$= fetchAllInstancesC
 
 -- Tasks
 

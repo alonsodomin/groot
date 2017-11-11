@@ -7,6 +7,7 @@ module Groot.Data.Cluster where
 
 import Control.Lens
 import Data.Data
+import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics
@@ -17,8 +18,8 @@ import qualified Network.AWS.ECS as ECS
 newtype ClusterRef = ClusterRef Text
   deriving (Eq, Show, Generic, Data, Read)
 
-mkClusterRef :: String -> ClusterRef
-mkClusterRef = ClusterRef . T.pack
+instance IsString ClusterRef where
+  fromString = ClusterRef . T.pack
 
 instance ToText ClusterRef where
   toText (ClusterRef ref) = ref
