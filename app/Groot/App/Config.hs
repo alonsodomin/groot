@@ -39,14 +39,19 @@ warnUser result = MaybeT $ do
     Right a ->
       return $ Just a
 
+sectionNameFromProfile :: Text -> Text
+sectionNameFromProfile s
+  | s == defaultProfileName = s
+  | otherwise               = T.append "profile " s
+
 regionFromConfig :: FilePath -> Maybe Text -> MaybeT IO Region
 regionFromConfig filename profile = warnUser $ do
   ini <- ExceptT $ readIniFile filename
   rid <- ExceptT . return $ lookupValue profileSection "region" ini
   liftIO $ parseRegion rid
     where profileSection :: Text
-          profileSection = maybe defaultProfileName (T.append "profile ") profile
-      
+          profileSection = maybe defaultProfileName sectionNameFromProfile profile
+
           parseRegion :: Text -> IO Region
           parseRegion rid = do
             parsed <- return $ fromText rid
