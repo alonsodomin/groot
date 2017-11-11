@@ -8,7 +8,6 @@ import Control.Lens
 import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.Trans.Maybe
-import Control.Monad.Trans.Reader
 import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Data.Maybe (listToMaybe, isJust)
@@ -19,27 +18,6 @@ import Network.AWS.ECS hiding (cluster)
 
 import Groot.Data
 import Groot.Exception
-
-type GrootAction = ExceptT GrootError AWS
-
-type GrootActionIO m a = ReaderT Env m a
-
-runActionIO :: MonadAWS m => GrootActionIO m a -> Env -> IO a
-runActionIO action = undefined
-  --runReaderT (\env -> hoist (runResourceT . runAWS env) action)
-
-handleGrootError :: forall a. GrootError -> IO a
-handleGrootError err = fail $ show err
-
-runActionM :: Env -> GrootAction a -> (a -> IO b) -> IO b
-runActionM env action success = do
-  result <- runResourceT . runAWS env . runExceptT $ action
-  case result of
-    Left err -> handleGrootError err
-    Right a -> success a
-
-runAction :: Env -> GrootAction a -> (a -> b) -> IO b
-runAction env action success = runActionM env action (\x -> return $ success x)
 
 -- Clusters
 
@@ -222,7 +200,7 @@ fetchServices (ClusterRef cref) =
   in paginate (lsCluster ?~ cref $ listServices)
      =$= CL.concatMapM (\x -> getServiceBatch (view lsrsServiceARNs x))
 
-fetchAllServices :: Source AWS ContainerService
+fetchAllServices :: MonadAWS m => Source m ContainerService
 fetchAllServices = fetchClusters
   =$= CL.mapMaybe clusterName
   =$= fetchAllServicesC

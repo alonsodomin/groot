@@ -63,8 +63,13 @@ handleServiceError err =
 -- Groot Error handlers
 
 handleClusterNotFound :: ClusterNotFound -> IO ()
-handleClusterNotFound (ClusterNotFound (ClusterRef ref)) =
+handleClusterNotFound (ClusterNotFound' (ClusterRef ref)) =
   putStrLn $ "Could not find cluster '" ++ (T.unpack ref) ++ "'"
+
+handleServiceNotFound :: ServiceNotFound -> IO ()
+handleServiceNotFound (ServiceNotFound' serviceRef clusterRef) =
+  putStrLn $ "Could not find service '" ++ (T.unpack . toText $ serviceRef) ++ "'" ++
+    maybe "" (\x -> " in cluster " ++ (T.unpack . toText $ x)) clusterRef
 
 -- Main Program execution
 
@@ -72,6 +77,7 @@ handleExceptions :: IO () -> IO ()
 handleExceptions action = catches action [
     handler _ServiceError handleServiceError
   , handler _ClusterNotFound handleClusterNotFound
+  , handler _ServiceNotFound handleServiceNotFound
   ]
 
 groot :: CliOptions -> IO ()
