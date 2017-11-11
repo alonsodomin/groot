@@ -12,16 +12,22 @@ import Groot.Data
 import Network.AWS.Data.Text
 
 data GrootError =
-    ServiceNotFound ServiceNotFound
+    ClusterNotFound ClusterNotFound
+  | ServiceNotFound ServiceNotFound
   | AmbiguousServiceName AmbiguousServiceName
   deriving (Eq, Typeable)
 
+data ClusterNotFound = ClusterNotFound' ClusterRef
+  deriving (Eq, Typeable)
 data ServiceNotFound = ServiceNotFound' Text (Maybe ClusterRef)
   deriving (Eq, Typeable)
 data AmbiguousServiceName = AmbiguousServiceName' Text [ClusterRef]
   deriving (Eq, Typeable)
 
 -- Smart constructors
+
+clusterNotFound :: ClusterRef -> GrootError
+clusterNotFound = ClusterNotFound . ClusterNotFound'
 
 serviceNotFound :: Text -> Maybe ClusterRef -> GrootError
 serviceNotFound serviceName clusterRef = ServiceNotFound (ServiceNotFound' serviceName clusterRef)
@@ -30,6 +36,11 @@ ambiguousServiceName :: Text -> [ClusterRef] -> GrootError
 ambiguousServiceName serviceName clusters = AmbiguousServiceName (AmbiguousServiceName' serviceName clusters)
 
 -- Prisms
+
+_ClusterNotFound :: Prism' GrootError ClusterNotFound
+_ClusterNotFound = prism ClusterNotFound $ \case
+  ClusterNotFound e -> Right e
+  x                 -> Left x
 
 _ServiceNotFound :: Prism' GrootError ServiceNotFound
 _ServiceNotFound = prism ServiceNotFound $ \case
@@ -44,6 +55,8 @@ _AmbiguousServiceName = prism AmbiguousServiceName $ \case
 -- Instances
 
 instance Show GrootError where
+  show (ClusterNotFound (ClusterNotFound' (ClusterRef ref))) =
+    "Could not find cluster '" ++ (T.unpack ref) ++ "'"
   show (ServiceNotFound (ServiceNotFound' serviceName clusterRef)) =
     "Could not find service '" ++ (T.unpack serviceName) ++ "'" ++
     maybe "" (\x -> " in cluster " ++ (T.unpack . toText $ x)) clusterRef

@@ -106,9 +106,9 @@ instance FromJSON GrootCompose where
                  fieldLabelModifier = drop 1 }
 
 -- Validates that the given id points to an active cluster
-findCluster :: ClusterRef -> MaybeT AWS Cluster
-findCluster clusterRef =
-  filterM (ClusterStatusFilter ClusterActive) (getCluster clusterRef)
+findActiveCluster :: ClusterRef -> MaybeT AWS Cluster
+findActiveCluster clusterRef =
+  filterM (ClusterStatusFilter ClusterActive) (findCluster clusterRef)
 
 findContainerService :: Text -> ClusterRef -> MaybeT AWS ContainerService
 findContainerService serviceName clusterRef =

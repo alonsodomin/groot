@@ -5,12 +5,13 @@ module Groot.Core where
 import Control.Applicative
 import Control.Concurrent (threadDelay)
 import Control.Lens
+import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Reader
 import Data.Conduit
 import qualified Data.Conduit.List as CL
-import Data.Maybe (listToMaybe)
+import Data.Maybe (listToMaybe, isJust)
 import Data.Text (Text)
 import Data.Time.Clock
 import Network.AWS hiding (await)
@@ -45,12 +46,22 @@ runAction env action success = runActionM env action (\x -> return $ success x)
 clusterName :: Cluster -> Maybe ClusterRef
 clusterName cluster = ClusterRef <$> cluster ^. cClusterName
 
-getCluster :: ClusterRef -> MaybeT AWS Cluster
-getCluster (ClusterRef cref) = MaybeT $ do
+clusterExists :: MonadAWS m => ClusterRef -> m Bool
+clusterExists clusterRef = isJust <$> (runMaybeT $ findCluster clusterRef)
+
+findCluster :: MonadAWS m => ClusterRef -> MaybeT m Cluster
+findCluster (ClusterRef cref) = MaybeT $ do
   res <- send $ dcClusters .~ [cref] $ describeClusters
   return $ listToMaybe (res ^. dcrsClusters)
 
-fetchClusters :: Source AWS Cluster
+getCluster :: MonadAWS m => ClusterRef -> m Cluster
+getCluster clusterRef = do
+  cluster <- runMaybeT $ findCluster clusterRef
+  case cluster of
+    Just c  -> return c
+    Nothing -> throwM $ clusterNotFound clusterRef
+
+fetchClusters :: MonadAWS m => Source m Cluster
 fetchClusters =
   let getClusterBatch batch = do
         res <- send $ dcClusters .~ batch $ describeClusters
@@ -59,6 +70,9 @@ fetchClusters =
       =$= CL.concatMapM (\x -> getClusterBatch (x ^. lcrsClusterARNs))
 
 -- Container Instances
+
+findInstance :: MonadAWS m => InstanceARN -> Maybe ClusterRef -> MaybeT m ContainerInstance
+findInstance = undefined
 
 getInstance :: ClusterRef -> InstanceARN -> MaybeT AWS ContainerInstance
 getInstance (ClusterRef cref) (InstanceARN iArn) = MaybeT $ do
