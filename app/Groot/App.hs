@@ -1,8 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Groot.App 
-     (
-       groot
+     ( groot
      ) where
 
 import Control.Applicative
@@ -21,6 +20,8 @@ import Groot.App.Config
 import Groot.App.Compose
 import Groot.App.Events
 import Groot.App.List
+import Groot.Data
+import Groot.Exception
 
 loadEnv :: CliOptions -> IO Env
 loadEnv opts = do
@@ -50,16 +51,27 @@ grootCmd (ComposeCmd opts) = runGrootCompose opts
 grootCmd (ListCmd opts)    = runGrootList opts
 grootCmd (EventsCmd opts)  = runGrootEvents opts
 
-serviceErrorHandler :: ServiceError -> IO ()
-serviceErrorHandler err =
+-- AWS Error handlers
+
+handleServiceError :: ServiceError -> IO ()
+handleServiceError err =
   let servName  = T.unpack . toText $ err ^. serviceAbbrev
       statusMsg = BS.unpack . statusMessage $ err ^. serviceStatus
       message   = maybe "" (T.unpack . toText) $ err ^. serviceMessage
   in putStrLn $ servName ++ " Error (" ++ statusMsg ++ "): " ++ message
 
+-- Groot Error handlers
+
+handleClusterNotFound :: ClusterNotFound -> IO ()
+handleClusterNotFound (ClusterNotFound (ClusterRef ref)) =
+  putStrLn $ "Could not find cluster '" ++ (T.unpack ref) ++ "'"
+
+-- Main Program execution
+
 handleExceptions :: IO () -> IO ()
 handleExceptions action = catches action [
-    handler _ServiceError serviceErrorHandler
+    handler _ServiceError handleServiceError
+  , handler _ClusterNotFound handleClusterNotFound
   ]
 
 groot :: CliOptions -> IO ()

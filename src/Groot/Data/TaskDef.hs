@@ -5,22 +5,29 @@
 module Groot.Data.TaskDef where
 
 import Data.Data
-import Data.Text
+import Data.String
+import Data.Text (Text)
+import qualified Data.Text as T
 import GHC.Generics
-import Groot.Data.Base
-import qualified Network.AWS.ECS as ECS
+import Network.AWS.Data.Text
 
-newtype TaskDefARN = TaskDefARN Text
-  deriving (Eq, Generic, Data)
+newtype TaskDefRef = TaskDefRef Text
+  deriving (Eq, Generic, Data, Show, Read)
 
-instance Show TaskDefARN where
-  show (TaskDefARN arn) = unpack arn
+instance IsString TaskDefRef where
+  fromString = TaskDefRef . T.pack
+
+instance ToText TaskDefRef where
+  toText (TaskDefRef t) = t
 
 newtype TaskFamily = TaskFamily Text
-  deriving (Eq, Generic, Data)
+  deriving (Eq, Generic, Data, Show, Read)
 
-instance Show TaskFamily where
-  show (TaskFamily x) = unpack x
+instance IsString TaskFamily where
+  fromString = TaskFamily . T.pack
+
+instance ToText TaskFamily where
+  toText (TaskFamily f) = f
 
 data TaskDefStatus =
     TaskActive

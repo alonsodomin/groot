@@ -12,7 +12,6 @@ import Control.Monad.Trans.Reader
 import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Data.Maybe (listToMaybe, isJust)
-import Data.Text (Text)
 import Data.Time.Clock
 import Network.AWS hiding (await)
 import Network.AWS.Data.Text
@@ -156,17 +155,17 @@ fetchAllTasks = fetchClusters
 
 -- Task Definitions
 
-getTaskDef :: TaskDefARN -> MaybeT AWS TaskDefinition
-getTaskDef (TaskDefARN arn) = MaybeT $ do
+getTaskDef :: MonadAWS m => TaskDefRef -> MaybeT m TaskDefinition
+getTaskDef (TaskDefRef arn) = MaybeT $ do
   res <- send $ describeTaskDefinition arn
   return $ res ^. desrsTaskDefinition
 
-taskDefFromTask :: Task -> MaybeT AWS TaskDefinition
+taskDefFromTask :: MonadAWS m => Task -> MaybeT m TaskDefinition
 taskDefFromTask tsk = do
-  arn <- MaybeT . return $ TaskDefARN <$> tsk ^. tTaskDefinitionARN
+  arn <- MaybeT . return $ TaskDefRef <$> tsk ^. tTaskDefinitionARN
   getTaskDef arn
 
-fetchTaskDefs :: Foldable f => f TaskDefFilter -> Source AWS TaskDefinition
+fetchTaskDefs :: (MonadAWS m, Foldable f) => f TaskDefFilter -> Source m TaskDefinition
 fetchTaskDefs filters =
   let tds :: TaskDefStatus -> TaskDefinitionStatus
       tds TaskActive   = TDSActive
@@ -178,84 +177,75 @@ fetchTaskDefs filters =
 
   in paginate (foldr withFilter listTaskDefinitions filters)
      =$= CL.concatMap (view ltdrsTaskDefinitionARNs)
-     =$= CL.map TaskDefARN
+     =$= CL.map TaskDefRef
      =$= CL.mapMaybeM (\x -> runMaybeT (getTaskDef x))
 
 -- Services
 
-data ServiceRef = ServiceRef Text ClusterRef
+serviceCoords :: ContainerService -> Maybe ServiceCoords
+serviceCoords service = ServiceCoords <$> serviceRef <*> clusterRef
+  where serviceRef = ServiceRef <$> service ^. csServiceARN
+        clusterRef = ClusterRef <$> service ^. csClusterARN
 
-serviceRef :: ContainerService -> Maybe ServiceRef
-serviceRef service = ServiceRef <$> serviceName <*> clusterRef
-  where serviceName = service ^. csServiceName
-        clusterRef  = ClusterRef <$> service ^. csClusterARN
+fetchServicesC :: MonadAWS m => [ServiceRef] -> Conduit ClusterRef m ContainerService
+fetchServicesC services =
+  awaitForever (\cref -> yieldM $ do
+    res <- send $ dCluster ?~ (toText cref) $ dServices .~ (toText <$> services) $ describeServices
+    return $ listToMaybe (res ^. dssrsServices)
+  ) =$= CL.concat
 
-getService :: Text -> ClusterRef -> MaybeT AWS ContainerService
-getService serviceName (ClusterRef cref) = MaybeT $ do
-  res <- send $ dCluster ?~ cref $ dServices .~ [serviceName] $ describeServices
-  return $ listToMaybe (res ^. dssrsServices)
+fetchAllServicesC :: MonadAWS m => Conduit ClusterRef m ContainerService
+fetchAllServicesC = awaitForever (\cref -> yieldM . sourceToList $ fetchServices cref) =$= CL.concat
 
-fetchServices :: ClusterRef -> Source AWS ContainerService
+findServices :: MonadAWS m => [ServiceRef] -> Maybe ClusterRef -> Source m ContainerService
+findServices services (Just clusterRef) =
+  yield clusterRef =$= fetchServicesC services
+findServices services _ =
+  fetchClusters =$= CL.mapMaybe clusterName =$= fetchServicesC services
+
+findService :: MonadAWS m => ServiceRef -> Maybe ClusterRef -> MaybeT m ContainerService
+findService sref cref = MaybeT . runConduit $ findServices [sref] cref =$= CL.head
+
+getService :: MonadAWS m => ServiceRef -> Maybe ClusterRef -> m ContainerService
+getService serviceName clusterRef = do
+  serv <- runMaybeT $ findService serviceName clusterRef
+  case serv of
+    Just x  -> return x
+    Nothing -> throwM $ serviceNotFound serviceName clusterRef
+
+fetchServices :: MonadAWS m => ClusterRef -> Source m ContainerService
 fetchServices (ClusterRef cref) =
-  let getServiceBatch batch = do
+  let getServiceBatch []    = return []
+      getServiceBatch batch = do
         res <- send $ dCluster ?~ cref $ dServices .~ batch $ describeServices
         return $ res ^. dssrsServices
   in paginate (lsCluster ?~ cref $ listServices)
      =$= CL.concatMapM (\x -> getServiceBatch (view lsrsServiceARNs x))
 
 fetchAllServices :: Source AWS ContainerService
-fetchAllServices =
-  let fetchServicesC :: Conduit ClusterRef AWS [ContainerService]
-      fetchServicesC =
-        awaitForever (\x -> yieldM $ sourceToList $ fetchServices x)
-  in fetchClusters
-     =$= CL.mapMaybe clusterName
-     =$= fetchServicesC
-     =$= CL.concat
+fetchAllServices = fetchClusters
+  =$= CL.mapMaybe clusterName
+  =$= fetchAllServicesC
 
-findService :: Text -> Maybe ClusterRef -> GrootAction ContainerService
-findService serviceName (Just cid) = do
-  found <- liftAWS . runMaybeT $ getService serviceName cid
-  maybe (throwError $ serviceNotFound serviceName (Just cid)) return found
-findService serviceName _ = do
-  found <- liftAWS . sourceToList $ fetchClusters
-           =$= CL.mapMaybe clusterName
-           =$= CL.mapMaybeM (\x -> runMaybeT $ fmap (\y -> (y,x)) $ getService serviceName x)
-  if (length found) > 1
-  then throwError $ ambiguousServiceName serviceName (map snd found)
-  else maybe (throwError $ serviceNotFound serviceName Nothing) (return . fst) $ listToMaybe found
-
-serviceEvents :: Monad m => ContainerService -> Maybe UTCTime -> m [ServiceEvent]
-serviceEvents service lastEventTime = do
-  events <- return $ service ^. csEvents
-  return $ case lastEventTime of
-    Nothing -> events
-    Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. seCreatedAt) $ events
-
-serviceEvents' :: ServiceRef -> Maybe UTCTime -> GrootAction [ServiceEvent]
-serviceEvents' (ServiceRef serviceName clusterRef) lastEventTime = do
-  service <- liftAWS . runMaybeT $ getService serviceName clusterRef
-  case service of
-    Nothing -> throwError $ serviceNotFound serviceName (Just clusterRef)
-    Just s  -> do
-      events <- return $ s ^.csEvents
-      return $ case lastEventTime of
-        Nothing -> events
-        Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. seCreatedAt) events
-
-serviceEventLog :: ServiceRef
+serviceEventLog :: MonadAWS m
+                => ServiceCoords
                 -> Bool
-                -> Source GrootAction ServiceEvent
-serviceEventLog serviceRef inf = start =$= loop
-  where start :: Source GrootAction (Maybe UTCTime)
-        start = yield Nothing
-
-        fetch :: Maybe UTCTime -> GrootAction ([ServiceEvent], Maybe UTCTime)
+                -> Source m ServiceEvent
+serviceEventLog (ServiceCoords serviceName clusterRef) inf = yield Nothing =$= loop
+  where serviceEvents :: MonadAWS m => Maybe UTCTime -> m [ServiceEvent]
+        serviceEvents lastEventTime = do
+          service <- getService serviceName (Just clusterRef)
+          events <- return $ service ^.csEvents
+          return $ case lastEventTime of
+            Nothing -> events
+            Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. seCreatedAt) events
+    
+        fetch :: MonadAWS m => Maybe UTCTime -> m ([ServiceEvent], Maybe UTCTime)
         fetch lastEventTime = do
-          events <- serviceEvents' serviceRef lastEventTime
+          events <- serviceEvents lastEventTime
           return $ (events, listToMaybe events >>= view seCreatedAt)
 
-        loop :: Conduit (Maybe UTCTime) GrootAction ServiceEvent
+        loop :: MonadAWS m => Conduit (Maybe UTCTime) m ServiceEvent
         loop = do
           prev <- await
           case prev of

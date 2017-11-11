@@ -4,17 +4,18 @@ module Groot.App.Events
        , runGrootEvents
        ) where
 
-import Control.Concurrent (threadDelay)
+import Control.Monad.Catch
+import Control.Monad.IO.Class
 import Control.Lens hiding (argument)
-import Data.Foldable (forM_)
-import Data.Maybe (listToMaybe)
+import Data.Conduit
 import Data.Semigroup ((<>))
-import Data.Text (Text, pack, unpack)
-import Data.Time.Clock
+import Data.String
+import qualified Data.Text as T
 import Groot.App.Cli.Parsers (clusterOpt)
 import Groot.Core
 import Groot.Data
-import Network.AWS
+import Groot.Exception
+import Network.AWS hiding (await)
 import qualified Network.AWS.ECS as ECS
 import Text.PrettyPrint.Boxes (printBox, (<+>))
 import qualified Text.PrettyPrint.Boxes as B
@@ -23,7 +24,7 @@ import Options.Applicative
 data EventOptions = EventOptions
   { _clusterId   :: Maybe ClusterRef
   , _follow      :: Bool
-  , _serviceName :: Text
+  , _serviceName :: ServiceRef
   } deriving (Eq, Show)
 
 grootEventsCli :: Parser EventOptions
@@ -33,7 +34,7 @@ grootEventsCli = EventOptions
                ( long "follow"
               <> short 'f'
               <> help "Follow the trail of events" )
-             <*> (pack <$> argument str (metavar "SERVICE_NAME"))
+             <*> (fromString <$> argument str (metavar "SERVICE_NAME"))
 
 layoutEvent :: ECS.ServiceEvent -> B.Box
 layoutEvent event =
@@ -41,36 +42,35 @@ layoutEvent event =
   (B.text . padL 27 $ maybe "" show $ event ^. ECS.seCreatedAt) <+>
   (B.text "]") <+>
   (B.text "-") <+>
-  (B.text $ maybe "" unpack $ event ^. ECS.seMessage)
+  (B.text $ maybe "" T.unpack $ event ^. ECS.seMessage)
   where padL :: Int -> String -> String
         padL n str
           | length str < n = str ++ replicate (n - length str) ' '
           | otherwise      = str
 
-fetchEvents :: Env -> Text -> Maybe ClusterRef -> Maybe UTCTime -> IO ([ECS.ServiceEvent], Maybe UTCTime)
-fetchEvents env name cid lastEvtTime =
-  runAction env latestEvents eventsAndLastTime
-  where latestEvents = do
-          service <- findService name cid
-          serviceEvents service lastEvtTime
+findServiceCoords :: MonadAWS m => ServiceRef -> m ServiceCoords
+findServiceCoords serviceRef = do
+  mcoords <- (serviceCoords <$> getService serviceRef Nothing)
+  case mcoords of
+    Just c  -> return c
+    Nothing -> throwM $ serviceNotFound serviceRef Nothing
 
-        eventsAndLastTime :: [ECS.ServiceEvent] -> ([ECS.ServiceEvent], Maybe UTCTime)
-        eventsAndLastTime events = (events, listToMaybe events >>= view ECS.seCreatedAt)
+fetchEvents :: Env -> ServiceCoords -> Bool -> Source IO ECS.ServiceEvent
+fetchEvents env coords inf =
+  transPipe (runResourceT . runAWS env) $ serviceEventLog coords inf
 
-printEvents :: [ECS.ServiceEvent] -> IO ()
-printEvents events =
-  forM_ (reverse events) printEvent
-  where printEvent :: ECS.ServiceEvent -> IO ()
-        printEvent = printBox . layoutEvent
+printEvents :: Sink ECS.ServiceEvent IO ()
+printEvents = do
+  mevent <- await
+  case mevent of
+    Just event -> do
+      liftIO $ printBox . layoutEvent $ event
+      printEvents
+    Nothing -> return ()
 
 runGrootEvents :: EventOptions -> Env -> IO ()
-runGrootEvents (EventOptions clusterId follow serviceName) env =
-  loop Nothing
-  where loop :: Maybe UTCTime -> IO ()
-        loop lastEvtTime = do
-          (evts, nextTime) <- fetchEvents env serviceName clusterId lastEvtTime
-          printEvents evts
-          if follow then do
-            threadDelay 1000000
-            loop $ nextTime <|> lastEvtTime
-          else return ()
+runGrootEvents (EventOptions (Just clusterRef) follow serviceRef) env =
+  runConduit $ fetchEvents env (ServiceCoords serviceRef clusterRef) follow =$ printEvents
+runGrootEvents (EventOptions Nothing follow serviceRef) env = do
+  coords <- runResourceT . runAWS env $ findServiceCoords serviceRef
+  runConduit $ fetchEvents env coords follow =$ printEvents

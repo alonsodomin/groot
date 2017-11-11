@@ -110,9 +110,9 @@ findActiveCluster :: ClusterRef -> MaybeT AWS Cluster
 findActiveCluster clusterRef =
   filterM (ClusterStatusFilter ClusterActive) (findCluster clusterRef)
 
-findContainerService :: Text -> ClusterRef -> MaybeT AWS ContainerService
-findContainerService serviceName clusterRef =
-  filterM (ServiceStatusFilter ServiceActive) (getService serviceName clusterRef)
+findActiveService :: ServiceRef -> ClusterRef -> MaybeT AWS ContainerService
+findActiveService serviceRef clusterRef =
+  filterM (ServiceStatusFilter ServiceActive) (getService serviceRef (Just clusterRef))
   
 grootDeploy :: GrootCompose -> NEL.NonEmpty Text -> AWS ()
 grootDeploy = undefined
