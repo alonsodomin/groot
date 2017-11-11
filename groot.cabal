@@ -25,8 +25,10 @@ library
                      , Groot.Data.Task
                      , Groot.Data.TaskDef
                      , Groot.Data
+                     , Groot.Exception
   build-depends:       base >= 4.7 && < 5
                      , aeson
+                     , exceptions
                      , lens
                      , text
                      , conduit

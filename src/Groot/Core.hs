@@ -1,40 +1,40 @@
+{-# LANGUAGE RankNTypes #-}
+
 module Groot.Core where
 
 import Control.Applicative
 import Control.Concurrent (threadDelay)
 import Control.Lens
 import Control.Monad.Except
-import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.Reader
 import Data.Conduit
 import qualified Data.Conduit.List as CL
-import Data.Maybe (listToMaybe, maybeToList)
-import Data.List (intercalate)
+import Data.Maybe (listToMaybe)
 import Data.Text (Text)
-import qualified Data.Text as T
 import Data.Time.Clock
 import Network.AWS hiding (await)
-import Network.AWS.Data.Text
 import Network.AWS.ECS hiding (cluster)
 
 import Groot.Data
-
-data GrootError =
-    ServiceNotFound Text (Maybe ClusterRef)
-  | AmbiguousServiceName Text [ClusterRef]
+import Groot.Exception
 
 type GrootAction = ExceptT GrootError AWS
+
+type GrootActionIO m a = ReaderT Env m a
+
+runActionIO :: MonadAWS m => GrootActionIO m a -> Env -> IO a
+runActionIO action = undefined
+  --runReaderT (\env -> hoist (runResourceT . runAWS env) action)
+
+handleGrootError :: forall a. GrootError -> IO a
+handleGrootError err = fail $ show err
 
 runActionM :: Env -> GrootAction a -> (a -> IO b) -> IO b
 runActionM env action success = do
   result <- runResourceT . runAWS env . runExceptT $ action
   case result of
-    Left (ServiceNotFound serviceName cid) ->
-      fail $ "Could not find service '" ++ (T.unpack serviceName) ++ "'" ++
-           maybe "" (\x -> " in cluster " ++ (T.unpack . toText $ x)) cid
-    Left (AmbiguousServiceName serviceName clusters) ->
-      fail $ "Service name '" ++ (T.unpack serviceName) ++ "' is ambiguous. It was found in the following clusters:\n" ++ (clusterList clusters)
-      where clusterList cls = intercalate "\n  - " $ map (T.unpack . toText) cls
+    Left err -> handleGrootError err
     Right a -> success a
 
 runAction :: Env -> GrootAction a -> (a -> b) -> IO b
@@ -170,14 +170,14 @@ fetchAllServices =
 findService :: Text -> Maybe ClusterRef -> GrootAction ContainerService
 findService serviceName (Just cid) = do
   found <- liftAWS . runMaybeT $ getService serviceName cid
-  maybe (throwError $ ServiceNotFound serviceName (Just cid)) return found
+  maybe (throwError $ serviceNotFound serviceName (Just cid)) return found
 findService serviceName _ = do
   found <- liftAWS . sourceToList $ fetchClusters
            =$= CL.mapMaybe clusterName
            =$= CL.mapMaybeM (\x -> runMaybeT $ fmap (\y -> (y,x)) $ getService serviceName x)
   if (length found) > 1
-  then throwError $ AmbiguousServiceName serviceName (map snd found)
-  else maybe (throwError $ ServiceNotFound serviceName Nothing) (return . fst) $ listToMaybe found
+  then throwError $ ambiguousServiceName serviceName (map snd found)
+  else maybe (throwError $ serviceNotFound serviceName Nothing) (return . fst) $ listToMaybe found
 
 serviceEvents :: Monad m => ContainerService -> Maybe UTCTime -> m [ServiceEvent]
 serviceEvents service lastEventTime = do
@@ -190,7 +190,7 @@ serviceEvents' :: ServiceRef -> Maybe UTCTime -> GrootAction [ServiceEvent]
 serviceEvents' (ServiceRef serviceName clusterRef) lastEventTime = do
   service <- liftAWS . runMaybeT $ getService serviceName clusterRef
   case service of
-    Nothing -> throwError $ ServiceNotFound serviceName (Just clusterRef)
+    Nothing -> throwError $ serviceNotFound serviceName (Just clusterRef)
     Just s  -> do
       events <- return $ s ^.csEvents
       return $ case lastEventTime of
@@ -216,7 +216,7 @@ serviceEventLog serviceRef inf = start =$= loop
             Nothing            -> return ()
             Just lastEventTime -> do
               (events, nextTime) <- lift $ fetch lastEventTime
-              CL.sourceList events
+              CL.sourceList $ reverse events
               if inf then do
                 leftover $ nextTime <|> lastEventTime
                 liftIO $ threadDelay 1000000
