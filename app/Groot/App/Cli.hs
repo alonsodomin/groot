@@ -14,11 +14,13 @@ import Groot.App.Cli.Parsers
 import Groot.App.Compose
 import Groot.App.Events
 import Groot.App.List
+import Groot.App.Task
 
 data Cmd =
     ComposeCmd ComposeOptions
   | ListCmd ListOptions
   | EventsCmd EventOptions
+  | TaskCmd TaskOptions
   deriving (Eq, Show)
 
 data CliOptions = CliOptions
@@ -32,6 +34,7 @@ commands = hsubparser
    ( command "ls"      (info (ListCmd    <$> grootListCli)    (progDesc "List ECS resources"))
   <> command "events"  (info (EventsCmd  <$> grootEventsCli)  (progDesc "Display events for a given ECS service"))
   <> command "compose" (info (ComposeCmd <$> grootComposeCli) (progDesc "Handle Groot compose files"))
+  <> command "task"    (info (TaskCmd    <$> grootTaskCli)    (progDesc "Manage ECS tasks"))
    )
 
 cliParser :: Parser CliOptions

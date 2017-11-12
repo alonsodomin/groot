@@ -20,6 +20,9 @@ module Groot.Core
      , getTask
      , fetchTasks
      , fetchAllTasks
+     , stopTask
+     , startTask
+     , restartTask
      -- Task Definitions
      , taskDefFromTask
      , getTaskDef
@@ -43,10 +46,14 @@ import Control.Monad.Trans.Maybe
 import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Data.Maybe (listToMaybe, isJust)
+import qualified Data.Text as T
 import Data.Time.Clock
 import Network.AWS hiding (await)
+import qualified Network.AWS as A
 import Network.AWS.Data.Text
-import Network.AWS.ECS hiding (cluster)
+import Network.AWS.ECS hiding (cluster, stopTask, startTask, Running, Stopped)
+import qualified Network.AWS.ECS as ECS
+import Network.AWS.Waiter
 
 import Groot.Data
 import Groot.Exception
@@ -162,6 +169,39 @@ fetchAllTasks :: MonadAWS m => Source m Task
 fetchAllTasks = fetchClusters
   =$= CL.mapMaybe clusterName
   =$= fetchAllTasksC
+
+stopTask :: MonadAWS m => TaskRef -> ClusterRef -> m ()
+stopTask tref@(TaskRef taskRef) clusterRef = 
+  let describeReq = dtCluster ?~ (toText clusterRef) $ dtTasks .~ [taskRef] $ describeTasks
+  in do
+    send $ stCluster ?~ (toText clusterRef) $ ECS.stopTask taskRef
+    liftIO . putStr $ "Stopping task '" ++ (T.unpack taskRef) 
+      ++ "' in cluster '" ++ (T.unpack . toText $ clusterRef) ++ "'... "
+    result <- A.await tasksStopped describeReq
+    case result of
+      AcceptSuccess -> liftIO $ putStrLn "OK"
+      _             -> do
+        liftIO $ putStrLn "FAILED"
+        throwM $ taskStatusTransitionFailed tref Running Stopped
+
+startTask :: MonadAWS m => TaskRef -> ClusterRef -> m ()
+startTask tref@(TaskRef taskRef) clusterRef = 
+  let describeReq = dtCluster ?~ (toText clusterRef) $ dtTasks .~ [taskRef] $ describeTasks
+  in do
+    send $ sCluster ?~ (toText clusterRef) $ ECS.startTask taskRef
+    liftIO . putStr $ "Starting task '" ++ (T.unpack taskRef) 
+      ++ "' in cluster '" ++ (T.unpack . toText $ clusterRef) ++ "'... "
+    result <- A.await tasksRunning describeReq
+    case result of
+      AcceptSuccess -> liftIO $ putStrLn "OK"
+      _             -> do
+        liftIO $ putStrLn "FAILED"
+        throwM $ taskStatusTransitionFailed tref Stopped Running
+
+restartTask :: MonadAWS m => TaskRef -> ClusterRef -> m ()
+restartTask taskRef clusterRef = do
+  stopTask taskRef clusterRef
+  startTask taskRef clusterRef
 
 -- Task Definitions
 
