@@ -6,12 +6,8 @@ module Groot.Exception where
 import Control.Exception.Lens
 import Control.Lens
 import Control.Monad.Catch hiding (Handler)
-import Data.List (intercalate)
-import Data.Text (Text)
-import qualified Data.Text as T
 import Data.Typeable
 import Groot.Data
-import Network.AWS.Data.Text
 
 data GrootError =
     ClusterNotFound ClusterNotFound
@@ -69,10 +65,10 @@ serviceNotFound serviceName clusterRef =
 
 instance Exception ServiceNotFound
 
-data AmbiguousServiceName = AmbiguousServiceName' Text [ClusterRef]
+data AmbiguousServiceName = AmbiguousServiceName' ServiceRef [ClusterRef]
   deriving (Eq, Typeable, Show)
 
-ambiguousServiceName :: Text -> [ClusterRef] -> SomeException
+ambiguousServiceName :: ServiceRef -> [ClusterRef] -> SomeException
 ambiguousServiceName serviceName clusters =
   toException . AmbiguousServiceName $ AmbiguousServiceName' serviceName clusters
 

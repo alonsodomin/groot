@@ -31,11 +31,12 @@ data ServiceCoords = ServiceCoords ServiceRef ClusterRef
 data ServiceStatus =
     ServiceActive
   | ServiceInactive
-  deriving (Eq, Show)
+  deriving (Eq, Show, Ord, Generic, Data, Read)
 
 data ServiceFilter =
-  ServiceStatusFilter ServiceStatus
-  deriving (Eq, Show)
+    ServiceStatusFilter ServiceStatus
+  | ServiceRefFilter ServiceRef
+  deriving (Eq, Show, Generic, Data, Read)
 
 instance FilterPredicate ServiceFilter where
   type CanBeFilteredBy ServiceFilter = ECS.ContainerService
@@ -44,3 +45,7 @@ instance FilterPredicate ServiceFilter where
     maybe False (== (T.pack "ACTIVE")) (serv ^. ECS.csStatus)
   matches (ServiceStatusFilter ServiceInactive) serv =
     maybe False (== (T.pack "INACTIVE")) (serv ^. ECS.csStatus)
+
+  matches (ServiceRefFilter (ServiceRef ref)) serv =
+       maybe False (== ref) (serv ^. ECS.csServiceName)
+    || maybe False (== ref) (serv ^. ECS.csServiceARN)

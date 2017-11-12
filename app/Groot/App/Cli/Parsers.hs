@@ -74,7 +74,7 @@ clusterOpt = fromString <$> strOption
           <> help "ECS Cluster reference (name or ARN)" )
 
 taskFamilyOpt :: Parser TaskFamily
-taskFamilyOpt = TaskFamily . T.pack <$> strOption
+taskFamilyOpt = fromString <$> strOption
               ( long "family"
              <> metavar "TASK_FAMILY"
              <> help "ECS Task Family" )
