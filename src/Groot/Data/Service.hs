@@ -38,6 +38,9 @@ data ServiceFilter =
   | ServiceRefFilter ServiceRef
   deriving (Eq, Show, Generic, Data, Read)
 
+isActiveService :: ServiceFilter
+isActiveService = ServiceStatusFilter ServiceActive
+
 instance FilterPredicate ServiceFilter where
   type CanBeFilteredBy ServiceFilter = ECS.ContainerService
 

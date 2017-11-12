@@ -262,11 +262,14 @@ serviceEventLog :: MonadAWS m
                 => ServiceCoords
                 -> Bool
                 -> Source m ServiceEvent
-serviceEventLog (ServiceCoords serviceName clusterRef) inf = yield Nothing =$= loop
+serviceEventLog (ServiceCoords serviceRef clusterRef) inf = yield Nothing =$= loop
   where serviceEvents :: MonadAWS m => Maybe UTCTime -> m [ServiceEvent]
         serviceEvents lastEventTime = do
-          service <- getService serviceName (Just clusterRef)
-          events  <- return $ service ^. csEvents
+          service  <- getService serviceRef (Just clusterRef)
+          service' <- if (matches isActiveService service)
+            then return service
+            else throwM $ inactiveService serviceRef clusterRef
+          events  <- return $ service' ^. csEvents
           return $ case lastEventTime of
             Nothing -> events
             Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. seCreatedAt) events

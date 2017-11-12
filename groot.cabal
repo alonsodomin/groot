@@ -25,6 +25,10 @@ library
                      , Groot.Data.Task
                      , Groot.Data.TaskDef
                      , Groot.Data
+                     , Groot.Exception.Cluster
+                     , Groot.Exception.Instance
+                     , Groot.Exception.Task
+                     , Groot.Exception.Service
                      , Groot.Exception
   build-depends:       base >= 4.7 && < 5
                      , aeson

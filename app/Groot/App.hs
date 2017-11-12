@@ -54,6 +54,12 @@ grootCmd (EventsCmd opts)  = runGrootEvents opts
 
 -- AWS Error handlers
 
+-- handleTransportError :: TransportError -> IO ()
+-- handleTransportError err =
+--   let host = T.unpack . toText $ err ^. transportHost
+--       port = T.unpack . toText $ err ^. transportPort
+--   in 
+
 handleServiceError :: ServiceError -> IO ()
 handleServiceError err =
   let servName  = T.unpack . toText $ err ^. serviceAbbrev
@@ -78,6 +84,11 @@ handleAmbiguousServiceName (AmbiguousServiceName' serviceRef clusters) =
   in putStrLn $ "Service name '" ++ (T.unpack . toText $ serviceRef) 
      ++ "' is ambiguous. It was found in the following clusters:\n" ++ stringifyClusters
 
+handleInactiveService :: InactiveService -> IO ()
+handleInactiveService (InactiveService' serviceRef clusterRef) =
+  putStrLn $ "Service '" ++ (T.unpack . toText $ serviceRef) ++ "' in cluster '"
+    ++ (T.unpack . toText $ clusterRef) ++ "' is not active."
+
 -- Main Program execution
 
 handleExceptions :: IO () -> IO ()
@@ -86,6 +97,7 @@ handleExceptions action = catches action [
   , handler _ClusterNotFound handleClusterNotFound
   , handler _ServiceNotFound handleServiceNotFound
   , handler _AmbiguousServiceName handleAmbiguousServiceName
+  , handler _InactiveService handleInactiveService
   ]
 
 groot :: CliOptions -> IO ()
