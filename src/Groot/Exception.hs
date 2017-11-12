@@ -86,6 +86,9 @@ class AsGrootError t where
   _ServiceNotFound :: Prism' t ServiceNotFound
   _ServiceNotFound = _GrootError . _ServiceNotFound
 
+  _AmbiguousServiceName :: Prism' t AmbiguousServiceName
+  _AmbiguousServiceName = _GrootError . _AmbiguousServiceName
+
 instance AsGrootError SomeException where
   _GrootError = exception
 
@@ -99,6 +102,10 @@ instance AsGrootError GrootError where
   _ServiceNotFound = prism ServiceNotFound $ \case
     ServiceNotFound e -> Right e
     x                 -> Left x
+
+  _AmbiguousServiceName = prism AmbiguousServiceName $ \case
+    AmbiguousServiceName e -> Right e
+    x                      -> Left x
 
 -- Prisms
 

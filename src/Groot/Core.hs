@@ -197,11 +197,22 @@ serviceCoords service = ServiceCoords <$> serviceRef <*> clusterRef
   where serviceRef = ServiceRef <$> service ^. csServiceARN
         clusterRef = ClusterRef <$> service ^. csClusterARN
 
+fetchServiceBatch :: MonadAWS m => [ServiceRef] -> ClusterRef -> m [ContainerService]
+fetchServiceBatch []       _    = return []
+fetchServiceBatch services cref =
+  let handleCNFException = throwM $ clusterNotFound cref
+
+      fetch :: MonadAWS m => m [ContainerService]
+      fetch = do
+        res <- send $ dCluster ?~ (toText cref) $ dServices .~ (toText <$> services) $ describeServices
+        return $ res ^. dssrsServices
+  in catching _ClusterNotFoundException fetch $ \_ -> handleCNFException
+
 fetchServicesC' :: MonadAWS m => [ServiceRef] -> Conduit ClusterRef m (ClusterRef, ContainerService)
 fetchServicesC' services =
   awaitForever (\cref -> yieldM $ do
-    res <- send $ dCluster ?~ (toText cref) $ dServices .~ (toText <$> services) $ describeServices
-    return . listToMaybe $ map ((,) cref) (res ^. dssrsServices)
+    servs <- fetchServiceBatch services cref
+    return $ map ((,) cref) servs
   ) =$= CL.concat
 
 fetchServicesC :: MonadAWS m => [ServiceRef] -> Conduit ClusterRef m ContainerService
@@ -221,9 +232,10 @@ findServices services cref = findServices' services cref =$= CL.map snd
 
 findService :: MonadAWS m => ServiceRef -> Maybe ClusterRef -> MaybeT m ContainerService
 findService sref cref = MaybeT $ extractRequested cref
-  where extractRequested (Just _) = runConduit $ findServices' [sref] cref =$= CL.map snd =$= CL.head
-        extractRequested _        = do
-          found <- sourceToList $ findServices' [sref] cref
+  where extractRequested (Just ref) =
+          runConduit $ findServices' [sref] cref =$= CL.map snd =$= CL.head
+        extractRequested _ = do
+          found <- sourceToList $ findServices' [sref] Nothing
                    =$= CL.filter (\x -> matches (ServiceRefFilter sref) (snd x))
           if (length found) > 1
           then throwM $ ambiguousServiceName sref (fst <$> found)
@@ -237,13 +249,9 @@ getService serviceName clusterRef = do
     Nothing -> throwM $ serviceNotFound serviceName clusterRef
 
 fetchServices :: MonadAWS m => ClusterRef -> Source m ContainerService
-fetchServices (ClusterRef cref) =
-  let getServiceBatch []    = return []
-      getServiceBatch batch = do
-        res <- send $ dCluster ?~ cref $ dServices .~ batch $ describeServices
-        return $ res ^. dssrsServices
-  in paginate (lsCluster ?~ cref $ listServices)
-     =$= CL.concatMapM (\x -> getServiceBatch (view lsrsServiceARNs x))
+fetchServices clusterRef =
+  paginate (lsCluster ?~ (toText clusterRef) $ listServices)
+    =$= CL.concatMapM (\x -> fetchServiceBatch (ServiceRef <$> x ^. lsrsServiceARNs) clusterRef)
 
 fetchAllServices :: MonadAWS m => Source m ContainerService
 fetchAllServices = fetchClusters
@@ -258,7 +266,7 @@ serviceEventLog (ServiceCoords serviceName clusterRef) inf = yield Nothing =$= l
   where serviceEvents :: MonadAWS m => Maybe UTCTime -> m [ServiceEvent]
         serviceEvents lastEventTime = do
           service <- getService serviceName (Just clusterRef)
-          events  <- return $ service ^.csEvents
+          events  <- return $ service ^. csEvents
           return $ case lastEventTime of
             Nothing -> events
             Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. seCreatedAt) events

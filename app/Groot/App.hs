@@ -10,6 +10,7 @@ import Control.Lens
 import Control.Monad.Catch
 import Control.Monad.Trans.Maybe
 import qualified Data.ByteString.Char8 as BS
+import Data.List (intercalate)
 import qualified Data.Text as T
 import Network.AWS
 import Network.AWS.Data.Text
@@ -71,6 +72,12 @@ handleServiceNotFound (ServiceNotFound' serviceRef clusterRef) =
   putStrLn $ "Could not find service '" ++ (T.unpack . toText $ serviceRef) ++ "'" ++
     maybe "" (\x -> " in cluster " ++ (T.unpack . toText $ x)) clusterRef
 
+handleAmbiguousServiceName :: AmbiguousServiceName -> IO ()
+handleAmbiguousServiceName (AmbiguousServiceName' serviceRef clusters) =
+  let stringifyClusters = intercalate "\n - " $ map (T.unpack . toText) clusters
+  in putStrLn $ "Service name '" ++ (T.unpack . toText $ serviceRef) 
+     ++ "' is ambiguous. It was found in the following clusters:\n" ++ stringifyClusters
+
 -- Main Program execution
 
 handleExceptions :: IO () -> IO ()
@@ -78,6 +85,7 @@ handleExceptions action = catches action [
     handler _ServiceError handleServiceError
   , handler _ClusterNotFound handleClusterNotFound
   , handler _ServiceNotFound handleServiceNotFound
+  , handler _AmbiguousServiceName handleAmbiguousServiceName
   ]
 
 groot :: CliOptions -> IO ()
