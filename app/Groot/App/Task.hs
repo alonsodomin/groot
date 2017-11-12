@@ -4,10 +4,13 @@ module Groot.App.Task
      , runGrootTask
      ) where
 
+import Control.Monad.IO.Class
 import Data.Semigroup ((<>))
 import Data.String
+import qualified Data.Text as T
 import Options.Applicative
 import Network.AWS
+import Network.AWS.Data.Text
 
 import Groot.App.Cli.Parsers (clusterOpt)
 import Groot.Core
@@ -49,11 +52,27 @@ taskCmds = hsubparser
  <> command "restart" (info restartTaskCli (progDesc "Restart task"))
   )
 
+startingTask :: MonadAWS m => TaskRef -> ClusterRef -> m ()
+startingTask taskRef clusterRef =
+  liftIO . putStr $ "Starting task '" ++ (T.unpack . toText $ taskRef) 
+    ++ "' in cluster '" ++ (T.unpack . toText $ clusterRef) ++ "'... "
+
+stoppingTask :: MonadAWS m => TaskRef -> ClusterRef -> m ()
+stoppingTask taskRef clusterRef =
+  liftIO . putStr $ "Stopping task '" ++ (T.unpack . toText $ taskRef) 
+    ++ "' in cluster '" ++ (T.unpack . toText $ clusterRef) ++ "'... "
+
+succeeded :: MonadAWS m => TaskRef -> ClusterRef -> m ()
+succeeded _ _ = liftIO $ putStrLn "OK"
+
 grootTaskCli :: Parser TaskOptions
 grootTaskCli = TaskOptions <$> taskCmds
 
 runGrootTask :: TaskOptions -> Env -> IO ()
 runGrootTask (TaskOptions cmd) env = runResourceT . runAWS env $ runCommand cmd
-  where runCommand (StartTaskCmd   clusterRef taskRef) = startTask   taskRef clusterRef
-        runCommand (StopTaskCmd    clusterRef taskRef) = stopTask    taskRef clusterRef
-        runCommand (RestartTaskCmd clusterRef taskRef) = restartTask taskRef clusterRef
+  where runCommand (StartTaskCmd   clusterRef taskRef) =
+          startTask taskRef clusterRef startingTask succeeded
+        runCommand (StopTaskCmd    clusterRef taskRef) =
+          stopTask taskRef clusterRef stoppingTask succeeded
+        runCommand (RestartTaskCmd clusterRef taskRef) =
+          restartTask taskRef clusterRef stoppingTask succeeded startingTask succeeded

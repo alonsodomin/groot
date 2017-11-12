@@ -170,38 +170,49 @@ fetchAllTasks = fetchClusters
   =$= CL.mapMaybe clusterName
   =$= fetchAllTasksC
 
-stopTask :: MonadAWS m => TaskRef -> ClusterRef -> m ()
-stopTask tref@(TaskRef taskRef) clusterRef = 
+stopTask :: MonadAWS m
+         => TaskRef
+         -> ClusterRef
+         -> (TaskRef -> ClusterRef -> m ())
+         -> (TaskRef -> ClusterRef -> m ())
+         -> m ()
+stopTask tref@(TaskRef taskRef) clusterRef onStop onStopped = 
   let describeReq = dtCluster ?~ (toText clusterRef) $ dtTasks .~ [taskRef] $ describeTasks
   in do
     send $ stCluster ?~ (toText clusterRef) $ ECS.stopTask taskRef
-    liftIO . putStr $ "Stopping task '" ++ (T.unpack taskRef) 
-      ++ "' in cluster '" ++ (T.unpack . toText $ clusterRef) ++ "'... "
+    onStop tref clusterRef
     result <- A.await tasksStopped describeReq
     case result of
-      AcceptSuccess -> liftIO $ putStrLn "OK"
-      _             -> do
-        liftIO $ putStrLn "FAILED"
-        throwM $ taskStatusTransitionFailed tref Running Stopped
+      AcceptSuccess -> onStopped tref clusterRef
+      _             -> throwM $ taskStatusTransitionFailed tref Running Stopped
 
-startTask :: MonadAWS m => TaskRef -> ClusterRef -> m ()
-startTask tref@(TaskRef taskRef) clusterRef = 
+startTask :: MonadAWS m 
+          => TaskRef
+          -> ClusterRef
+          -> (TaskRef -> ClusterRef -> m ())
+          -> (TaskRef -> ClusterRef -> m ())
+          -> m ()
+startTask tref@(TaskRef taskRef) clusterRef onStart onStarted = 
   let describeReq = dtCluster ?~ (toText clusterRef) $ dtTasks .~ [taskRef] $ describeTasks
   in do
     send $ sCluster ?~ (toText clusterRef) $ ECS.startTask taskRef
-    liftIO . putStr $ "Starting task '" ++ (T.unpack taskRef) 
-      ++ "' in cluster '" ++ (T.unpack . toText $ clusterRef) ++ "'... "
+    onStart tref clusterRef
     result <- A.await tasksRunning describeReq
     case result of
-      AcceptSuccess -> liftIO $ putStrLn "OK"
-      _             -> do
-        liftIO $ putStrLn "FAILED"
-        throwM $ taskStatusTransitionFailed tref Stopped Running
+      AcceptSuccess -> onStarted tref clusterRef
+      _             -> throwM $ taskStatusTransitionFailed tref Stopped Running
 
-restartTask :: MonadAWS m => TaskRef -> ClusterRef -> m ()
-restartTask taskRef clusterRef = do
-  stopTask taskRef clusterRef
-  startTask taskRef clusterRef
+restartTask :: MonadAWS m
+            => TaskRef
+            -> ClusterRef
+            -> (TaskRef -> ClusterRef -> m ())
+            -> (TaskRef -> ClusterRef -> m ())
+            -> (TaskRef -> ClusterRef -> m ())
+            -> (TaskRef -> ClusterRef -> m ())
+            -> m ()
+restartTask taskRef clusterRef onStop onStopped onStart onStarted = do
+  stopTask taskRef clusterRef onStop onStopped
+  startTask taskRef clusterRef onStart onStarted
 
 -- Task Definitions
 
