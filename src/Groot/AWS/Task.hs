@@ -19,9 +19,9 @@ import Network.AWS
 import qualified Network.AWS.ECS as ECS
 import Network.AWS.Data.Text
 
-fetchTaskBatch :: MonadAWS m => ClusterRef -> [TaskRef] -> m [ECS.Task]
-fetchTaskBatch _          []       = return []
-fetchTaskBatch clusterRef taskRefs =
+fetchTaskBatch :: MonadAWS m => [TaskRef] -> ClusterRef -> m [ECS.Task]
+fetchTaskBatch []       _          = return []
+fetchTaskBatch taskRefs clusterRef =
   let fetch = do
         res <- send $ ECS.dtCluster ?~ (toText clusterRef)
                $ ECS.dtTasks .~ (toText <$> taskRefs)
@@ -30,12 +30,12 @@ fetchTaskBatch clusterRef taskRefs =
   in handleClusterNotFoundException clusterRef fetch
 
 fetchTasksC :: MonadAWS m => [TaskRef] -> Conduit ClusterRef m ECS.Task
-fetchTasksC tasks = awaitForever (\cref -> yieldM $ fetchTaskBatch cref tasks) =$= CL.concat
+fetchTasksC tasks = awaitForever (\cref -> yieldM $ fetchTaskBatch tasks cref) =$= CL.concat
 
 fetchTasks :: MonadAWS m => ClusterRef -> Source m ECS.Task
 fetchTasks cref@(ClusterRef ref) =
-  paginate (ECS.ltCluster ?~ ref $ ECS.listTasks)
-    =$= CL.concatMapM (\x -> fetchTaskBatch cref (TaskRef <$> x ^. ECS.ltrsTaskARNs))
+  handleClusterNotFoundException cref (paginate (ECS.ltCluster ?~ ref $ ECS.listTasks))
+    =$= CL.concatMapM (\x -> fetchTaskBatch (TaskRef <$> x ^. ECS.ltrsTaskARNs) cref)
 
 fetchAllTasks :: MonadAWS m => Source m ECS.Task
 fetchAllTasks =

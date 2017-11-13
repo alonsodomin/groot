@@ -19,9 +19,9 @@ import Network.AWS
 import qualified Network.AWS.ECS as ECS
 import Network.AWS.Data.Text
 
-fetchInstanceBatch :: MonadAWS m => ClusterRef -> [InstanceRef] -> m [ECS.ContainerInstance]
-fetchInstanceBatch _          []           = return []
-fetchInstanceBatch clusterRef instanceRefs =
+fetchInstanceBatch :: MonadAWS m => [InstanceRef] -> ClusterRef -> m [ECS.ContainerInstance]
+fetchInstanceBatch []           _          = return []
+fetchInstanceBatch instanceRefs clusterRef =
   let fetch = do
         res <- send $ ECS.dciCluster ?~ (toText clusterRef)
                $ ECS.dciContainerInstances .~ (toText <$> instanceRefs)
@@ -31,12 +31,12 @@ fetchInstanceBatch clusterRef instanceRefs =
 
 fetchInstances :: MonadAWS m => ClusterRef -> Source m ECS.ContainerInstance
 fetchInstances cref@(ClusterRef ref) =
-  paginate (ECS.lciCluster ?~ ref $ ECS.listContainerInstances)
-    =$= CL.concatMapM (\x -> fetchInstanceBatch cref (InstanceRef <$> x ^. ECS.lcirsContainerInstanceARNs))
+  handleClusterNotFoundException cref (paginate (ECS.lciCluster ?~ ref $ ECS.listContainerInstances))
+    =$= CL.concatMapM (\x -> fetchInstanceBatch (InstanceRef <$> x ^. ECS.lcirsContainerInstanceARNs) cref)
 
 fetchInstancesC :: MonadAWS m => [InstanceRef] -> Conduit ClusterRef m ECS.ContainerInstance
 fetchInstancesC instances =
-  awaitForever (\cref -> yieldM $ fetchInstanceBatch cref instances) =$= CL.concat
+  awaitForever (\cref -> yieldM $ fetchInstanceBatch instances cref) =$= CL.concat
 
 fetchAllInstances :: MonadAWS m => Source m ECS.ContainerInstance
 fetchAllInstances =

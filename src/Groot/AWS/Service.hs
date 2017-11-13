@@ -84,7 +84,7 @@ getService serviceName clusterRef = do
 
 fetchServices :: MonadAWS m => ClusterRef -> Source m ECS.ContainerService
 fetchServices clusterRef =
-  paginate (ECS.lsCluster ?~ (toText clusterRef) $ ECS.listServices)
+  handleClusterNotFoundException clusterRef (paginate (ECS.lsCluster ?~ (toText clusterRef) $ ECS.listServices))
     =$= CL.concatMapM (\x -> fetchServiceBatch (ServiceRef <$> x ^. ECS.lsrsServiceARNs) clusterRef)
 
 fetchAllServices :: MonadAWS m => Source m ECS.ContainerService

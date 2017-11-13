@@ -26,7 +26,7 @@ clusterName cluster = ClusterRef <$> cluster ^. ECS.cClusterName
 clusterExists :: MonadAWS m => ClusterRef -> m Bool
 clusterExists clusterRef = isJust <$> (runMaybeT $ findCluster clusterRef)
 
-handleClusterNotFoundException :: MonadAWS m => ClusterRef -> m a -> m a
+handleClusterNotFoundException :: MonadCatch m => ClusterRef -> m a -> m a
 handleClusterNotFoundException clusterRef action =
   catching ECS._ClusterNotFoundException action $ \_ -> throwM $ clusterNotFound clusterRef
 

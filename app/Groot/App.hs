@@ -54,6 +54,9 @@ grootCmd (EventsCmd opts)  = runGrootEvents opts
 
 -- AWS Error handlers
 
+printError :: String -> IO ()
+printError msg = putStrLn $ "ERROR: " ++ msg
+
 -- handleTransportError :: TransportError -> IO ()
 -- handleTransportError err =
 --   let host = T.unpack . toText $ err ^. transportHost
@@ -71,22 +74,22 @@ handleServiceError err =
 
 handleClusterNotFound :: ClusterNotFound -> IO ()
 handleClusterNotFound (ClusterNotFound' (ClusterRef ref)) =
-  putStrLn $ "Could not find cluster '" ++ (T.unpack ref) ++ "'"
+  printError $ "Could not find cluster '" ++ (T.unpack ref) ++ "'"
 
 handleServiceNotFound :: ServiceNotFound -> IO ()
 handleServiceNotFound (ServiceNotFound' serviceRef clusterRef) =
-  putStrLn $ "Could not find service '" ++ (T.unpack . toText $ serviceRef) ++ "'" ++
+  printError $ "Could not find service '" ++ (T.unpack . toText $ serviceRef) ++ "'" ++
     maybe "" (\x -> " in cluster " ++ (T.unpack . toText $ x)) clusterRef
 
 handleAmbiguousServiceName :: AmbiguousServiceName -> IO ()
 handleAmbiguousServiceName (AmbiguousServiceName' serviceRef clusters) =
   let stringifyClusters = intercalate "\n - " $ map (T.unpack . toText) clusters
-  in putStrLn $ "Service name '" ++ (T.unpack . toText $ serviceRef) 
+  in printError $ "Service name '" ++ (T.unpack . toText $ serviceRef) 
      ++ "' is ambiguous. It was found in the following clusters:\n" ++ stringifyClusters
 
 handleInactiveService :: InactiveService -> IO ()
 handleInactiveService (InactiveService' serviceRef clusterRef) =
-  putStrLn $ "Service '" ++ (T.unpack . toText $ serviceRef) ++ "' in cluster '"
+  printError $ "Service '" ++ (T.unpack . toText $ serviceRef) ++ "' in cluster '"
     ++ (T.unpack . toText $ clusterRef) ++ "' is not active."
 
 -- Main Program execution
