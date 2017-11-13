@@ -11,15 +11,15 @@ import Data.Conduit
 import Data.Semigroup ((<>))
 import Data.String
 import qualified Data.Text as T
+import Network.AWS hiding (await)
+import qualified Network.AWS.ECS as ECS
+import Options.Applicative
+import System.Console.ANSI
+
 import Groot.App.Cli.Parsers (clusterOpt)
 import Groot.Core
 import Groot.Data
 import Groot.Exception
-import Network.AWS hiding (await)
-import qualified Network.AWS.ECS as ECS
-import Text.PrettyPrint.Boxes (printBox, (<+>))
-import qualified Text.PrettyPrint.Boxes as B
-import Options.Applicative
 
 data EventOptions = EventOptions
   { _clusterId   :: Maybe ClusterRef
@@ -36,17 +36,18 @@ grootEventsCli = EventOptions
               <> help "Follow the trail of events" )
              <*> (fromString <$> argument str (metavar "SERVICE_NAME"))
 
-layoutEvent :: ECS.ServiceEvent -> B.Box
-layoutEvent event =
-  (B.text "[") <+>
-  (B.text . padL 27 $ maybe "" show $ event ^. ECS.seCreatedAt) <+>
-  (B.text "]") <+>
-  (B.text "-") <+>
-  (B.text $ maybe "" T.unpack $ event ^. ECS.seMessage)
+printEvent :: ECS.ServiceEvent -> IO ()
+printEvent event = do
+  putStr "[ "
+  setSGR [SetColor Foreground Dull Blue]
+  putStr $ padL 27 $ maybe "" show $ event ^. ECS.seCreatedAt
+  setSGR [Reset]
+  putStr " ] - "
+  putStrLn $ maybe "" T.unpack $ event ^. ECS.seMessage
   where padL :: Int -> String -> String
-        padL n str
-          | length str < n = str ++ replicate (n - length str) ' '
-          | otherwise      = str
+        padL n s
+          | length s < n = s ++ replicate (n - length s) ' '
+          | otherwise    = s
 
 findServiceCoords :: MonadAWS m => ServiceRef -> m ServiceCoords
 findServiceCoords serviceRef = do
@@ -64,7 +65,7 @@ printEvents = do
   mevent <- await
   case mevent of
     Just event -> do
-      liftIO $ printBox . layoutEvent $ event
+      liftIO $ printEvent event
       printEvents
     Nothing -> return ()
 

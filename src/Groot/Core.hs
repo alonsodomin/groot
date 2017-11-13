@@ -6,7 +6,6 @@ module Groot.Core
      -- Tasks
      , stopTask
      , startTask
-     , restartTask
      ) where
 
 import Control.Lens
@@ -55,15 +54,3 @@ startTask tref@(TaskRef taskRef) clusterRef onStart onStarted =
     case result of
       AcceptSuccess -> onStarted tref clusterRef
       _             -> throwM $ taskStatusTransitionFailed tref Stopped Running
-
-restartTask :: MonadAWS m
-            => TaskRef
-            -> ClusterRef
-            -> (TaskRef -> ClusterRef -> m ())
-            -> (TaskRef -> ClusterRef -> m ())
-            -> (TaskRef -> ClusterRef -> m ())
-            -> (TaskRef -> ClusterRef -> m ())
-            -> m ()
-restartTask taskRef clusterRef onStop onStopped onStart onStarted = do
-  stopTask taskRef clusterRef onStop onStopped
-  startTask taskRef clusterRef onStart onStarted

@@ -11,10 +11,12 @@ import qualified Data.Text as T
 import Options.Applicative
 import Network.AWS
 import Network.AWS.Data.Text
+import System.Console.ANSI
 
 import Groot.App.Cli.Parsers (clusterOpt)
 import Groot.Core
 import Groot.Data
+import Groot.Exception
 
 data TaskCmd =
     StartTaskCmd ClusterRef TaskRef
@@ -63,16 +65,27 @@ stoppingTask taskRef clusterRef =
     ++ "' in cluster '" ++ (T.unpack . toText $ clusterRef) ++ "'... "
 
 succeeded :: MonadAWS m => TaskRef -> ClusterRef -> m ()
-succeeded _ _ = liftIO $ putStrLn "OK"
+succeeded _ _ = liftIO $ do
+  setSGR [SetColor Foreground Vivid Green]
+  putStrLn "OK"
+  setSGR [Reset]
+
+failed :: TaskStatusTransitionFailed -> IO ()
+failed _ = do
+  setSGR [SetColor Foreground Vivid Red]
+  putStrLn "FAILED"
+  setSGR [Reset]
 
 grootTaskCli :: Parser TaskOptions
 grootTaskCli = TaskOptions <$> taskCmds
 
 runGrootTask :: TaskOptions -> Env -> IO ()
-runGrootTask (TaskOptions cmd) env = runResourceT . runAWS env $ runCommand cmd
+runGrootTask (TaskOptions cmd) env =
+  catching _TaskStatusTransitionFailed (runResourceT . runAWS env $ runCommand cmd) failed
   where runCommand (StartTaskCmd   clusterRef taskRef) =
           startTask taskRef clusterRef startingTask succeeded
         runCommand (StopTaskCmd    clusterRef taskRef) =
           stopTask taskRef clusterRef stoppingTask succeeded
-        runCommand (RestartTaskCmd clusterRef taskRef) =
-          restartTask taskRef clusterRef stoppingTask succeeded startingTask succeeded
+        runCommand (RestartTaskCmd clusterRef taskRef) = do
+          stopTask taskRef clusterRef stoppingTask succeeded
+          startTask taskRef clusterRef startingTask succeeded
