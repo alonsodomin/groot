@@ -15,6 +15,7 @@ import qualified Data.Text as T
 import Network.AWS
 import Network.AWS.Data.Text
 import Network.HTTP.Types.Status
+import System.Console.ANSI
 
 import Groot.App.Cli
 import Groot.App.Config
@@ -55,7 +56,11 @@ grootCmd (EventsCmd opts)  = runGrootEvents opts
 -- AWS Error handlers
 
 printError :: String -> IO ()
-printError msg = putStrLn $ "ERROR: " ++ msg
+printError msg = do
+  setSGR [SetColor Foreground Vivid Red]
+  putStr "ERROR"
+  setSGR [Reset]
+  putStrLn $ " " ++ msg
 
 -- handleTransportError :: TransportError -> IO ()
 -- handleTransportError err =
