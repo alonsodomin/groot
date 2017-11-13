@@ -15,13 +15,14 @@ import qualified Data.Text as T
 import Network.AWS
 import Network.AWS.Data.Text
 import Network.HTTP.Types.Status
-import System.Console.ANSI
 
 import Groot.App.Cli
 import Groot.App.Config
 import Groot.App.Compose
 import Groot.App.Events
 import Groot.App.List
+import Groot.App.Console
+import Groot.App.Task
 import Groot.Data
 import Groot.Exception
 
@@ -52,15 +53,9 @@ grootCmd :: Cmd -> Env -> IO ()
 grootCmd (ComposeCmd opts) = runGrootCompose opts
 grootCmd (ListCmd opts)    = runGrootList opts
 grootCmd (EventsCmd opts)  = runGrootEvents opts
+grootCmd (TaskCmd opts)    = runGrootTask opts
 
 -- AWS Error handlers
-
-printError :: String -> IO ()
-printError msg = do
-  setSGR [SetColor Foreground Vivid Red]
-  putStr "ERROR"
-  setSGR [Reset]
-  putStrLn $ " " ++ msg
 
 -- handleTransportError :: TransportError -> IO ()
 -- handleTransportError err =

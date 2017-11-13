@@ -83,6 +83,7 @@ executable groot
                      , Groot.App.Cli.Parsers
                      , Groot.App.Config
                      , Groot.App.Compose
+                     , Groot.App.Console
                      , Groot.App.Events
                      , Groot.App.List.Base
                      , Groot.App.List.Cluster

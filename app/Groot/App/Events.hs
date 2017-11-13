@@ -38,15 +38,14 @@ grootEventsCli = EventOptions
 
 printEvent :: ECS.ServiceEvent -> IO ()
 printEvent event = do
-  putStr "[ "
   setSGR [SetColor Foreground Dull Blue]
   putStr $ padL 27 $ maybe "" show $ event ^. ECS.seCreatedAt
   setSGR [Reset]
-  putStr " ] - "
+  putStr " "
   putStrLn $ maybe "" T.unpack $ event ^. ECS.seMessage
   where padL :: Int -> String -> String
         padL n s
-          | length s < n = s ++ replicate (n - length s) ' '
+          | length s < n = (replicate (n - length s) ' ') ++ s
           | otherwise    = s
 
 findServiceCoords :: MonadAWS m => ServiceRef -> m ServiceCoords

@@ -5,6 +5,7 @@ module Groot.App.Task
      ) where
 
 import Control.Monad.IO.Class
+import Control.Monad.Trans
 import Data.Semigroup ((<>))
 import Data.String
 import qualified Data.Text as T
@@ -12,8 +13,10 @@ import Options.Applicative
 import Network.AWS
 import Network.AWS.Data.Text
 import System.Console.ANSI
+import System.IO
 
 import Groot.App.Cli.Parsers (clusterOpt)
+import Groot.App.Console
 import Groot.Core
 import Groot.Data
 import Groot.Exception
@@ -56,25 +59,31 @@ taskCmds = hsubparser
 
 startingTask :: MonadAWS m => TaskRef -> ClusterRef -> m ()
 startingTask taskRef clusterRef =
-  liftIO . putStr $ "Starting task '" ++ (T.unpack . toText $ taskRef) 
-    ++ "' in cluster '" ++ (T.unpack . toText $ clusterRef) ++ "'... "
+  liftIO $ do
+    putStr $ "Starting task '" ++ (T.unpack . toText $ taskRef) 
+      ++ "' in cluster '" ++ (T.unpack . toText $ clusterRef) ++ "'... "
+    hFlush stdout
 
 stoppingTask :: MonadAWS m => TaskRef -> ClusterRef -> m ()
 stoppingTask taskRef clusterRef =
-  liftIO . putStr $ "Stopping task '" ++ (T.unpack . toText $ taskRef) 
-    ++ "' in cluster '" ++ (T.unpack . toText $ clusterRef) ++ "'... "
+  liftIO $ do
+    putStr $ "Stopping task '" ++ (T.unpack . toText $ taskRef) 
+      ++ "' in cluster '" ++ (T.unpack . toText $ clusterRef) ++ "'... "
+    hFlush stdout
 
 succeeded :: MonadAWS m => TaskRef -> ClusterRef -> m ()
 succeeded _ _ = liftIO $ do
   setSGR [SetColor Foreground Vivid Green]
-  putStrLn "OK"
+  putStr "OK"
   setSGR [Reset]
+  hFlush stdout
 
 failed :: TaskStatusTransitionFailed -> IO ()
 failed _ = do
   setSGR [SetColor Foreground Vivid Red]
-  putStrLn "FAILED"
+  putStr "FAILED"
   setSGR [Reset]
+  hFlush stdout
 
 grootTaskCli :: Parser TaskOptions
 grootTaskCli = TaskOptions <$> taskCmds
@@ -84,8 +93,26 @@ runGrootTask (TaskOptions cmd) env =
   catching _TaskStatusTransitionFailed (runResourceT . runAWS env $ runCommand cmd) failed
   where runCommand (StartTaskCmd   clusterRef taskRef) =
           startTask taskRef clusterRef startingTask succeeded
-        runCommand (StopTaskCmd    clusterRef taskRef) =
-          stopTask taskRef clusterRef stoppingTask succeeded
+        runCommand (StopTaskCmd    clusterRef taskRef) = do
+          cont <- lift . promptUserYN False $ concat [
+                    "This will stop task '"
+                  , T.unpack . toText $ taskRef
+                  , "' in cluster '"
+                  , T.unpack . toText $ clusterRef
+                  , "'. Continue?"
+                  ]
+          if cont
+          then stopTask taskRef clusterRef stoppingTask succeeded
+          else return ()
         runCommand (RestartTaskCmd clusterRef taskRef) = do
-          stopTask taskRef clusterRef stoppingTask succeeded
-          startTask taskRef clusterRef startingTask succeeded
+          cont <- lift . promptUserYN False $ concat [
+                    "This will restart task '"
+                  , T.unpack . toText $ taskRef
+                  , "' in cluster '"
+                  , T.unpack . toText $ clusterRef
+                  , "'. Continue?"
+                  ]
+          if cont then do
+            stopTask taskRef clusterRef stoppingTask succeeded
+            startTask taskRef clusterRef startingTask succeeded
+          else return ()
