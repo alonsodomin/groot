@@ -11,6 +11,7 @@ import Data.Conduit
 import Data.Semigroup ((<>))
 import Data.String
 import qualified Data.Text as T
+import Data.Time
 import Network.AWS hiding (await)
 import qualified Network.AWS.ECS as ECS
 import Options.Applicative
@@ -36,17 +37,19 @@ grootEventsCli = EventOptions
               <> help "Follow the trail of events" )
              <*> (fromString <$> argument str (metavar "SERVICE_NAME"))
 
+formatEventTime :: UTCTime -> IO String
+formatEventTime time = do
+  dt <- utcToLocalZonedTime time
+  return $ formatTime defaultTimeLocale "%d/%m/%Y %T" dt
+
 printEvent :: ECS.ServiceEvent -> IO ()
 printEvent event = do
+  eventTime <- maybe (return "") formatEventTime $ event ^. ECS.seCreatedAt
   setSGR [SetColor Foreground Dull Blue]
-  putStr $ padL 27 $ maybe "" show $ event ^. ECS.seCreatedAt
+  putStr $ eventTime
   setSGR [Reset]
   putStr " "
   putStrLn $ maybe "" T.unpack $ event ^. ECS.seMessage
-  where padL :: Int -> String -> String
-        padL n s
-          | length s < n = (replicate (n - length s) ' ') ++ s
-          | otherwise    = s
 
 findServiceCoords :: MonadAWS m => ServiceRef -> m ServiceCoords
 findServiceCoords serviceRef = do
