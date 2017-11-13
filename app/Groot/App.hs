@@ -92,6 +92,11 @@ handleInactiveService (InactiveService' serviceRef clusterRef) =
   printError $ "Service '" ++ (T.unpack . toText $ serviceRef) ++ "' in cluster '"
     ++ (T.unpack . toText $ clusterRef) ++ "' is not active."
 
+handleTaskNotFound :: TaskNotFound -> IO ()
+handleTaskNotFound (TaskNotFound' taskRef clusterRef) =
+  printError $ "Could not find task '" ++ (T.unpack . toText $ taskRef) ++ "'" ++
+    maybe "" (\x -> " in cluster " ++ (T.unpack . toText $ x)) clusterRef
+
 -- Main Program execution
 
 handleExceptions :: IO () -> IO ()
@@ -101,6 +106,7 @@ handleExceptions action = catches action [
   , handler _ServiceNotFound handleServiceNotFound
   , handler _AmbiguousServiceName handleAmbiguousServiceName
   , handler _InactiveService handleInactiveService
+  , handler _TaskNotFound handleTaskNotFound
   ]
 
 groot :: CliOptions -> IO ()

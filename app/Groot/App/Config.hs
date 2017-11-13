@@ -20,6 +20,8 @@ import Network.AWS (Region(..))
 import Network.AWS.Data.Text
 import System.Directory
 
+import Groot.App.Console
+
 defaultProfileName :: Text
 defaultProfileName = "default"
 
@@ -34,7 +36,7 @@ warnUser result = MaybeT $ do
   err <- runExceptT result
   case err of
     Left msg -> do
-      putStrLn $ "Warning: " ++ msg
+      printWarn msg
       return Nothing
     Right a ->
       return $ Just a

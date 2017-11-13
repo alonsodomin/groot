@@ -5,7 +5,6 @@ module Groot.App.Task
      ) where
 
 import Control.Monad.IO.Class
-import Control.Monad.Trans
 import Data.Semigroup ((<>))
 import Data.String
 import qualified Data.Text as T
@@ -73,46 +72,62 @@ stoppingTask taskRef clusterRef =
 
 succeeded :: MonadAWS m => TaskRef -> ClusterRef -> m ()
 succeeded _ _ = liftIO $ do
-  setSGR [SetColor Foreground Vivid Green]
-  putStr "OK"
+  setSGR [SetColor Foreground Dull Green]
+  putStrLn "OK"
   setSGR [Reset]
-  hFlush stdout
 
 failed :: TaskStatusTransitionFailed -> IO ()
 failed _ = do
   setSGR [SetColor Foreground Vivid Red]
-  putStr "FAILED"
+  putStrLn "FAILED"
   setSGR [Reset]
-  hFlush stdout
 
 grootTaskCli :: Parser TaskOptions
 grootTaskCli = TaskOptions <$> taskCmds
 
+stopTaskPrompt :: TaskRef -> ClusterRef -> String
+stopTaskPrompt taskRef clusterRef = concat [
+    "This will stop task '"
+  , T.unpack . toText $ taskRef
+  , "' in cluster '"
+  , T.unpack . toText $ clusterRef
+  , "'. Continue?"
+  ]
+
+restartTaskPrompt :: TaskRef -> ClusterRef -> String
+restartTaskPrompt taskRef clusterRef = concat [
+    "This will restart task '"
+  , T.unpack . toText $ taskRef
+  , "' in cluster '"
+  , T.unpack . toText $ clusterRef
+  , "'. Continue?"
+  ]
+
+startTask' :: MonadAWS m => TaskRef -> ClusterRef -> m ()
+startTask' taskRef clusterRef = do
+  getTask taskRef (Just clusterRef)
+  startTask taskRef clusterRef startingTask succeeded
+
+stopTask' :: MonadAWS m => TaskRef -> ClusterRef -> m ()
+stopTask' taskRef clusterRef =
+  let prompt = stopTaskPrompt taskRef clusterRef
+  in do
+    getTask taskRef (Just clusterRef)
+    promptUserToContinue prompt (stopTask taskRef clusterRef stoppingTask succeeded)
+
+restartTask' :: MonadAWS m => TaskRef -> ClusterRef -> m ()
+restartTask' taskRef clusterRef =
+  let prompt = restartTaskPrompt taskRef clusterRef
+      stopAndStart = do
+        stopTask taskRef clusterRef stoppingTask succeeded
+        startTask taskRef clusterRef startingTask succeeded
+  in do
+    getTask taskRef (Just clusterRef)
+    promptUserToContinue prompt stopAndStart
+
 runGrootTask :: TaskOptions -> Env -> IO ()
 runGrootTask (TaskOptions cmd) env =
   catching _TaskStatusTransitionFailed (runResourceT . runAWS env $ runCommand cmd) failed
-  where runCommand (StartTaskCmd   clusterRef taskRef) =
-          startTask taskRef clusterRef startingTask succeeded
-        runCommand (StopTaskCmd    clusterRef taskRef) = do
-          cont <- lift . promptUserYN False $ concat [
-                    "This will stop task '"
-                  , T.unpack . toText $ taskRef
-                  , "' in cluster '"
-                  , T.unpack . toText $ clusterRef
-                  , "'. Continue?"
-                  ]
-          if cont
-          then stopTask taskRef clusterRef stoppingTask succeeded
-          else return ()
-        runCommand (RestartTaskCmd clusterRef taskRef) = do
-          cont <- lift . promptUserYN False $ concat [
-                    "This will restart task '"
-                  , T.unpack . toText $ taskRef
-                  , "' in cluster '"
-                  , T.unpack . toText $ clusterRef
-                  , "'. Continue?"
-                  ]
-          if cont then do
-            stopTask taskRef clusterRef stoppingTask succeeded
-            startTask taskRef clusterRef startingTask succeeded
-          else return ()
+  where runCommand (StartTaskCmd   clusterRef taskRef) = startTask'   taskRef clusterRef
+        runCommand (StopTaskCmd    clusterRef taskRef) = stopTask'    taskRef clusterRef
+        runCommand (RestartTaskCmd clusterRef taskRef) = restartTask' taskRef clusterRef

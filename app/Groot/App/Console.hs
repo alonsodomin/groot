@@ -25,12 +25,17 @@ promptUserYN def msg = do
     
         handleAnswer Nothing  = def
         handleAnswer (Just s) = parseAnswer s
-        
+
+promptUserToContinue :: MonadIO m => String -> m () -> m ()
+promptUserToContinue msg cont = do
+  answer <- promptUserYN False msg
+  if answer then cont
+  else return ()
 
 printWarn :: String -> IO ()
 printWarn msg = do
-  setSGR [SetColor Foreground Vivid Yellow]
-  putStr "WARNING"
+  setSGR [SetColor Foreground Dull Yellow]
+  putStr "WARN "
   setSGR [Reset]
   putStrLn $ " " ++ msg
 
