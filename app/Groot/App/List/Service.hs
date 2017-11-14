@@ -23,7 +23,7 @@ import Groot.Data
 
 data ServiceSummary = ServiceSummary
   { name       :: String
-  , arn        :: String
+  --, arn        :: String
   , clusterArn :: String
   , running    :: Int
   , pending    :: Int
@@ -33,9 +33,9 @@ data ServiceSummary = ServiceSummary
 instance Tabulate ServiceSummary
 
 instance HasSummary ECS.ContainerService ServiceSummary where
-  summarize service = ServiceSummary <$> sName <*> sArn <*> sClusterArn <*> sRunning <*> sPending <*> sDesired
+  summarize service = ServiceSummary <$> sName <*> sClusterArn <*> sRunning <*> sPending <*> sDesired
     where sName       = unpack <$> service ^. ECS.csServiceName
-          sArn        = unpack <$> service ^. ECS.csServiceARN
+          --sArn        = unpack <$> service ^. ECS.csServiceARN
           sClusterArn = unpack <$> service ^. ECS.csClusterARN
           sRunning    = service ^. ECS.csRunningCount
           sPending    = service ^. ECS.csPendingCount

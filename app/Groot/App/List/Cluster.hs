@@ -25,7 +25,7 @@ import Groot.Data
 
 data ClusterSummary = ClusterSummary
   { name         :: String
-  , arn          :: String
+  --, arn          :: String
   , status       :: String
   , runningTasks :: Int
   , pendingTasks :: Int
@@ -35,9 +35,9 @@ data ClusterSummary = ClusterSummary
 instance Tabulate ClusterSummary
 
 instance HasSummary ECS.Cluster ClusterSummary where
-  summarize cls = ClusterSummary <$> cName <*> cArn <*> cStatus <*> cRunning <*> cPending <*> cInstances
+  summarize cls = ClusterSummary <$> cName <*> cStatus <*> cRunning <*> cPending <*> cInstances
      where cName      = unpack <$> cls ^. ECS.cClusterName
-           cArn       = unpack <$> cls ^. ECS.cClusterARN
+           --cArn       = unpack <$> cls ^. ECS.cClusterARN
            cStatus    = unpack <$> cls ^. ECS.cStatus
            cRunning   = cls ^. ECS.cRunningTasksCount
            cPending   = cls ^. ECS.cPendingTasksCount

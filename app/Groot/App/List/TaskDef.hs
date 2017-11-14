@@ -23,8 +23,7 @@ import Groot.Core
 import Groot.Data
 
 data TaskDefSummary = TaskDefSummary
-  { arn      :: String
-  , family   :: String
+  { family   :: String
   , revision :: Int
   , status   :: String
   } deriving (Eq, Show, Generic, Data)
@@ -32,9 +31,8 @@ data TaskDefSummary = TaskDefSummary
 instance Tabulate TaskDefSummary
 
 instance HasSummary ECS.TaskDefinition TaskDefSummary where
-  summarize taskDef = TaskDefSummary <$> tArn <*> tFamily <*> tRev <*> tStatus
-    where tArn    = unpack <$> taskDef ^. ECS.tdTaskDefinitionARN
-          tFamily = unpack <$> taskDef ^. ECS.tdFamily
+  summarize taskDef = TaskDefSummary <$> tFamily <*> tRev <*> tStatus
+    where tFamily = unpack <$> taskDef ^. ECS.tdFamily
           tRev    = taskDef ^. ECS.tdRevision
           tStatus = statusAsText <$> taskDef ^. ECS.tdStatus
             where statusAsText ECS.TDSActive = "Active"

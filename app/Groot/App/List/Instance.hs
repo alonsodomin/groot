@@ -59,7 +59,7 @@ resourceSummary resType inst = (ResourceSummary resType) <$> rAlloc <*> rAvail
 
 data InstanceSummary = InstanceSummary
   { ec2Id           :: String
-  , arn             :: String
+  --, arn             :: String
   , status          :: String
   , runningTasks    :: Int
   , pendingTasks    :: Int
@@ -72,9 +72,9 @@ data InstanceSummary = InstanceSummary
 instance Tabulate InstanceSummary
 
 instance HasSummary ECS.ContainerInstance InstanceSummary where
-  summarize inst = InstanceSummary <$> iId <*> iArn <*> iStatus <*> iRunning <*> iPending <*> iMem <*> iCpu <*> iAgentV <*> iDockerV
+  summarize inst = InstanceSummary <$> iId <*> iStatus <*> iRunning <*> iPending <*> iMem <*> iCpu <*> iAgentV <*> iDockerV
     where iId      = T.unpack <$> inst ^. ECS.ciEc2InstanceId
-          iArn     = T.unpack <$> inst ^. ECS.ciContainerInstanceARN
+          --iArn     = T.unpack <$> inst ^. ECS.ciContainerInstanceARN
           iStatus  = T.unpack <$> inst ^. ECS.ciStatus
           iRunning = inst ^. ECS.ciRunningTasksCount
           iPending = inst ^. ECS.ciPendingTasksCount
