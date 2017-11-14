@@ -13,6 +13,7 @@ import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Data.Data
 import qualified Data.Text as T
+import Data.Time.Clock
 import GHC.Generics
 import Text.PrettyPrint.Tabulate
 import Network.AWS
@@ -27,6 +28,8 @@ data TaskSummary = TaskSummary
   { task       :: String
   , status     :: String
   , clusterArn :: String
+  , startedAt  :: String
+  , stoppedAt  :: String
   } deriving (Eq, Show, Generic, Data)
 
 instance Tabulate TaskSummary
@@ -34,12 +37,14 @@ instance Tabulate TaskSummary
 newtype TaskAndDef = TaskAndDef (ECS.Task, ECS.TaskDefinition)
 
 instance HasSummary TaskAndDef TaskSummary where
-  summarize (TaskAndDef (task, td)) = TaskSummary <$> tTaskDef <*> tStatus <*> tClusterArn
+  summarize (TaskAndDef (task, td)) = TaskSummary <$> tTaskDef <*> tStatus <*> tClusterArn <*> tStartedAt <*> tStoppedAt
     where tFamily     = td ^. ECS.tdFamily
           tRevision   = toText <$> td ^. ECS.tdRevision
           tTaskDef    = T.unpack <$> ((\x y -> T.concat [x, ":", y]) <$> tFamily <*> tRevision)
           tStatus     = T.unpack <$> task ^. ECS.tLastStatus
           tClusterArn = T.unpack <$> task ^. ECS.tClusterARN
+          tStartedAt  = pure $ maybe "" show $ task ^. ECS.tStartedAt
+          tStoppedAt  = pure $ maybe "" show $ task ^. ECS.tStoppedAt
 
 annotateWithTaskDef :: MonadAWS m => Conduit ECS.Task m TaskAndDef
 annotateWithTaskDef = CL.mapMaybeM (\t -> runMaybeT $ fmap (TaskAndDef . ((,) t)) $ taskDefFromTask t)
