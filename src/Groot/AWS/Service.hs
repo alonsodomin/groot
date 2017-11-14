@@ -73,7 +73,7 @@ findService sref cref = MaybeT $ extractRequested cref
                    =$= CL.filter (\x -> matches (ServiceRefFilter sref) (snd x))
           if (length found) > 1
           then throwM $ ambiguousServiceName sref (fst <$> found)
-          else return . listToMaybe $ snd <$> found
+          else return $ snd <$> listToMaybe found
 
 getService :: MonadAWS m => ServiceRef -> Maybe ClusterRef -> m ECS.ContainerService
 getService serviceName clusterRef = do
