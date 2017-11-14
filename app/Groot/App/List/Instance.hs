@@ -14,9 +14,10 @@ import Data.Data
 import Data.List
 import qualified Data.Text as T
 import GHC.Generics
-import Text.PrettyPrint.Tabulate
 import Network.AWS
 import qualified Network.AWS.ECS as ECS
+import Numeric
+import Text.PrettyPrint.Tabulate
 
 import Groot.App.List.Base
 import Groot.Core
@@ -34,10 +35,13 @@ data ResourceSummary = ResourceSummary
   } deriving (Eq, Generic, Data)
 
 instance Show ResourceSummary where
-  show (ResourceSummary resType alloc avail) = concat [show avail, "/", show alloc, " ", units]
+  show (ResourceSummary resType alloc avail) = concat [show avail, "/", show alloc, " ", units, " ", percent]
     where units = case resType of
             Memory -> "mb"
             CPU    -> "units"
+          percent =
+            let pvalue = (fromIntegral avail) / (fromIntegral alloc) * 100.0 :: Float
+            in concat ["(", showFFloat (Just 1) pvalue "", " %)"]
 
 instance CellValueFormatter ResourceSummary
 
