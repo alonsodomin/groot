@@ -34,7 +34,10 @@ data ResourceSummary = ResourceSummary
   } deriving (Eq, Generic, Data)
 
 instance Show ResourceSummary where
-  show (ResourceSummary _ alloc avail) = concat [show avail, "/", show alloc]
+  show (ResourceSummary resType alloc avail) = concat [show avail, "/", show alloc, " ", units]
+    where units = case resType of
+            Memory -> "mb"
+            CPU    -> "units"
 
 instance CellValueFormatter ResourceSummary
 
