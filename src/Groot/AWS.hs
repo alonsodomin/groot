@@ -1,14 +1,12 @@
 module Groot.AWS
      (
-       module Groot.AWS.Base
-     , module Groot.AWS.Cluster
+       module Groot.AWS.Cluster
      , module Groot.AWS.Instance
      , module Groot.AWS.Service
      , module Groot.AWS.Task
      , module Groot.AWS.TaskDef
      ) where
 
-import Groot.AWS.Base
 import Groot.AWS.Cluster
 import Groot.AWS.Instance
 import Groot.AWS.Service

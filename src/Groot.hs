@@ -2,14 +2,9 @@
 
 module Groot
      (
-       module Groot.Compose
-     , module Groot.Data
+       module Groot.Data
+     , module Groot.Types
      ) where
 
-import Control.Lens
-import Network.AWS
-import Network.AWS.ECS
-
-import Groot.Compose
 import Groot.Data
-
+import Groot.Types

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings  #-}
 
-module Groot.AWS.Base where
+module Groot.Types where
 
 import Prelude hiding (takeWhile)
 import Data.Attoparsec.Text

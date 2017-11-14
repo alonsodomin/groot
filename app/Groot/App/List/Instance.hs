@@ -45,8 +45,8 @@ instance Show ResourceSummary where
 
 instance CellValueFormatter ResourceSummary
 
-resourceSummary :: ECS.ContainerInstance -> ResourceType -> Maybe ResourceSummary
-resourceSummary inst resType = (ResourceSummary resType) <$> rAlloc <*> rAvail
+resourceSummary :: ResourceType -> ECS.ContainerInstance -> Maybe ResourceSummary
+resourceSummary resType inst = (ResourceSummary resType) <$> rAlloc <*> rAvail
   where resName = case resType of
           Memory -> "MEMORY"
           CPU    -> "CPU"
@@ -78,8 +78,8 @@ instance HasSummary ECS.ContainerInstance InstanceSummary where
           iStatus  = T.unpack <$> inst ^. ECS.ciStatus
           iRunning = inst ^. ECS.ciRunningTasksCount
           iPending = inst ^. ECS.ciPendingTasksCount
-          iMem     = resourceSummary inst Memory
-          iCpu     = resourceSummary inst CPU
+          iMem     = resourceSummary Memory inst
+          iCpu     = resourceSummary CPU inst
           iAgentV  = T.unpack <$> (inst ^. ECS.ciVersionInfo >>= view ECS.viAgentVersion)
           iDockerV = T.unpack <$> (inst ^. ECS.ciVersionInfo >>= view ECS.viDockerVersion)
 

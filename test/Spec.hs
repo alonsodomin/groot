@@ -1,4 +1,4 @@
-import Groot.AWSSpec
+import Test.Groot.Types
 
 main :: IO ()
-main = describeAWS
+main = describeTypes

@@ -1,10 +1,12 @@
 {-# LANGUAGE OverloadedStrings  #-}
 
-module Groot.AWS.BaseSpec where
+module Test.Groot.Types
+     ( describeTypes
+     ) where
 
 import Data.Attoparsec.Text
 import Data.Either
-import Groot.AWS.Base
+import Groot.Types
 import Network.AWS
 import Network.AWS.Data.Text
 import Test.Hspec
@@ -24,6 +26,6 @@ describeARN = hspec $ do
       let expected = "arn:aws:ec2:us-west-2:340721489904:instance/b7e184d6-5b5a-4fa8-8fd3-27bd2c4b0988"
       showText arn `shouldBe` expected
 
-baseSpec :: IO ()
-baseSpec = describeARN
+describeTypes :: IO ()
+describeTypes = describeARN
 
