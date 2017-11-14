@@ -56,6 +56,11 @@ taskCmds = hsubparser
  <> command "restart" (info restartTaskCli (progDesc "Restart task"))
   )
 
+grootTaskCli :: Parser TaskOptions
+grootTaskCli = TaskOptions <$> taskCmds
+
+-- User messages
+
 startingTask :: MonadAWS m => TaskRef -> ClusterRef -> m ()
 startingTask taskRef clusterRef =
   liftIO $ do
@@ -82,8 +87,7 @@ failed _ = do
   putStrLn "FAILED"
   setSGR [Reset]
 
-grootTaskCli :: Parser TaskOptions
-grootTaskCli = TaskOptions <$> taskCmds
+-- User prompts
 
 stopTaskPrompt :: TaskRef -> ClusterRef -> String
 stopTaskPrompt taskRef clusterRef = concat [
@@ -102,6 +106,8 @@ restartTaskPrompt taskRef clusterRef = concat [
   , T.unpack . toText $ clusterRef
   , "'. Continue?"
   ]
+
+-- Main operations
 
 startTask' :: MonadAWS m => TaskRef -> ClusterRef -> m ()
 startTask' taskRef clusterRef = do
@@ -124,6 +130,8 @@ restartTask' taskRef clusterRef =
   in do
     getTask taskRef (Just clusterRef)
     promptUserToContinue prompt stopAndStart
+
+-- Entry point
 
 runGrootTask :: TaskOptions -> Env -> IO ()
 runGrootTask (TaskOptions cmd) env =
