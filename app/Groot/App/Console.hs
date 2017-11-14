@@ -32,16 +32,24 @@ promptUserToContinue msg cont = do
   if answer then cont
   else return ()
 
-printWarn :: MonadIO m => String -> m ()
-printWarn msg = liftIO $ do
+putWarn :: MonadIO m => m ()
+putWarn = liftIO $ do
   setSGR [SetColor Foreground Dull Yellow]
   putStr " WARN"
   setSGR [Reset]
+
+printWarn :: MonadIO m => String -> m ()
+printWarn msg = liftIO $ do
+  putWarn
   putStrLn $ ' ' : msg
 
-printError :: MonadIO m => String -> m ()
-printError msg = liftIO $ do
+putError :: MonadIO m => m ()
+putError = liftIO $ do
   setSGR [SetColor Foreground Vivid Red]
   putStr "ERROR"
   setSGR [Reset]
+
+printError :: MonadIO m => String -> m ()
+printError msg = liftIO $ do
+  putError
   putStrLn $ ' ' : msg

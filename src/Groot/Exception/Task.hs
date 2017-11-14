@@ -48,6 +48,7 @@ instance Exception TaskStatusTransitionFailed
 
 class AsTaskException t where
   _TaskException :: Prism' t TaskException
+  {-# MINIMAL _TaskException #-}
 
   _TaskNotFound :: Prism' t TaskNotFound
   _TaskNotFound = _TaskException . _TaskNotFound

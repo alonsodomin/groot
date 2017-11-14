@@ -8,6 +8,7 @@ import Control.Applicative
 import Control.Exception.Lens
 import Control.Lens
 import Control.Monad.Catch
+import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
 import qualified Data.ByteString.Char8 as BS
 import Data.List (intercalate)
@@ -15,14 +16,15 @@ import qualified Data.Text as T
 import Network.AWS
 import Network.AWS.Data.Text
 import Network.HTTP.Types.Status
+import System.Console.ANSI
 
 import Groot.App.Cli
-import Groot.App.Config
 import Groot.App.Compose
 import Groot.App.Events
 import Groot.App.List
 import Groot.App.Console
 import Groot.App.Task
+import Groot.Config
 import Groot.Data
 import Groot.Exception
 
@@ -34,15 +36,22 @@ loadEnv opts = do
   assignRegion (findRegion configFile profile) env
     where buildCreds :: AwsCredentials -> IO (Credentials, Maybe Text)
           buildCreds (AwsProfile profile file) = do
-            profileName <- return $ maybe defaultProfileName id profile
+            profileName <- return $ maybe defaultSectionName id profile
             credsFile   <- maybe defaultCredsFile return file
             return (FromFile profileName credsFile, Just profileName)
           buildCreds (AwsKeys accessKey secretKey) =
             return (FromKeys accessKey secretKey, Nothing)
 
           findRegion :: FilePath -> Maybe Text -> MaybeT IO Region
-          findRegion confFile profile = regionFromOpts <|> regionFromConfig confFile profile
+          findRegion confFile profile = regionFromOpts <|> regionFromCfg
             where regionFromOpts = MaybeT . return $ awsRegion opts
+                  regionFromCfg  = MaybeT $ do
+                    reg <- runExceptT $ regionFromConfig confFile profile
+                    case reg of
+                      Left err -> do
+                        printWarn err
+                        return Nothing
+                      Right r -> return (Just r)
 
           assignRegion :: MaybeT IO Region -> Env -> IO Env
           assignRegion r env = do
@@ -68,7 +77,13 @@ handleServiceError err =
   let servName  = T.unpack . toText $ err ^. serviceAbbrev
       statusMsg = BS.unpack . statusMessage $ err ^. serviceStatus
       message   = maybe "" (T.unpack . toText) $ err ^. serviceMessage
-  in putStrLn $ servName ++ " Error (" ++ statusMsg ++ "): " ++ message
+  in do
+    putError
+    putStr " "
+    setSGR [SetColor Foreground Dull Yellow]
+    putStr $ concat [servName, " ", statusMsg]
+    setSGR [Reset]
+    putStrLn message
 
 -- Groot Error handlers
 

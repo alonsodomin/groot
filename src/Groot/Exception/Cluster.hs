@@ -25,6 +25,7 @@ clusterNotFound = toException . ClusterNotFound . ClusterNotFound'
 
 class AsClusterException t where
   _ClusterException :: Prism' t ClusterException
+  {-# MINIMAL _ClusterException #-}
 
   _ClusterNotFound :: Prism' t ClusterNotFound
   _ClusterNotFound = _ClusterException . _ClusterNotFound
@@ -37,4 +38,3 @@ instance AsClusterException ClusterException where
 
   _ClusterNotFound = prism ClusterNotFound $ \case
     ClusterNotFound e -> Right e
-    x                 -> Left x

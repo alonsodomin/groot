@@ -23,6 +23,7 @@ library
                      , Groot.AWS.TaskDef
                      , Groot.AWS
                      , Groot.Compose
+                     , Groot.Config
                      , Groot.Core
                      , Groot.Data.Base
                      , Groot.Data.Cluster
@@ -40,8 +41,10 @@ library
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , attoparsec
+                     , directory
                      , exceptions
                      , lens
+                     , ini
                      , text
                      , conduit
                      , conduit-combinators
@@ -64,12 +67,10 @@ executable groot
                      , ansi-terminal
                      , boxes
                      , bytestring
-                     , conduit
-                     , directory
+                     , conduit                     
                      , exceptions
                      , http-types
-                     , optparse-applicative                     
-                     , ini                                          
+                     , optparse-applicative                                                               
                      , lens
                      , text
                      , time
@@ -83,7 +84,6 @@ executable groot
                      , groot
   other-modules:       Groot.App.Cli
                      , Groot.App.Cli.Parsers
-                     , Groot.App.Config
                      , Groot.App.Compose
                      , Groot.App.Console
                      , Groot.App.Events
