@@ -83,7 +83,7 @@ handleServiceError err =
     setSGR [SetColor Foreground Dull Yellow]
     putStr $ concat [servName, " ", statusMsg]
     setSGR [Reset]
-    putStrLn message
+    putStrLn $ ' ':message
 
 -- Groot Error handlers
 

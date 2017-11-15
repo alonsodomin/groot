@@ -16,13 +16,13 @@ describeARN = hspec $ do
   describe "ARN" $ do
     it "parses a valid ARN" $ do
       let validArn = "arn:aws:ecs:eu-west-1:340721489904:container-instance/b7e184d6-5b5a-4fa8-8fd3-27bd2c4b0988"
-      let expectedARN = ARN "ecs" Ireland "340721489904" "container-instance/b7e184d6-5b5a-4fa8-8fd3-27bd2c4b0988"
+      let expectedARN = ARN ECS Ireland (AccountId "340721489904") "container-instance/b7e184d6-5b5a-4fa8-8fd3-27bd2c4b0988"
       parseOnly parser validArn `shouldBe` (Right expectedARN)
     it "fails to parse non-ARNs" $ do
       let invalidArn = "this is not an ARN"
       parseOnly (parser :: Parser ARN) invalidArn `shouldSatisfy` isLeft
     it "renders as an URN" $ do
-      let arn = ARN "ec2" Oregon "340721489904" "instance/b7e184d6-5b5a-4fa8-8fd3-27bd2c4b0988"
+      let arn = ARN EC2 Oregon (AccountId "340721489904") "instance/b7e184d6-5b5a-4fa8-8fd3-27bd2c4b0988"
       let expected = "arn:aws:ec2:us-west-2:340721489904:instance/b7e184d6-5b5a-4fa8-8fd3-27bd2c4b0988"
       showText arn `shouldBe` expected
 
