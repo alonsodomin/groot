@@ -16,6 +16,7 @@ import qualified Data.Text as T
 import GHC.Generics
 import Network.AWS
 import qualified Network.AWS.ECS as ECS
+import Network.AWS.Data.Text
 import Numeric
 import Text.PrettyPrint.Tabulate
 
@@ -58,14 +59,13 @@ resourceSummary resType inst = (ResourceSummary resType) <$> rAlloc <*> rAvail
         rAvail = findResource $ inst ^. ECS.ciRemainingResources
 
 data InstanceSummary = InstanceSummary
-  { ec2Id           :: String
-  --, arn             :: String
+  { instanceId      :: String
   , status          :: String
   , runningTasks    :: Int
   , pendingTasks    :: Int
   , memory          :: ResourceSummary
   , cpu             :: ResourceSummary
-  , ecsAgentVersion :: String
+  , agentVersion    :: String
   , dockerVersion   :: String
   } deriving (Eq, Show, Generic, Data)
 
@@ -74,7 +74,6 @@ instance Tabulate InstanceSummary
 instance HasSummary ECS.ContainerInstance InstanceSummary where
   summarize inst = InstanceSummary <$> iId <*> iStatus <*> iRunning <*> iPending <*> iMem <*> iCpu <*> iAgentV <*> iDockerV
     where iId      = T.unpack <$> inst ^. ECS.ciEc2InstanceId
-          --iArn     = T.unpack <$> inst ^. ECS.ciContainerInstanceARN
           iStatus  = T.unpack <$> inst ^. ECS.ciStatus
           iRunning = inst ^. ECS.ciRunningTasksCount
           iPending = inst ^. ECS.ciPendingTasksCount
