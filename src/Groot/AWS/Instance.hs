@@ -5,6 +5,7 @@ module Groot.AWS.Instance
      , findInstances
      , findInstance
      , getInstance
+     , taskInstance
      ) where
 
 import Control.Monad.Catch
@@ -18,6 +19,12 @@ import Groot.Exception
 import Network.AWS
 import qualified Network.AWS.ECS as ECS
 import Network.AWS.Data.Text
+
+taskInstance :: MonadAWS m => ECS.Task -> MaybeT m ECS.ContainerInstance
+taskInstance tsk = do
+  clusterArn  <- MaybeT . return $ ClusterRef <$> tsk ^. ECS.tClusterARN
+  instanceArn <- MaybeT . return $ InstanceRef <$> tsk ^. ECS.tContainerInstanceARN
+  getInstance instanceArn (Just clusterArn)
 
 fetchInstanceBatch :: MonadAWS m => [InstanceRef] -> ClusterRef -> m [ECS.ContainerInstance]
 fetchInstanceBatch []           _          = return []

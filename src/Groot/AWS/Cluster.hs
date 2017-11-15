@@ -6,6 +6,7 @@ module Groot.AWS.Cluster
      , findCluster
      , getCluster
      , handleClusterNotFoundException
+     , taskCluster
      ) where
 
 import Control.Monad.Catch
@@ -25,6 +26,11 @@ clusterName cluster = ClusterRef <$> cluster ^. ECS.cClusterName
 
 clusterExists :: MonadAWS m => ClusterRef -> m Bool
 clusterExists clusterRef = isJust <$> (runMaybeT $ findCluster clusterRef)
+
+taskCluster :: MonadAWS m => ECS.Task -> MaybeT m ECS.Cluster
+taskCluster tsk = do
+  arn <- MaybeT . return $ ClusterRef <$> tsk ^. ECS.tClusterARN
+  getCluster arn
 
 handleClusterNotFoundException :: MonadCatch m => ClusterRef -> m a -> m a
 handleClusterNotFoundException clusterRef action =

@@ -27,30 +27,34 @@ import Groot.Data
 data TaskSummary = TaskSummary
   { task       :: String
   , status     :: String
-  , clusterArn :: String
+  , cluster    :: String
+  , instanceId :: String
   , startedAt  :: String
   , stoppedAt  :: String
   } deriving (Eq, Show, Generic, Data)
 
 instance Tabulate TaskSummary
 
-newtype TaskAndDef = TaskAndDef (ECS.Task, ECS.TaskDefinition)
+data TaskAndRelatives = TR ECS.Task ECS.TaskDefinition ECS.Cluster ECS.ContainerInstance
 
-instance HasSummary TaskAndDef TaskSummary where
-  summarize (TaskAndDef (task, td)) = TaskSummary <$> tTaskDef <*> tStatus <*> tClusterArn <*> tStartedAt <*> tStoppedAt
+instance HasSummary TaskAndRelatives TaskSummary where
+  summarize (TR t td c i) = TaskSummary <$> tTaskDef <*> tStatus <*> tCluster <*> tInstanceId <*> tStartedAt <*> tStoppedAt
     where tFamily     = td ^. ECS.tdFamily
           tRevision   = toText <$> td ^. ECS.tdRevision
           tTaskDef    = T.unpack <$> ((\x y -> T.concat [x, ":", y]) <$> tFamily <*> tRevision)
-          tStatus     = T.unpack <$> task ^. ECS.tLastStatus
-          tClusterArn = T.unpack <$> task ^. ECS.tClusterARN
-          tStartedAt  = pure $ maybe "" show $ task ^. ECS.tStartedAt
-          tStoppedAt  = pure $ maybe "" show $ task ^. ECS.tStoppedAt
+          tStatus     = T.unpack <$> t ^. ECS.tLastStatus
+          tCluster    = T.unpack <$> c ^. ECS.cClusterName
+          tInstanceId = T.unpack <$> i ^. ECS.ciEc2InstanceId
+          tStartedAt  = pure $ maybe "" show $ t ^. ECS.tStartedAt
+          tStoppedAt  = pure $ maybe "" show $ t ^. ECS.tStoppedAt
 
-annotateWithTaskDef :: MonadAWS m => Conduit ECS.Task m TaskAndDef
-annotateWithTaskDef = CL.mapMaybeM (\t -> runMaybeT $ fmap (TaskAndDef . ((,) t)) $ taskDefFromTask t)
+annotateTask :: MonadAWS m => Conduit ECS.Task m TaskAndRelatives
+annotateTask = CL.mapMaybeM (\t -> runMaybeT $ 
+    (TR t) <$> (taskDefFromTask t) <*> (taskCluster t) <*> (taskInstance t)
+  )
 
 summarizeTasks :: Maybe ClusterRef -> AWS [TaskSummary]
-summarizeTasks mcid = sourceToList $ taskSource mcid =$= annotateWithTaskDef =$= CL.mapMaybe summarize
+summarizeTasks mcid = sourceToList $ taskSource mcid =$= annotateTask =$= CL.mapMaybe summarize
   where taskSource Nothing    = fetchAllTasks
         taskSource (Just cid) = fetchTasks cid
 
