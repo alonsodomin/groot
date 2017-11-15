@@ -69,6 +69,7 @@ executable groot
                      , bytestring
                      , conduit                     
                      , exceptions
+                     , http-conduit
                      , http-types
                      , optparse-applicative                                                               
                      , lens

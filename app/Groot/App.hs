@@ -4,19 +4,21 @@ module Groot.App
      ( groot
      ) where
 
-import Control.Applicative
-import Control.Exception.Lens
-import Control.Lens
-import Control.Monad.Catch
-import Control.Monad.Trans.Except
-import Control.Monad.Trans.Maybe
-import qualified Data.ByteString.Char8 as BS
-import Data.List (intercalate)
-import qualified Data.Text as T
-import Network.AWS
-import Network.AWS.Data.Text
-import Network.HTTP.Types.Status
-import System.Console.ANSI
+import           Control.Applicative
+import           Control.Exception.Lens
+import           Control.Lens
+import           Control.Monad.Catch
+import           Control.Monad.Trans.Except
+import           Control.Monad.Trans.Maybe
+import qualified Data.ByteString.Char8      as BS
+import           Data.List                  (intercalate)
+import           Data.Semigroup
+import qualified Data.Text                  as T
+import           Network.AWS
+import           Network.AWS.Data.Text
+import           Network.HTTP.Conduit
+import           Network.HTTP.Types.Status
+import           System.Console.ANSI
 
 import Groot.App.Cli
 import Groot.App.Compose
@@ -66,11 +68,11 @@ grootCmd (TaskCmd opts)    = runGrootTask opts
 
 -- AWS Error handlers
 
--- handleTransportError :: TransportError -> IO ()
--- handleTransportError err =
---   let host = T.unpack . toText $ err ^. transportHost
---       port = T.unpack . toText $ err ^. transportPort
---   in 
+handleHttpException :: HttpException -> IO ()
+handleHttpException (InvalidUrlException url reason) =
+  printError $ "Url " <> url <> " is invalid due to: " <> reason
+handleHttpException (HttpExceptionRequest req content) =
+  printError $ "Could not communicate with '" <> (BS.unpack . host $ req) <> "'."
 
 handleServiceError :: ServiceError -> IO ()
 handleServiceError err =
@@ -89,39 +91,40 @@ handleServiceError err =
 
 handleClusterNotFound :: ClusterNotFound -> IO ()
 handleClusterNotFound (ClusterNotFound' (ClusterRef ref)) =
-  printError $ "Could not find cluster '" ++ (T.unpack ref) ++ "'"
+  printError $ "Could not find cluster '" <> (T.unpack ref) <> "'"
 
 handleServiceNotFound :: ServiceNotFound -> IO ()
 handleServiceNotFound (ServiceNotFound' serviceRef clusterRef) =
-  printError $ "Could not find service '" ++ (T.unpack . toText $ serviceRef) ++ "'" ++
-    maybe "" (\x -> " in cluster " ++ (T.unpack . toText $ x)) clusterRef
+  printError $ "Could not find service '" <> (T.unpack . toText $ serviceRef) <> "'" <>
+    maybe "" (\x -> " in cluster " <> (T.unpack . toText $ x)) clusterRef
 
 handleAmbiguousServiceName :: AmbiguousServiceName -> IO ()
 handleAmbiguousServiceName (AmbiguousServiceName' serviceRef clusters) =
-  let stringifyClusters = intercalate "\n - " $ map (T.unpack . toText) clusters
-  in printError $ "Service name '" ++ (T.unpack . toText $ serviceRef) 
-     ++ "' is ambiguous. It was found in the following clusters:\n" ++ stringifyClusters
+  let stringifyClusters = "\n - " <> (intercalate "\n - " $ map (T.unpack . toText) clusters)
+  in printError $ "Service name '" <> (T.unpack . toText $ serviceRef) 
+     <> "' is ambiguous. It was found in the following clusters:" <> stringifyClusters
 
 handleInactiveService :: InactiveService -> IO ()
 handleInactiveService (InactiveService' serviceRef clusterRef) =
-  printError $ "Service '" ++ (T.unpack . toText $ serviceRef) ++ "' in cluster '"
-    ++ (T.unpack . toText $ clusterRef) ++ "' is not active."
+  printError $ "Service '" <> (T.unpack . toText $ serviceRef) <> "' in cluster '"
+    <> (T.unpack . toText $ clusterRef) <> "' is not active."
 
 handleTaskNotFound :: TaskNotFound -> IO ()
 handleTaskNotFound (TaskNotFound' taskRef clusterRef) =
-  printError $ "Could not find task '" ++ (T.unpack . toText $ taskRef) ++ "'" ++
-    maybe "" (\x -> " in cluster " ++ (T.unpack . toText $ x)) clusterRef
+  printError $ "Could not find task '" <> (T.unpack . toText $ taskRef) <> "'" <>
+    maybe "" (\x -> " in cluster " <> (T.unpack . toText $ x)) clusterRef
 
 -- Main Program execution
 
 handleExceptions :: IO () -> IO ()
 handleExceptions action = catches action [
-    handler _ServiceError handleServiceError
-  , handler _ClusterNotFound handleClusterNotFound
-  , handler _ServiceNotFound handleServiceNotFound
+    handler _TransportError       handleHttpException
+  , handler _ServiceError         handleServiceError
+  , handler _ClusterNotFound      handleClusterNotFound
+  , handler _ServiceNotFound      handleServiceNotFound
   , handler _AmbiguousServiceName handleAmbiguousServiceName
-  , handler _InactiveService handleInactiveService
-  , handler _TaskNotFound handleTaskNotFound
+  , handler _InactiveService      handleInactiveService
+  , handler _TaskNotFound         handleTaskNotFound
   ]
 
 groot :: CliOptions -> IO ()
