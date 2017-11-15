@@ -12,17 +12,6 @@ import qualified Data.Text as T
 import GHC.Generics
 import Network.AWS.Data.Text
 
-newtype AMI = AMI Text
-  deriving (Eq, Show, Data, Read, Generic)
-
-instance IsString AMI where
-  fromString = AMI . T.pack
-
-instance FromJSON AMI
-
-instance ToText AMI where
-  toText (AMI s) = s
-
 newtype InstanceRef = InstanceRef Text
   deriving (Eq, Show, Data, Read, Generic)
 
