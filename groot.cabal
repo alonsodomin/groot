@@ -39,6 +39,7 @@ library
                      , Groot.Exception
                      , Groot.Types.Base
                      , Groot.Types.Cluster
+                     , Groot.Types.ContainerInstance
                      , Groot.Types
   build-depends:       base >= 4.7 && < 5
                      , aeson
