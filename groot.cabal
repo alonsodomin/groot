@@ -1,7 +1,7 @@
 name:                groot
 version:             0.0.1.0
 -- synopsis:
--- description:
+description:         Command line utility to manage AWS ECS resources
 homepage:            https://github.com/alonsodomin/groot
 license:             Apache
 license-file:        LICENSE
@@ -37,6 +37,8 @@ library
                      , Groot.Exception.Task
                      , Groot.Exception.Service
                      , Groot.Exception
+                     , Groot.Types.Base
+                     , Groot.Types.Cluster
                      , Groot.Types
   build-depends:       base >= 4.7 && < 5
                      , aeson
@@ -110,6 +112,7 @@ test-suite groot-test
                      , groot
                      , hspec
   other-modules:       Test.Groot.Types
+                     , Test.Groot.Types.Base
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 
