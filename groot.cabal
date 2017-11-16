@@ -15,8 +15,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Groot
-                     , Groot.AWS.Cluster
+  exposed-modules:     Groot.AWS.Cluster
                      , Groot.AWS.Instance
                      , Groot.AWS.Service
                      , Groot.AWS.Task
@@ -31,6 +30,7 @@ library
                      , Groot.Data.Service
                      , Groot.Data.Task
                      , Groot.Data.TaskDef
+                     , Groot.Data.Text
                      , Groot.Data
                      , Groot.Exception.Cluster
                      , Groot.Exception.Instance

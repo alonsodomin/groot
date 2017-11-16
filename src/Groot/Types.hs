@@ -5,25 +5,21 @@
 module Groot.Types 
      ( ServiceId (..)
      , AccountId (..)
-     , ARN (..)
+     , Arn (..)
      , arnAccountId
      , arnRegion
      , arnResourcePath
      , arnServiceId
-     , AMI
+     , Ami (..)
      ) where
 
 import           Prelude               hiding (takeWhile)
 import           Control.Lens
-import           Data.Attoparsec.Text
 import           Data.Text             (Text)
 import qualified Data.Text             as T
 import           Data.Semigroup
+import           Groot.Data.Text
 import           Network.AWS
-import           Network.AWS.Data.Text hiding (takeText)
-
-subparser :: Parser a -> Text -> Parser a
-subparser m input = either (fromTextError . T.pack) return $ parseOnly m input
 
 -- | An AWS service identifier, typically used in AWS ARNs
 data ServiceId =
@@ -54,16 +50,16 @@ instance ToText AccountId where
 
 -- | An AWS Resource Name (ARN for short) used to uniquely identify 
 -- a given resource
-data ARN = ARN
+data Arn = Arn
   { _arnServiceId    :: ServiceId
   , _arnRegion       :: Region
   , _arnAccountId    :: AccountId
   , _arnResourcePath :: Text
   } deriving (Eq, Show)
 
-makeLenses ''ARN
+makeLenses ''Arn
 
-instance FromText ARN where
+instance FromText Arn where
   parser = do
     "arn:aws:"
     serviceId <- subparser parser =<< takeTill (== ':')
@@ -73,30 +69,30 @@ instance FromText ARN where
     account <- takeWhile (/= ':')
     char ':'
     path <- takeText
-    return $ ARN serviceId region (AccountId account) path
+    return $ Arn serviceId region (AccountId account) path
 
-instance ToText ARN where
-  toText (ARN service region account path) = T.concat [
+instance ToText Arn where
+  toText (Arn service region account path) = T.concat [
       "arn:aws:"
-    , (toText service)
+    , toText service
     , ":"
-    , (toText region)
+    , toText region
     , ":"
-    , (toText account)
+    , toText account
     , ":"
     , path
     ]
 
 -- | An AWS Machine Image, used to uniquely identify a given
 -- image for an specific instance
-newtype AMI = AMI Text
+newtype Ami = Ami Text
   deriving (Eq, Show)
 
-instance FromText AMI where
+instance FromText Ami where
   parser = do
     "ami-"
     ident <- takeText
-    return $ AMI ident
+    return $ Ami ident
 
-instance ToText AMI where
-  toText (AMI ident) = ident
+instance ToText Ami where
+  toText (Ami ident) = T.append "ami-" ident
