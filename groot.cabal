@@ -122,4 +122,4 @@ test-suite groot-test
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/hask-roller
+  location: https://github.com/alonsodomin/groot
