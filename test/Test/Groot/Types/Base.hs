@@ -5,10 +5,26 @@ module Test.Groot.Types.Base
      ) where
 
 import Data.Either
+import Data.Text.Arbitrary
 import Groot.Data.Text
 import Groot.Types
-import Network.AWS
+import Network.AWS.Types
 import Test.Hspec
+import Test.QuickCheck
+
+-- Arbitrary instances
+
+instance Arbitrary ServiceId where
+  arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary AccountId where
+  arbitrary = AccountId <$> arbitrary
+
+instance Arbitrary Region where
+  arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary a => Arbitrary (Arn a) where
+  arbitrary = Arn <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 newtype DummyArnPath = DummyArnPath Text
   deriving (Eq, Show)

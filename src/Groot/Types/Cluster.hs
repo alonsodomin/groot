@@ -1,7 +1,9 @@
 {-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE TemplateHaskell    #-}
 
 module Groot.Types.Cluster where
 
+import Control.Lens
 import Data.Text (Text)
 import qualified Data.Text as T
 import Groot.Data.Text
@@ -21,3 +23,10 @@ instance FromText ClusterArnPath where
 instance ToText ClusterArnPath where
   toText (ClusterArnPath clusterName) =
     T.append "cluster/" clusterName
+
+data Cluster = Cluster
+  { _cName :: Text
+  , _cArn  :: ClusterArn
+  } deriving (Eq, Show)
+
+makeLenses ''Cluster

@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE LambdaCase         #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE TemplateHaskell    #-}
@@ -19,6 +20,7 @@ import           Data.Text             (Text)
 import qualified Data.Text             as T
 import           Data.Semigroup
 import           Data.String
+import           GHC.Generics
 import           Groot.Data.Text
 import           Network.AWS
 
@@ -27,7 +29,7 @@ data ServiceId =
     AutoScaling
   | ECS
   | EC2
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic, Enum, Bounded)
 
 instance FromText ServiceId where
   parser = takeLowerText >>= \case
