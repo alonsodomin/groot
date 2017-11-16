@@ -18,6 +18,7 @@ import           Control.Lens
 import           Data.Text             (Text)
 import qualified Data.Text             as T
 import           Data.Semigroup
+import           Data.String
 import           Groot.Data.Text
 import           Network.AWS
 
@@ -44,6 +45,9 @@ instance ToText ServiceId where
 -- | An AWS account identifier
 newtype AccountId = AccountId Text
   deriving (Eq, Show)
+
+instance IsString AccountId where
+  fromString = AccountId . T.pack
 
 instance ToText AccountId where
   toText (AccountId s) = s
