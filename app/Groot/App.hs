@@ -22,7 +22,8 @@ import           System.Console.ANSI
 
 import Groot.App.Cli
 import Groot.App.Compose
-import Groot.App.Events
+import Groot.App.Cluster
+import Groot.App.Service
 import Groot.App.List
 import Groot.App.Console
 import Groot.App.Task
@@ -62,8 +63,9 @@ loadEnv opts = do
 
 grootCmd :: Cmd -> Env -> IO ()
 grootCmd (ComposeCmd opts) = runGrootCompose opts
+grootCmd (ClusterCmd opts) = runGrootCluster opts
 grootCmd (ListCmd opts)    = runGrootList opts
-grootCmd (EventsCmd opts)  = runGrootEvents opts
+grootCmd (ServiceCmd opts) = runGrootService opts
 grootCmd (TaskCmd opts)    = runGrootTask opts
 
 -- AWS Error handlers

@@ -40,11 +40,12 @@ packages:
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
-  - pptable-0.2.0.0
   - amazonka-1.5.0
   - amazonka-autoscaling-1.5.0
   - amazonka-core-1.5.0
   - amazonka-ecs-1.5.0
+  - conduit-merge-0.1.2.0
+  - pptable-0.2.0.0
 
 # Override default flag values for local packages and extra-deps
 flags: {}

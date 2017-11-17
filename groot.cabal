@@ -51,6 +51,7 @@ library
                      , text
                      , conduit
                      , conduit-combinators
+                     , conduit-merge
                      , mtl
                      , transformers
                      , vector
@@ -90,6 +91,8 @@ executable groot
                      , Groot.App.Cli.Parsers
                      , Groot.App.Compose
                      , Groot.App.Console
+                     , Groot.App.Cluster.Events
+                     , Groot.App.Cluster
                      , Groot.App.Events
                      , Groot.App.List.Base
                      , Groot.App.List.Cluster
@@ -98,6 +101,8 @@ executable groot
                      , Groot.App.List.TaskDef
                      , Groot.App.List.Service
                      , Groot.App.List
+                     , Groot.App.Service.Events
+                     , Groot.App.Service
                      , Groot.App.Task
                      , Groot.App
   default-language:    Haskell2010

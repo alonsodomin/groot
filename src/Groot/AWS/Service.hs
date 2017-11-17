@@ -3,10 +3,13 @@ module Groot.AWS.Service
        serviceCoords
      , findServices
      , findService
+     , findServiceCoords
      , getService
      , fetchServices
      , fetchAllServices
      , serviceEventLog
+     , servicesEventLog
+     , clusterServiceEventLog
      ) where
 
 import Control.Applicative
@@ -17,9 +20,10 @@ import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 import Control.Lens
 import Data.Conduit
+import qualified Data.Conduit.Merge as CM
 import qualified Data.Conduit.List as CL
 import Data.Maybe (listToMaybe)
-import Data.Time.Clock
+import Data.Time
 import Groot.AWS.Cluster
 import Groot.Data
 import Groot.Exception
@@ -32,6 +36,15 @@ serviceCoords service = ServiceCoords <$> serviceRef <*> clusterRef
   where serviceRef = ServiceRef <$> service ^. ECS.csServiceARN
         clusterRef = ClusterRef <$> service ^. ECS.csClusterARN
 
+findServiceCoords :: MonadAWS m => [ServiceRef] -> m [ServiceCoords]
+findServiceCoords = traverse singleServiceCoords
+  where singleServiceCoords :: MonadAWS m => ServiceRef -> m ServiceCoords
+        singleServiceCoords serviceRef = do
+          mcoords <- (serviceCoords <$> getService serviceRef Nothing)
+          case mcoords of
+            Just c  -> return c
+            Nothing -> throwM $ serviceNotFound serviceRef Nothing
+
 fetchServiceBatch :: MonadAWS m => [ServiceRef] -> ClusterRef -> m [ECS.ContainerService]
 fetchServiceBatch []       _    = return []
 fetchServiceBatch services cref =
@@ -41,6 +54,16 @@ fetchServiceBatch services cref =
                $ ECS.describeServices
         return $ res ^. ECS.dssrsServices
   in handleClusterNotFoundException cref fetch
+
+fetchServices :: MonadAWS m => ClusterRef -> Source m ECS.ContainerService
+fetchServices clusterRef =
+  handleClusterNotFoundException clusterRef (paginate (ECS.lsCluster ?~ (toText clusterRef) $ ECS.listServices))
+    =$= CL.concatMapM (\x -> fetchServiceBatch (ServiceRef <$> x ^. ECS.lsrsServiceARNs) clusterRef)
+
+fetchAllServices :: MonadAWS m => Source m ECS.ContainerService
+fetchAllServices = fetchClusters
+  =$= CL.mapMaybe clusterName
+  =$= fetchAllServicesC
 
 fetchServicesC' :: MonadAWS m => [ServiceRef] -> Conduit ClusterRef m (ClusterRef, ECS.ContainerService)
 fetchServicesC' services =
@@ -82,16 +105,6 @@ getService serviceName clusterRef = do
     Just x  -> return x
     Nothing -> throwM $ serviceNotFound serviceName clusterRef
 
-fetchServices :: MonadAWS m => ClusterRef -> Source m ECS.ContainerService
-fetchServices clusterRef =
-  handleClusterNotFoundException clusterRef (paginate (ECS.lsCluster ?~ (toText clusterRef) $ ECS.listServices))
-    =$= CL.concatMapM (\x -> fetchServiceBatch (ServiceRef <$> x ^. ECS.lsrsServiceARNs) clusterRef)
-
-fetchAllServices :: MonadAWS m => Source m ECS.ContainerService
-fetchAllServices = fetchClusters
-  =$= CL.mapMaybe clusterName
-  =$= fetchAllServicesC
-
 serviceEventLog :: MonadAWS m
                 => ServiceCoords
                 -> Bool
@@ -126,3 +139,25 @@ serviceEventLog (ServiceCoords serviceRef clusterRef) inf = yield Nothing =$= lo
                 liftIO $ threadDelay 1000000
                 loop
               else return ()
+
+servicesEventLog :: MonadAWS m => [ServiceCoords] -> Bool -> Source m ECS.ServiceEvent
+servicesEventLog coords inf = CM.mergeSourcesOn eventOrd eventSources
+  where epoch = UTCTime (ModifiedJulianDay 40587) (secondsToDiffTime 0)
+
+        eventOrd :: ECS.ServiceEvent -> UTCTime
+        eventOrd event = maybe epoch id $ event ^. ECS.seCreatedAt
+
+        eventSources = fmap (\x -> serviceEventLog x inf) coords
+
+clusterServiceEventLog :: MonadAWS m => [ClusterRef] -> Bool -> Source m ECS.ServiceEvent
+clusterServiceEventLog clusterRefs inf = 
+  let fetchEventCoords :: MonadAWS m => Conduit ClusterRef m [ServiceCoords]
+      fetchEventCoords = awaitForever (\clusterRef ->
+          yieldM . sourceToList $ fetchServices clusterRef
+            =$= filterC isActiveService
+            =$= CL.mapMaybe serviceCoords
+        )
+
+      mergeEvents :: MonadAWS m => Conduit [ServiceCoords] m ECS.ServiceEvent
+      mergeEvents = awaitForever (\coords -> toProducer $ servicesEventLog coords inf)
+  in CL.sourceList clusterRefs =$= fetchEventCoords =$= mergeEvents

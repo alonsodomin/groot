@@ -8,18 +8,20 @@ module Groot.App.Cli
 
 import Options.Applicative
 import Data.Semigroup ((<>))
-import Network.AWS (Credentials, Region)
+import Network.AWS (Region)
 
 import Groot.App.Cli.Parsers
 import Groot.App.Compose
-import Groot.App.Events
+import Groot.App.Cluster
+import Groot.App.Service
 import Groot.App.List
 import Groot.App.Task
 
 data Cmd =
     ComposeCmd ComposeOptions
+  | ClusterCmd ClusterOptions
   | ListCmd ListOptions
-  | EventsCmd EventOptions
+  | ServiceCmd ServiceOptions
   | TaskCmd TaskOptions
   deriving (Eq, Show)
 
@@ -32,7 +34,8 @@ data CliOptions = CliOptions
 commands :: Parser Cmd
 commands = hsubparser
    ( command "ls"      (info (ListCmd    <$> grootListCli)    (progDesc "List ECS resources"))
-  <> command "events"  (info (EventsCmd  <$> grootEventsCli)  (progDesc "Display events for a given ECS service"))
+  <> command "cluster" (info (ClusterCmd <$> grootClusterCli) (progDesc "Perform cluster related operations"))
+  <> command "service" (info (ServiceCmd <$> grootServiceCli) (progDesc "Perform service related operations"))
   <> command "compose" (info (ComposeCmd <$> grootComposeCli) (progDesc "Handle Groot compose files"))
   <> command "task"    (info (TaskCmd    <$> grootTaskCli)    (progDesc "Manage ECS tasks"))
    )
