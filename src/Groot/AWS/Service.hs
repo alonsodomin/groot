@@ -7,6 +7,8 @@ module Groot.AWS.Service
      , fetchServices
      , fetchAllServices
      , serviceEventLog
+     , servicesEventLog
+     , clusterServiceEventLog
      ) where
 
 import Control.Applicative
@@ -128,17 +130,22 @@ serviceEventLog (ServiceCoords serviceRef clusterRef) inf = yield Nothing =$= lo
                 loop
               else return ()
 
+servicesEventLog :: MonadAWS m => [ServiceCoords] -> Bool -> Source m ECS.ServiceEvent
+servicesEventLog coords inf = CM.mergeSourcesOn eventOrd eventSources
+  where epoch = UTCTime (ModifiedJulianDay 40587) (secondsToDiffTime 0)
+
+        eventOrd :: ECS.ServiceEvent -> UTCTime
+        eventOrd event = maybe epoch id $ event ^. ECS.seCreatedAt
+
+        eventSources = fmap (\x -> serviceEventLog x inf) coords
+
 clusterServiceEventLog :: MonadAWS m => ClusterRef -> Bool -> Source m ECS.ServiceEvent
 clusterServiceEventLog clusterRef inf =
-  let fetchEventSources :: MonadAWS m => Source m [Source m ECS.ServiceEvent]
+  let fetchEventSources :: MonadAWS m => Source m [ServiceCoords]
       fetchEventSources = yieldM . sourceToList $ fetchServices clusterRef 
         =$= filterC isActiveService
         =$= CL.mapMaybe serviceCoords
-        =$= CL.map (\x -> serviceEventLog x inf)
       
-      epoch :: UTCTime
-      epoch = UTCTime (ModifiedJulianDay 40587) (secondsToDiffTime 0)
-
-      eventOrd :: ECS.ServiceEvent -> UTCTime
-      eventOrd event = maybe epoch id $ event ^. ECS.seCreatedAt
-  in fetchEventSources =$= (awaitForever $ \eventSources -> CM.mergeSourcesOn eventOrd eventSources)
+      mergeEvents :: MonadAWS m => Conduit [ServiceCoords] m ECS.ServiceEvent
+      mergeEvents = awaitForever (\coords -> toProducer $ servicesEventLog coords inf)
+  in fetchEventSources =$= mergeEvents

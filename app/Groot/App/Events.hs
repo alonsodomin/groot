@@ -23,10 +23,13 @@ import Groot.Data
 import Groot.Exception
 
 data EventOptions = EventOptions
-  { _clusterId   :: Maybe ClusterRef
-  , _follow      :: Bool
-  , _serviceName :: ServiceRef
+  { _clusterId    :: Maybe ClusterRef
+  , _follow       :: Bool
+  , _serviceNames :: [ServiceRef]
   } deriving (Eq, Show)
+
+serviceRefArg :: Parser ServiceRef
+serviceRefArg = fromString <$> argument str (metavar "SERVICE_NAME")
 
 grootEventsCli :: Parser EventOptions
 grootEventsCli = EventOptions
@@ -35,7 +38,7 @@ grootEventsCli = EventOptions
                ( long "follow"
               <> short 'f'
               <> help "Follow the trail of events" )
-             <*> (fromString <$> argument str (metavar "SERVICE_NAME"))
+             <*> some serviceRefArg
 
 formatEventTime :: UTCTime -> IO String
 formatEventTime time = do
@@ -58,9 +61,12 @@ findServiceCoords serviceRef = do
     Just c  -> return c
     Nothing -> throwM $ serviceNotFound serviceRef Nothing
 
-fetchEvents :: Env -> ServiceCoords -> Bool -> Source IO ECS.ServiceEvent
+findServicesCoords :: MonadAWS m => [ServiceRef] -> m [ServiceCoords]
+findServicesCoords serviceRefs = traverse findServiceCoords serviceRefs
+
+fetchEvents :: Env -> [ServiceCoords] -> Bool -> Source IO ECS.ServiceEvent
 fetchEvents env coords inf =
-  transPipe (runResourceT . runAWS env) $ serviceEventLog coords inf
+  transPipe (runResourceT . runAWS env) $ servicesEventLog coords inf
 
 printEvents :: Sink ECS.ServiceEvent IO ()
 printEvents = do
@@ -72,8 +78,8 @@ printEvents = do
     Nothing -> return ()
 
 runGrootEvents :: EventOptions -> Env -> IO ()
-runGrootEvents (EventOptions (Just clusterRef) follow serviceRef) env =
-  runConduit $ fetchEvents env (ServiceCoords serviceRef clusterRef) follow =$ printEvents
-runGrootEvents (EventOptions Nothing follow serviceRef) env = do
-  coords <- runResourceT . runAWS env $ findServiceCoords serviceRef
+runGrootEvents (EventOptions (Just clusterRef) follow serviceRefs) env =
+  runConduit $ fetchEvents env (map (\x -> ServiceCoords x clusterRef) serviceRefs) follow =$ printEvents
+runGrootEvents (EventOptions Nothing follow serviceRefs) env = do
+  coords <- runResourceT . runAWS env $ findServicesCoords serviceRefs
   runConduit $ fetchEvents env coords follow =$ printEvents
