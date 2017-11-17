@@ -55,7 +55,7 @@ library
                      , transformers
                      , vector
                      , time
-                     , amazonka >= 1.5 && < 1.6
+                     , amazonka >= 1.5.0 && < 1.6
                      , amazonka-core
                      , amazonka-autoscaling
                      , amazonka-ecs
@@ -81,7 +81,7 @@ executable groot
                      , mtl
                      , transformers
                      , yaml
-                     , amazonka >= 1.5 && < 1.6
+                     , amazonka >= 1.5.0 && < 1.6
                      , amazonka-core
                      , amazonka-ecs
                      , pptable
@@ -108,8 +108,9 @@ test-suite groot-test
   main-is:             Spec.hs
   build-depends:       base
                      , attoparsec
-                     , amazonka >= 1.5 && < 1.6
+                     , amazonka >= 1.5.0 && < 1.6
                      , amazonka-core
+                     , checkers
                      , groot
                      , text
                      , hspec
