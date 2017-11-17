@@ -11,6 +11,7 @@ module Groot.Types.Cluster
      ) where
 
 import           Control.Lens
+import           Data.Monoid
 import           Data.Text        (Text)
 import qualified Data.Text        as T
 import           Groot.Data.Text
@@ -19,12 +20,12 @@ import           Groot.Types.Base
 newtype ClusterArnPath = ClusterArnPath Text
   deriving (Eq, Show)
 
-capClusterName :: Lens' ClusterArnPath Text
-capClusterName = lens (\(ClusterArnPath name) -> name) (\_ a -> ClusterArnPath a)
+capClusterName :: Getter ClusterArnPath Text
+capClusterName = to (\(ClusterArnPath name) -> name)
 
 type ClusterArn = Arn ClusterArnPath
 
-arnClusterName :: Lens' ClusterArn Text
+arnClusterName :: Getter ClusterArn Text
 arnClusterName = arnResourcePath . capClusterName
 
 instance FromText ClusterArnPath where
@@ -41,7 +42,8 @@ data Cluster = Cluster
   { _cClusterArn :: Maybe ClusterArn
   } deriving (Eq, Show)
 
-makeLenses ''Cluster
+cClusterArn :: Getter Cluster (Maybe ClusterArn)
+cClusterArn = to _cClusterArn
 
-cClusterName :: Traversal' Cluster Text
+cClusterName :: Getting (First ClusterArn) Cluster Text
 cClusterName = cClusterArn . _Just . arnClusterName

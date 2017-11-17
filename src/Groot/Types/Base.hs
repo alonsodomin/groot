@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE LambdaCase         #-}
+{-# LANGUAGE RankNTypes         #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE TemplateHaskell    #-}
 
@@ -20,7 +21,7 @@ import           Data.Text             (Text)
 import qualified Data.Text             as T
 import           Data.Semigroup
 import           Data.String
-import           GHC.Generics
+import           GHC.Generics hiding (to)
 import           Groot.Data.Text
 import           Network.AWS
 
@@ -63,7 +64,17 @@ data Arn a = Arn
   , _arnResourcePath :: a
   } deriving (Eq, Show)
 
-makeLenses ''Arn
+arnServiceId :: forall a. Getter (Arn a) ServiceId
+arnServiceId = to _arnServiceId
+
+arnRegion :: forall a. Getter (Arn a) Region
+arnRegion = to _arnRegion
+
+arnAccountId :: forall a. Getter (Arn a) AccountId
+arnAccountId = to _arnAccountId
+
+arnResourcePath :: forall a. Getter (Arn a) a
+arnResourcePath = to _arnResourcePath
 
 instance FromText a => FromText (Arn a) where
   parser = do
