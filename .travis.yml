@@ -24,3 +24,7 @@ before_install:
 script:
   - stack --no-terminal test
   - stack --no-terminal haddock
+
+branches:
+  only:
+    - master
