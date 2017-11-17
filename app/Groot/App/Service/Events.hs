@@ -8,6 +8,7 @@ import Data.Conduit
 import Data.Semigroup ((<>))
 import Data.String
 import Network.AWS
+import qualified Network.AWS.ECS as ECS
 import Options.Applicative
 
 import Groot.App.Cli.Parsers (clusterOpt)
@@ -32,6 +33,10 @@ serviceEventsCli = ServiceEventOptions
                  <> short 'f'
                  <> help "Follow the trail of events" )
                <*> some serviceRefArg
+
+fetchEvents :: Env -> [ServiceCoords] -> Bool -> Source IO ECS.ServiceEvent
+fetchEvents env coords inf =
+  transPipe (runResourceT . runAWS env) $ servicesEventLog coords inf
 
 runServiceEvents :: ServiceEventOptions -> Env -> IO ()
 runServiceEvents (ServiceEventOptions (Just clusterRef) follow serviceRefs) env =

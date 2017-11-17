@@ -149,13 +149,15 @@ servicesEventLog coords inf = CM.mergeSourcesOn eventOrd eventSources
 
         eventSources = fmap (\x -> serviceEventLog x inf) coords
 
-clusterServiceEventLog :: MonadAWS m => ClusterRef -> Bool -> Source m ECS.ServiceEvent
-clusterServiceEventLog clusterRef inf =
-  let fetchEventSources :: MonadAWS m => Source m [ServiceCoords]
-      fetchEventSources = yieldM . sourceToList $ fetchServices clusterRef 
-        =$= filterC isActiveService
-        =$= CL.mapMaybe serviceCoords
-      
+clusterServiceEventLog :: MonadAWS m => [ClusterRef] -> Bool -> Source m ECS.ServiceEvent
+clusterServiceEventLog clusterRefs inf = 
+  let fetchEventCoords :: MonadAWS m => Conduit ClusterRef m [ServiceCoords]
+      fetchEventCoords = awaitForever (\clusterRef ->
+          yieldM . sourceToList $ fetchServices clusterRef
+            =$= filterC isActiveService
+            =$= CL.mapMaybe serviceCoords
+        )
+
       mergeEvents :: MonadAWS m => Conduit [ServiceCoords] m ECS.ServiceEvent
       mergeEvents = awaitForever (\coords -> toProducer $ servicesEventLog coords inf)
-  in fetchEventSources =$= mergeEvents
+  in CL.sourceList clusterRefs =$= fetchEventCoords =$= mergeEvents

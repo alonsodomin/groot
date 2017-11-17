@@ -1,6 +1,5 @@
 module Groot.App.Events
-       ( fetchEvents
-       , printEvents
+       ( printEvents
        ) where
 
 import           Control.Monad.IO.Class
@@ -28,10 +27,6 @@ printEvent event = do
   setSGR [Reset]
   putStr " "
   putStrLn $ maybe "" T.unpack $ event ^. ECS.seMessage
-
-fetchEvents :: Env -> [ServiceCoords] -> Bool -> Source IO ECS.ServiceEvent
-fetchEvents env coords inf =
-  transPipe (runResourceT . runAWS env) $ servicesEventLog coords inf
 
 printEvents :: Sink ECS.ServiceEvent IO ()
 printEvents = do
