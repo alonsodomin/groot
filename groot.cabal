@@ -99,6 +99,8 @@ executable groot
                      , Groot.App.List.TaskDef
                      , Groot.App.List.Service
                      , Groot.App.List
+                     , Groot.App.Service.Events
+                     , Groot.App.Service
                      , Groot.App.Task
                      , Groot.App
   default-language:    Haskell2010
