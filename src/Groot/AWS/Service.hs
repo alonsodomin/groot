@@ -3,6 +3,7 @@ module Groot.AWS.Service
        serviceCoords
      , findServices
      , findService
+     , findServiceCoords
      , getService
      , fetchServices
      , fetchAllServices
@@ -34,6 +35,15 @@ serviceCoords :: ECS.ContainerService -> Maybe ServiceCoords
 serviceCoords service = ServiceCoords <$> serviceRef <*> clusterRef
   where serviceRef = ServiceRef <$> service ^. ECS.csServiceARN
         clusterRef = ClusterRef <$> service ^. ECS.csClusterARN
+
+findServiceCoords :: MonadAWS m => [ServiceRef] -> m [ServiceCoords]
+findServiceCoords = traverse singleServiceCoords
+  where singleServiceCoords :: MonadAWS m => ServiceRef -> m ServiceCoords
+        singleServiceCoords serviceRef = do
+          mcoords <- (serviceCoords <$> getService serviceRef Nothing)
+          case mcoords of
+            Just c  -> return c
+            Nothing -> throwM $ serviceNotFound serviceRef Nothing
 
 fetchServiceBatch :: MonadAWS m => [ServiceRef] -> ClusterRef -> m [ECS.ContainerService]
 fetchServiceBatch []       _    = return []

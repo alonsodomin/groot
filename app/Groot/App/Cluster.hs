@@ -13,29 +13,30 @@ import Data.List (drop)
 import Data.Text hiding (drop, take, toLower)
 import GHC.Generics
 
-import Groot.Data (AMI)
+import Groot.Data
 
-newtype InstanceType = InstanceType Text
-  deriving (Eq, Show, Generic)
+-- newtype InstanceType = InstanceType Text
+--   deriving (Eq, Show, Generic)
 
-instance FromJSON InstanceType
+-- instance FromJSON InstanceType
 
-data InstanceGroup = InstanceGroup
-  { _igName :: Text
-  , _igInstanceType :: InstanceType
-  , _igAmi :: AMI
-  , _igDesiredInstances :: Int
-  , _igMinInstances :: Int
-  , _igMaxInstances :: Int
-  } deriving (Eq, Show, Generic)
+-- data InstanceGroup = InstanceGroup
+--   { _igName :: Text
+--   , _igInstanceType :: InstanceType
+--   , _igAmi :: AMI
+--   , _igDesiredInstances :: Int
+--   , _igMinInstances :: Int
+--   , _igMaxInstances :: Int
+--   } deriving (Eq, Show, Generic)
 
-makeLenses ''InstanceGroup
+-- makeLenses ''InstanceGroup
 
-instance FromJSON InstanceGroup where
-  parseJSON =
-    let uncapitalizeFirstChar :: String -> String
-        uncapitalizeFirstChar "" = ""
-        uncapitalizeFirstChar (x:xs) = (toLower x) : xs
-    in genericParseJSON defaultOptions {
-         fieldLabelModifier = uncapitalizeFirstChar . drop 3 }
+-- instance FromJSON InstanceGroup where
+--   parseJSON =
+--     let uncapitalizeFirstChar :: String -> String
+--         uncapitalizeFirstChar "" = ""
+--         uncapitalizeFirstChar (x:xs) = (toLower x) : xs
+--     in genericParseJSON defaultOptions {
+--          fieldLabelModifier = uncapitalizeFirstChar . drop 3 }
+
 

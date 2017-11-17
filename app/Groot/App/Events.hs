@@ -2,6 +2,8 @@ module Groot.App.Events
        ( EventOptions
        , grootEventsCli
        , runGrootEvents
+       , fetchEvents
+       , printEvents
        ) where
 
 import Control.Monad.Catch
@@ -29,7 +31,7 @@ data EventOptions = EventOptions
   } deriving (Eq, Show)
 
 serviceRefArg :: Parser ServiceRef
-serviceRefArg = fromString <$> argument str (metavar "SERVICE_NAME")
+serviceRefArg = fromString <$> argument str (metavar "SERVICE_NAMES")
 
 grootEventsCli :: Parser EventOptions
 grootEventsCli = EventOptions
@@ -54,16 +56,6 @@ printEvent event = do
   putStr " "
   putStrLn $ maybe "" T.unpack $ event ^. ECS.seMessage
 
-findServiceCoords :: MonadAWS m => ServiceRef -> m ServiceCoords
-findServiceCoords serviceRef = do
-  mcoords <- (serviceCoords <$> getService serviceRef Nothing)
-  case mcoords of
-    Just c  -> return c
-    Nothing -> throwM $ serviceNotFound serviceRef Nothing
-
-findServicesCoords :: MonadAWS m => [ServiceRef] -> m [ServiceCoords]
-findServicesCoords serviceRefs = traverse findServiceCoords serviceRefs
-
 fetchEvents :: Env -> [ServiceCoords] -> Bool -> Source IO ECS.ServiceEvent
 fetchEvents env coords inf =
   transPipe (runResourceT . runAWS env) $ servicesEventLog coords inf
@@ -81,5 +73,5 @@ runGrootEvents :: EventOptions -> Env -> IO ()
 runGrootEvents (EventOptions (Just clusterRef) follow serviceRefs) env =
   runConduit $ fetchEvents env (map (\x -> ServiceCoords x clusterRef) serviceRefs) follow =$ printEvents
 runGrootEvents (EventOptions Nothing follow serviceRefs) env = do
-  coords <- runResourceT . runAWS env $ findServicesCoords serviceRefs
+  coords <- runResourceT . runAWS env $ findServiceCoords serviceRefs
   runConduit $ fetchEvents env coords follow =$ printEvents

@@ -32,7 +32,7 @@ data CliOptions = CliOptions
 commands :: Parser Cmd
 commands = hsubparser
    ( command "ls"      (info (ListCmd    <$> grootListCli)    (progDesc "List ECS resources"))
-  <> command "events"  (info (EventsCmd  <$> grootEventsCli)  (progDesc "Display events for a given ECS service"))
+  <> command "events"  (info (EventsCmd  <$> grootEventsCli)  (progDesc "Display events of ECS services"))
   <> command "compose" (info (ComposeCmd <$> grootComposeCli) (progDesc "Handle Groot compose files"))
   <> command "task"    (info (TaskCmd    <$> grootTaskCli)    (progDesc "Manage ECS tasks"))
    )
