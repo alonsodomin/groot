@@ -1,42 +1,35 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE RecordWildCards #-}
+module Groot.App.Cluster
+     ( ClusterOptions
+     , grootClusterCli
+     , runGrootCluster
+     ) where
 
-module Groot.App.Cluster where
+import Network.AWS
+import Options.Applicative
 
-import Control.Lens
-import Data.Aeson
-import Data.Aeson.Types
-import Data.Char (toLower)
-import Data.List (drop)
-import Data.Text hiding (drop, take, toLower)
-import GHC.Generics
+import Groot.App.Cluster.Events
 
-import Groot.Data
+data ClusterCmd =
+  ClusterEventsCmd ClusterEventOptions
+  deriving (Eq, Show)
 
--- newtype InstanceType = InstanceType Text
---   deriving (Eq, Show, Generic)
+data ClusterOptions = ClusterOptions ClusterCmd
+  deriving (Eq, Show)
 
--- instance FromJSON InstanceType
+-- CLI
 
--- data InstanceGroup = InstanceGroup
---   { _igName :: Text
---   , _igInstanceType :: InstanceType
---   , _igAmi :: AMI
---   , _igDesiredInstances :: Int
---   , _igMinInstances :: Int
---   , _igMaxInstances :: Int
---   } deriving (Eq, Show, Generic)
+clusterEventsCmd :: Parser ClusterCmd
+clusterEventsCmd = ClusterEventsCmd <$> clusterEventsCli
 
--- makeLenses ''InstanceGroup
+clusterCmds :: Parser ClusterCmd
+clusterCmds = hsubparser
+  ( command "events" (info clusterEventsCmd (progDesc "Display events of the given clusters"))
+  )
 
--- instance FromJSON InstanceGroup where
---   parseJSON =
---     let uncapitalizeFirstChar :: String -> String
---         uncapitalizeFirstChar "" = ""
---         uncapitalizeFirstChar (x:xs) = (toLower x) : xs
---     in genericParseJSON defaultOptions {
---          fieldLabelModifier = uncapitalizeFirstChar . drop 3 }
+grootClusterCli :: Parser ClusterOptions
+grootClusterCli = ClusterOptions <$> clusterCmds
 
+-- run function
 
+runGrootCluster :: ClusterOptions -> Env -> IO ()
+runGrootCluster (ClusterOptions (ClusterEventsCmd eventsOpts)) = runClusterEvents eventsOpts

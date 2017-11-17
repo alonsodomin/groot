@@ -7,7 +7,7 @@ module Groot.App.Service.Events
 import Data.Conduit
 import Data.Semigroup ((<>))
 import Data.String
-import Network.AWS hiding (await)
+import Network.AWS
 import Options.Applicative
 
 import Groot.App.Cli.Parsers (clusterOpt)

@@ -91,6 +91,8 @@ executable groot
                      , Groot.App.Cli.Parsers
                      , Groot.App.Compose
                      , Groot.App.Console
+                     , Groot.App.Cluster.Events
+                     , Groot.App.Cluster
                      , Groot.App.Events
                      , Groot.App.List.Base
                      , Groot.App.List.Cluster
