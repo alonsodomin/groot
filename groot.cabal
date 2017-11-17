@@ -51,6 +51,7 @@ library
                      , text
                      , conduit
                      , conduit-combinators
+                     , conduit-merge
                      , mtl
                      , transformers
                      , vector

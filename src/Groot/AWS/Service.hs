@@ -17,9 +17,10 @@ import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 import Control.Lens
 import Data.Conduit
+import qualified Data.Conduit.Merge as CM
 import qualified Data.Conduit.List as CL
 import Data.Maybe (listToMaybe)
-import Data.Time.Clock
+import Data.Time
 import Groot.AWS.Cluster
 import Groot.Data
 import Groot.Exception
@@ -41,6 +42,16 @@ fetchServiceBatch services cref =
                $ ECS.describeServices
         return $ res ^. ECS.dssrsServices
   in handleClusterNotFoundException cref fetch
+
+fetchServices :: MonadAWS m => ClusterRef -> Source m ECS.ContainerService
+fetchServices clusterRef =
+  handleClusterNotFoundException clusterRef (paginate (ECS.lsCluster ?~ (toText clusterRef) $ ECS.listServices))
+    =$= CL.concatMapM (\x -> fetchServiceBatch (ServiceRef <$> x ^. ECS.lsrsServiceARNs) clusterRef)
+
+fetchAllServices :: MonadAWS m => Source m ECS.ContainerService
+fetchAllServices = fetchClusters
+  =$= CL.mapMaybe clusterName
+  =$= fetchAllServicesC
 
 fetchServicesC' :: MonadAWS m => [ServiceRef] -> Conduit ClusterRef m (ClusterRef, ECS.ContainerService)
 fetchServicesC' services =
@@ -82,16 +93,6 @@ getService serviceName clusterRef = do
     Just x  -> return x
     Nothing -> throwM $ serviceNotFound serviceName clusterRef
 
-fetchServices :: MonadAWS m => ClusterRef -> Source m ECS.ContainerService
-fetchServices clusterRef =
-  handleClusterNotFoundException clusterRef (paginate (ECS.lsCluster ?~ (toText clusterRef) $ ECS.listServices))
-    =$= CL.concatMapM (\x -> fetchServiceBatch (ServiceRef <$> x ^. ECS.lsrsServiceARNs) clusterRef)
-
-fetchAllServices :: MonadAWS m => Source m ECS.ContainerService
-fetchAllServices = fetchClusters
-  =$= CL.mapMaybe clusterName
-  =$= fetchAllServicesC
-
 serviceEventLog :: MonadAWS m
                 => ServiceCoords
                 -> Bool
@@ -126,3 +127,18 @@ serviceEventLog (ServiceCoords serviceRef clusterRef) inf = yield Nothing =$= lo
                 liftIO $ threadDelay 1000000
                 loop
               else return ()
+
+clusterServiceEventLog :: MonadAWS m => ClusterRef -> Bool -> Source m ECS.ServiceEvent
+clusterServiceEventLog clusterRef inf =
+  let fetchEventSources :: MonadAWS m => Source m [Source m ECS.ServiceEvent]
+      fetchEventSources = yieldM . sourceToList $ fetchServices clusterRef 
+        =$= filterC isActiveService
+        =$= CL.mapMaybe serviceCoords
+        =$= CL.map (\x -> serviceEventLog x inf)
+      
+      epoch :: UTCTime
+      epoch = UTCTime (ModifiedJulianDay 40587) (secondsToDiffTime 0)
+
+      eventOrd :: ECS.ServiceEvent -> UTCTime
+      eventOrd event = maybe epoch id $ event ^. ECS.seCreatedAt
+  in fetchEventSources =$= (awaitForever $ \eventSources -> CM.mergeSourcesOn eventOrd eventSources)
