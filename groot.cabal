@@ -111,6 +111,7 @@ test-suite groot-test
                      , amazonka >= 1.5 && < 1.6
                      , amazonka-core
                      , groot
+                     , text
                      , hspec
                      , QuickCheck
                      , quickcheck-text

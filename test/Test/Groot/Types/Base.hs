@@ -2,9 +2,11 @@
 
 module Test.Groot.Types.Base
      ( describeBaseTypes
+     , arnParsePreservation
      ) where
 
 import Data.Either
+import qualified Data.Text as T
 import Data.Text.Arbitrary
 import Groot.Data.Text
 import Groot.Types
@@ -18,13 +20,18 @@ instance Arbitrary ServiceId where
   arbitrary = arbitraryBoundedEnum
 
 instance Arbitrary AccountId where
-  arbitrary = AccountId <$> arbitrary
+  arbitrary = AccountId . T.pack <$> listOf1 (elements ['0'..'9'])
 
 instance Arbitrary Region where
   arbitrary = arbitraryBoundedEnum
 
 instance Arbitrary a => Arbitrary (Arn a) where
   arbitrary = Arn <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+
+arnParsePreservation :: (FromText a, ToText a, Eq a) => Arn a -> Bool
+arnParsePreservation arn = parseOnly parser (toText arn) == Right arn
+
+-- DummyArnPath to verify basic ARN parsing
 
 newtype DummyArnPath = DummyArnPath Text
   deriving (Eq, Show)
@@ -36,6 +43,12 @@ instance ToText DummyArnPath where
   toText (DummyArnPath path) = path
 
 type DummyArn = Arn DummyArnPath
+
+instance Arbitrary DummyArnPath where
+  arbitrary = DummyArnPath <$> arbitrary
+
+quickCheckDummyArn =
+  quickCheck $ \x -> arnParsePreservation (x :: DummyArn)
 
 describeARN :: IO ()
 describeARN = hspec $ do
@@ -68,4 +81,4 @@ describeAmi = hspec $ do
       showText ami `shouldBe` expected
 
 describeBaseTypes :: IO ()
-describeBaseTypes = describeARN *> describeAmi
+describeBaseTypes = describeARN *> describeAmi *> quickCheckDummyArn
