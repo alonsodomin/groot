@@ -11,8 +11,8 @@ import Network.AWS
 import qualified Network.AWS.ECS as ECS
 import Options.Applicative
 
-import Groot.App.Events
 import Groot.Core
+import Groot.Core.Events
 import Groot.Data
 
 data ClusterEventOptions = ClusterEventOptions
@@ -37,4 +37,4 @@ fetchEvents env clusterRefs inf =
 
 runClusterEvents :: ClusterEventOptions -> Env -> IO ()
 runClusterEvents (ClusterEventOptions follow clusterRefs) env =
-  runConduit $ fetchEvents env clusterRefs follow =$ printEvents
+  runConduit $ fetchEvents env clusterRefs follow =$ printEventSink

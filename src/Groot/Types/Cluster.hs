@@ -5,7 +5,8 @@ module Groot.Types.Cluster
      (
        ClusterArnPath (..)
      , ClusterArn
-     , Cluster
+     , arnClusterName
+     , Cluster (..)
      , cClusterName
      , cClusterArn
      ) where
@@ -45,5 +46,5 @@ data Cluster = Cluster
 cClusterArn :: Getter Cluster (Maybe ClusterArn)
 cClusterArn = to _cClusterArn
 
-cClusterName :: Getting (First ClusterArn) Cluster Text
+cClusterName :: Getting (First Text) Cluster Text
 cClusterName = cClusterArn . _Just . arnClusterName

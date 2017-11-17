@@ -12,8 +12,8 @@ import qualified Network.AWS.ECS as ECS
 import Options.Applicative
 
 import Groot.App.Cli.Parsers (clusterOpt)
-import Groot.App.Events
 import Groot.Core
+import Groot.Core.Events
 import Groot.Data
 
 data ServiceEventOptions = ServiceEventOptions
@@ -40,7 +40,7 @@ fetchEvents env coords inf =
 
 runServiceEvents :: ServiceEventOptions -> Env -> IO ()
 runServiceEvents (ServiceEventOptions (Just clusterRef) follow serviceRefs) env =
-  runConduit $ fetchEvents env (map (\x -> ServiceCoords x clusterRef) serviceRefs) follow =$ printEvents
+  runConduit $ fetchEvents env (map (\x -> ServiceCoords x clusterRef) serviceRefs) follow =$ printEventSink
 runServiceEvents (ServiceEventOptions Nothing follow serviceRefs) env = do
   coords <- runResourceT . runAWS env $ findServiceCoords serviceRefs
-  runConduit $ fetchEvents env coords follow =$ printEvents
+  runConduit $ fetchEvents env coords follow =$ printEventSink

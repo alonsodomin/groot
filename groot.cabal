@@ -24,6 +24,7 @@ library
                      , Groot.Compose
                      , Groot.Config
                      , Groot.Core
+                     , Groot.Core.Events
                      , Groot.Data.Base
                      , Groot.Data.Cluster
                      , Groot.Data.Instance
@@ -43,6 +44,7 @@ library
                      , Groot.Types
   build-depends:       base >= 4.7 && < 5
                      , aeson
+                     , ansi-terminal
                      , attoparsec
                      , directory
                      , exceptions
@@ -93,7 +95,6 @@ executable groot
                      , Groot.App.Console
                      , Groot.App.Cluster.Events
                      , Groot.App.Cluster
-                     , Groot.App.Events
                      , Groot.App.List.Base
                      , Groot.App.List.Cluster
                      , Groot.App.List.Instance
