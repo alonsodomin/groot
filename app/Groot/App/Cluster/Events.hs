@@ -5,6 +5,7 @@ module Groot.App.Cluster.Events
      ) where
 
 import Data.Conduit
+import qualified Data.Conduit.List as CL
 import Data.Semigroup ((<>))
 import Data.String
 import Network.AWS
@@ -29,12 +30,15 @@ clusterEventsCli = ClusterEventOptions
                  ( long "follow"
                 <> short 'f'
                 <> help "Folow the trail of events" )
-               <*> some clusterRefArg
+               <*> many clusterRefArg
 
-fetchEvents :: Env -> [ClusterRef] -> Bool -> Source IO ECS.ServiceEvent
+fetchEvents :: Traversable t => Env -> t ClusterRef -> Bool -> Source IO ECS.ServiceEvent
 fetchEvents env clusterRefs inf =
   transPipe (runResourceT . runAWS env) $ clusterServiceEventLog clusterRefs inf
 
 runClusterEvents :: ClusterEventOptions -> Env -> IO ()
+runClusterEvents (ClusterEventOptions follow [])          env = do
+  clusterRefs <- runResourceT . runAWS env . sourceToList $ fetchClusters =$= CL.mapMaybe clusterName
+  runClusterEvents (ClusterEventOptions follow clusterRefs) env
 runClusterEvents (ClusterEventOptions follow clusterRefs) env =
   runConduit $ fetchEvents env clusterRefs follow =$ printEventSink

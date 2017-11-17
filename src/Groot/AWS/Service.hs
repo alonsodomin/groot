@@ -22,6 +22,7 @@ import Control.Lens
 import Data.Conduit
 import qualified Data.Conduit.Merge as CM
 import qualified Data.Conduit.List as CL
+import Data.Foldable
 import Data.Maybe (listToMaybe)
 import Data.Time
 import Groot.AWS.Cluster
@@ -36,7 +37,7 @@ serviceCoords service = ServiceCoords <$> serviceRef <*> clusterRef
   where serviceRef = ServiceRef <$> service ^. ECS.csServiceARN
         clusterRef = ClusterRef <$> service ^. ECS.csClusterARN
 
-findServiceCoords :: MonadAWS m => [ServiceRef] -> m [ServiceCoords]
+findServiceCoords :: (MonadAWS m, Traversable t) => t ServiceRef -> m (t ServiceCoords)
 findServiceCoords = traverse singleServiceCoords
   where singleServiceCoords :: MonadAWS m => ServiceRef -> m ServiceCoords
         singleServiceCoords serviceRef = do
@@ -140,7 +141,7 @@ serviceEventLog (ServiceCoords serviceRef clusterRef) inf = yield Nothing =$= lo
                 loop
               else return ()
 
-servicesEventLog :: MonadAWS m => [ServiceCoords] -> Bool -> Source m ECS.ServiceEvent
+servicesEventLog :: (MonadAWS m, Traversable t) => t ServiceCoords -> Bool -> Source m ECS.ServiceEvent
 servicesEventLog coords inf = CM.mergeSourcesOn eventOrd eventSources
   where epoch = UTCTime (ModifiedJulianDay 40587) (secondsToDiffTime 0)
 
@@ -149,15 +150,16 @@ servicesEventLog coords inf = CM.mergeSourcesOn eventOrd eventSources
 
         eventSources = fmap (\x -> serviceEventLog x inf) coords
 
-clusterServiceEventLog :: MonadAWS m => [ClusterRef] -> Bool -> Source m ECS.ServiceEvent
+clusterServiceEventLog :: (MonadAWS m, Traversable t) => t ClusterRef -> Bool -> Source m ECS.ServiceEvent
 clusterServiceEventLog clusterRefs inf = 
-  let fetchEventCoords :: MonadAWS m => Conduit ClusterRef m [ServiceCoords]
-      fetchEventCoords = awaitForever (\clusterRef ->
-          yieldM . sourceToList $ fetchServices clusterRef
-            =$= filterC isActiveService
-            =$= CL.mapMaybe serviceCoords
-        )
+  let clusterServiceCoords :: MonadAWS m => ClusterRef -> m [ServiceCoords]
+      clusterServiceCoords cref = sourceToList $ fetchServices cref
+        =$= filterC isActiveService
+        =$= CL.mapMaybe serviceCoords
+
+      allServiceCoords :: MonadAWS m => m [ServiceCoords]
+      allServiceCoords = concat <$> mapM clusterServiceCoords clusterRefs
 
       mergeEvents :: MonadAWS m => Conduit [ServiceCoords] m ECS.ServiceEvent
       mergeEvents = awaitForever (\coords -> toProducer $ servicesEventLog coords inf)
-  in CL.sourceList clusterRefs =$= fetchEventCoords =$= mergeEvents
+  in yieldM allServiceCoords =$= mergeEvents

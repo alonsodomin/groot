@@ -5,6 +5,7 @@ module Groot.App.Service.Events
      ) where
 
 import Data.Conduit
+import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Semigroup ((<>))
 import Data.String
 import Network.AWS
@@ -19,11 +20,14 @@ import Groot.Data
 data ServiceEventOptions = ServiceEventOptions
   { _clusterId    :: Maybe ClusterRef
   , _follow       :: Bool
-  , _serviceNames :: [ServiceRef]
+  , _serviceNames :: NonEmpty ServiceRef
   } deriving (Eq, Show)
 
 serviceRefArg :: Parser ServiceRef
 serviceRefArg = fromString <$> argument str (metavar "SERVICE_NAMES")
+
+serviceRefArgList :: Parser (NonEmpty ServiceRef)
+serviceRefArgList = fmap (\x -> (head x) :| (tail x)) (some serviceRefArg)
 
 serviceEventsCli :: Parser ServiceEventOptions
 serviceEventsCli = ServiceEventOptions
@@ -32,15 +36,15 @@ serviceEventsCli = ServiceEventOptions
                  ( long "follow"
                  <> short 'f'
                  <> help "Follow the trail of events" )
-               <*> some serviceRefArg
+               <*> serviceRefArgList
 
-fetchEvents :: Env -> [ServiceCoords] -> Bool -> Source IO ECS.ServiceEvent
+fetchEvents :: (Traversable t) => Env -> t ServiceCoords -> Bool -> Source IO ECS.ServiceEvent
 fetchEvents env coords inf =
   transPipe (runResourceT . runAWS env) $ servicesEventLog coords inf
 
 runServiceEvents :: ServiceEventOptions -> Env -> IO ()
 runServiceEvents (ServiceEventOptions (Just clusterRef) follow serviceRefs) env =
-  runConduit $ fetchEvents env (map (\x -> ServiceCoords x clusterRef) serviceRefs) follow =$ printEventSink
+  runConduit $ fetchEvents env (fmap (\x -> ServiceCoords x clusterRef) serviceRefs) follow =$ printEventSink
 runServiceEvents (ServiceEventOptions Nothing follow serviceRefs) env = do
   coords <- runResourceT . runAWS env $ findServiceCoords serviceRefs
   runConduit $ fetchEvents env coords follow =$ printEventSink
