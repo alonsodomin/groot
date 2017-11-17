@@ -25,8 +25,10 @@ instance ToText ClusterArnPath where
     T.append "cluster/" clusterName
 
 data Cluster = Cluster
-  { _cName :: Text
-  , _cArn  :: ClusterArn
+  { _cClusterArn  :: ClusterArn
   } deriving (Eq, Show)
 
 makeLenses ''Cluster
+
+cClusterName :: Lens' Cluster ClusterArnPath
+cClusterName = cClusterArn . arnResourcePath
