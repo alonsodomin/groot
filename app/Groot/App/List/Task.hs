@@ -13,7 +13,6 @@ import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Data.Data
 import qualified Data.Text as T
-import Data.Time.Clock
 import GHC.Generics
 import Text.PrettyPrint.Tabulate
 import Network.AWS
