@@ -5,6 +5,7 @@ module Groot.Data.Base where
 import Control.Monad
 import Data.Conduit
 import qualified Data.Conduit.List as CL
+import Data.Functor.Identity
 
 data FilterOp a =
     Or a a
@@ -16,6 +17,14 @@ class FilterPredicate a where
   type CanBeFilteredBy a :: *
 
   matches :: a -> CanBeFilteredBy a -> Bool
+
+  maybeMatchesM :: Monad m => a -> m (CanBeFilteredBy a) -> m (Maybe (CanBeFilteredBy a))
+  maybeMatchesM p me = do
+    e <- me
+    return $ if (matches p e) then (Just e) else Nothing
+
+  maybeMatches :: a -> CanBeFilteredBy a -> Maybe (CanBeFilteredBy a)
+  maybeMatches p e = runIdentity $ maybeMatchesM p (Identity e)
 
   (|||) :: a -> a -> FilterOp a
   (|||) x y = Or x y

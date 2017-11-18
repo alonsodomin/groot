@@ -7,6 +7,7 @@ module Groot.App.List.Task
      ( printTaskSummary
      ) where
 
+import Control.Monad
 import Control.Monad.Trans.Maybe
 import Control.Lens
 import Data.Conduit
@@ -16,15 +17,17 @@ import qualified Data.Text as T
 import GHC.Generics
 import Text.PrettyPrint.Tabulate
 import Network.AWS
-import Network.AWS.Data.Text
 import qualified Network.AWS.ECS as ECS
 
 import Groot.App.List.Base
 import Groot.Core
 import Groot.Data
+import Groot.Data.Text
+import Groot.Types
 
 data TaskSummary = TaskSummary
-  { task       :: String
+  { taskId     :: String
+  , task       :: String
   , status     :: String
   , cluster    :: String
   , instanceId :: String
@@ -37,9 +40,16 @@ instance Tabulate TaskSummary
 data TaskAndRelatives = TR ECS.Task ECS.TaskDefinition ECS.Cluster ECS.ContainerInstance
 
 instance HasSummary TaskAndRelatives TaskSummary where
-  summarize (TR t td c i) = TaskSummary <$> tTaskDef <*> tStatus <*> tCluster <*> tInstanceId <*> tStartedAt <*> tStoppedAt
+  summarize (TR t td c i) = TaskSummary <$> tId <*> tTaskDef <*> tStatus <*> tCluster <*> tInstanceId <*> tStartedAt <*> tStoppedAt
     where tFamily     = td ^. ECS.tdFamily
           tRevision   = toText <$> td ^. ECS.tdRevision
+          tId         =
+            let parsedArn :: Maybe (Either String TaskArn)
+                parsedArn = parseOnly parser <$> t ^. ECS.tTaskARN
+
+                arn :: Maybe TaskArn
+                arn = join $ either (\_ -> Nothing) Just <$> parsedArn
+            in (T.unpack . view arnTaskId) <$> arn
           tTaskDef    = T.unpack <$> ((\x y -> T.concat [x, ":", y]) <$> tFamily <*> tRevision)
           tStatus     = T.unpack <$> t ^. ECS.tLastStatus
           tCluster    = T.unpack <$> c ^. ECS.cClusterName
