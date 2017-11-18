@@ -94,7 +94,7 @@ findService sref cref = MaybeT $ extractRequested cref
           runConduit $ findServices' [sref] cref =$= CL.map snd =$= CL.head
         extractRequested _ = do
           found <- sourceToList $ findServices' [sref] Nothing
-                   =$= CL.filter (\x -> matches (ServiceRefFilter sref) (snd x))
+                   =$= filterOnC snd (ServiceRefFilter sref)
           if (length found) > 1
           then throwM $ ambiguousServiceName sref (fst <$> found)
           else return $ snd <$> listToMaybe found

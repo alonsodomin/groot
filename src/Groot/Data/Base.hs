@@ -33,13 +33,26 @@ instance FilterPredicate a => FilterPredicate (FilterOp a) where
   matches (And x y) res = (matches x res) && (matches y res)
   matches (Not x)   res = not (matches x res)
 
+filterOnM :: (MonadPlus m, FilterPredicate p)
+          => (a -> CanBeFilteredBy p)
+          -> p                        -- The actual predicate
+          -> m a                      -- The item to which to apply the filter, wrapped in a Monad
+          -> m a                      -- The result after applying the predicate, wrapped in the same Monad
+filterOnM f p = mfilter (\x -> matches p $ f x)
+
 filterM :: (MonadPlus m, FilterPredicate p)
-        => p                     -- The actual predicate
-        -> m (CanBeFilteredBy p) -- The item to which to apply the filter, wrapped in a Monad
-        -> m (CanBeFilteredBy p) -- The result after applying the predicate, wrapped in the same Monad
-filterM p = mfilter (matches p)
+        => p
+        -> m (CanBeFilteredBy p)
+        -> m (CanBeFilteredBy p)
+filterM = filterOnM id
 
 filterC :: (Monad m, FilterPredicate p)
         => p
         -> Conduit (CanBeFilteredBy p) m (CanBeFilteredBy p)
-filterC p = CL.filter (matches p)
+filterC = filterOnC id
+
+filterOnC :: (Monad m, FilterPredicate p)
+          => (a -> CanBeFilteredBy p)
+          -> p
+          -> Conduit a m a
+filterOnC f p = CL.filter (\x -> matches p $ f x)
