@@ -148,7 +148,11 @@ servicesEventLog coords inf = CM.mergeSourcesOn eventOrd eventSources
         eventOrd :: ECS.ServiceEvent -> UTCTime
         eventOrd event = maybe epoch id $ event ^. ECS.seCreatedAt
 
-        eventSources = fmap (\x -> serviceEventLog x inf) coords
+        ignoreServicesBecomingInactive :: MonadCatch m => m () -> m ()
+        ignoreServicesBecomingInactive action =
+          catching _InactiveService action $ \_ -> return ()
+
+        eventSources = fmap (\x -> ignoreServicesBecomingInactive (serviceEventLog x inf)) coords
 
 clusterServiceEventLog :: (MonadAWS m, Traversable t) => t ClusterRef -> Bool -> Source m ECS.ServiceEvent
 clusterServiceEventLog clusterRefs inf = 
