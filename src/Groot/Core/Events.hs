@@ -11,7 +11,6 @@ import qualified Data.Text              as T
 import           Data.Time
 import           Groot.Core.Console
 import qualified Network.AWS.ECS        as ECS
-import           System.Console.ANSI
 
 formatEventTime :: MonadIO m => UTCTime -> m String
 formatEventTime time = do
@@ -22,7 +21,7 @@ printEvent :: MonadIO m => ECS.ServiceEvent -> m ()
 printEvent event = do
   eventTime <- maybe (return "") formatEventTime $ event ^. ECS.seCreatedAt
   liftIO $ do
-    runResourceT $ withSGR [SetColor Foreground Dull Blue] $ putStr eventTime
+    runResourceT $ withSGR yellowText $ putStr eventTime
     putStrLn $ ' ':(maybe "" T.unpack $ event ^. ECS.seMessage)
 
 printEventSink :: MonadIO m => Sink ECS.ServiceEvent m ()

@@ -6,6 +6,15 @@ import Data.Char
 import System.IO
 import System.Console.ANSI
 
+blueText :: [SGR]
+blueText = [SetColor Foreground Dull Blue]
+
+redText :: [SGR]
+redText = [SetColor Foreground Vivid Red]
+
+yellowText :: [SGR]
+yellowText = [SetColor Foreground Dull Yellow]
+
 withSGR :: [SGR] -> IO a -> ResourceT IO a
 withSGR sgr action = do
   (releaseKey, _) <- allocate (setSGR sgr) (\_ -> setSGR [Reset])
@@ -41,7 +50,7 @@ promptUserToContinue msg cont = do
   else return ()
 
 putWarn :: MonadIO m => m ()
-putWarn = liftIO . runResourceT $ withSGR [SetColor Foreground Dull Yellow] $ putStr " WARN"
+putWarn = liftIO . runResourceT $ withSGR yellowText $ putStr " WARN"
 
 printWarn :: MonadIO m => String -> m ()
 printWarn msg = liftIO $ do
@@ -49,7 +58,7 @@ printWarn msg = liftIO $ do
   putStrLn $ ' ' : msg
 
 putError :: MonadIO m => m ()
-putError = liftIO . runResourceT $ withSGR [SetColor Foreground Vivid Red] $ putStr "ERROR"
+putError = liftIO . runResourceT $ withSGR redText $ putStr "ERROR"
 
 printError :: MonadIO m => String -> m ()
 printError msg = liftIO $ do
