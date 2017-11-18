@@ -4,10 +4,12 @@ module Groot.Core.Events
        ) where
 
 import           Control.Monad.IO.Class
+import           Control.Monad.Trans.Resource
 import           Control.Lens           hiding (argument)
 import           Data.Conduit
 import qualified Data.Text              as T
 import           Data.Time
+import           Groot.Core.Console
 import qualified Network.AWS.ECS        as ECS
 import           System.Console.ANSI
 
@@ -20,9 +22,7 @@ printEvent :: MonadIO m => ECS.ServiceEvent -> m ()
 printEvent event = do
   eventTime <- maybe (return "") formatEventTime $ event ^. ECS.seCreatedAt
   liftIO $ do
-    setSGR [SetColor Foreground Dull Blue]
-    putStr $ eventTime
-    setSGR [Reset]
+    runResourceT $ withSGR [SetColor Foreground Dull Blue] $ putStr eventTime
     putStrLn $ ' ':(maybe "" T.unpack $ event ^. ECS.seMessage)
 
 printEventSink :: MonadIO m => Sink ECS.ServiceEvent m ()

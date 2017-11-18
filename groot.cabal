@@ -24,6 +24,7 @@ library
                      , Groot.Compose
                      , Groot.Config
                      , Groot.Core
+                     , Groot.Core.Console
                      , Groot.Core.Events
                      , Groot.Data.Base
                      , Groot.Data.Cluster
@@ -55,6 +56,7 @@ library
                      , conduit-combinators
                      , conduit-merge
                      , mtl
+                     , resourcet
                      , transformers
                      , vector
                      , time
@@ -81,7 +83,7 @@ executable groot
                      , lens
                      , text
                      , time
-                     , mtl
+                     , mtl                     
                      , transformers
                      , yaml
                      , amazonka >= 1.5.0 && < 1.6
@@ -91,8 +93,7 @@ executable groot
                      , groot
   other-modules:       Groot.App.Cli
                      , Groot.App.Cli.Parsers
-                     , Groot.App.Compose
-                     , Groot.App.Console
+                     , Groot.App.Compose                     
                      , Groot.App.Cluster.Events
                      , Groot.App.Cluster
                      , Groot.App.List.Base

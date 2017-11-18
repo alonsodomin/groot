@@ -15,8 +15,8 @@ import System.Console.ANSI
 import System.IO
 
 import Groot.App.Cli.Parsers (clusterOpt)
-import Groot.App.Console
 import Groot.Core
+import Groot.Core.Console
 import Groot.Data
 import Groot.Exception
 
