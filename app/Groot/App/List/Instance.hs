@@ -14,7 +14,6 @@ import qualified Data.Conduit.List as CL
 import Data.Data
 import Data.List
 import qualified Data.Text as T
-import qualified Data.UUID as UUID
 import GHC.Generics
 import Network.AWS
 import qualified Network.AWS.ECS as ECS
@@ -80,7 +79,7 @@ instance HasSummary ECS.ContainerInstance InstanceSummary where
     where iId      =
             let parsedArn = parseOnly parser <$> inst ^. ECS.ciContainerInstanceARN
                 arn = join $ either (\_ -> Nothing) Just <$> parsedArn
-            in (T.unpack . UUID.toText . view arnContainerInstanceId) <$> arn
+            in (T.unpack . toText . view arnContainerInstanceId) <$> arn
           iEc2Id   = T.unpack <$> inst ^. ECS.ciEc2InstanceId
           iStatus  = T.unpack <$> inst ^. ECS.ciStatus
           iRunning = inst ^. ECS.ciRunningTasksCount

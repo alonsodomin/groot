@@ -14,6 +14,7 @@ module Groot.Types
      , arnServiceId
      , Ami (..)
      -- Cluster
+     , ClusterName (..)
      , ClusterArnPath (..)
      , ClusterArn
      , arnClusterName
@@ -21,17 +22,26 @@ module Groot.Types
      , cClusterName
      , cClusterArn
      -- Container Instance
+     , ContainerInstanceId (..)
      , ContainerInstanceArn
      , arnContainerInstanceId
      -- Container Service
+     , ServiceName (..)
      , ContainerServiceArn
      , arnContainerServiceName
      -- Task
+     , TaskId (..)
      , TaskArn
      , arnTaskId
      -- Task Definition
+     , TaskFamily (..)
+     , TaskDefId (..)
+     , tdiTaskFamily
+     , tdiTaskRevision
      , TaskDefArn
      , arnTaskDefId
+     , arnTaskDefFamily
+     , arnTaskDefRevision
      ) where
 
 import           Prelude          hiding (takeWhile)
@@ -137,15 +147,24 @@ instance ToText Ami where
 
 -- Cluster
 
-newtype ClusterArnPath = ClusterArnPath Text
+newtype ClusterName = ClusterName Text
   deriving (Eq, Show)
 
-capClusterName :: Getter ClusterArnPath Text
+instance FromText ClusterName where
+  parser = ClusterName <$> takeText
+
+instance ToText ClusterName where
+  toText (ClusterName x) = x
+
+newtype ClusterArnPath = ClusterArnPath ClusterName
+  deriving (Eq, Show)
+
+capClusterName :: Getter ClusterArnPath ClusterName
 capClusterName = to (\(ClusterArnPath name) -> name)
 
 type ClusterArn = Arn ClusterArnPath
 
-arnClusterName :: Getter ClusterArn Text
+arnClusterName :: Getter ClusterArn ClusterName
 arnClusterName = arnResourcePath . capClusterName
 
 capPreffix :: Text
@@ -154,12 +173,12 @@ capPreffix = "cluster/"
 instance FromText ClusterArnPath where
   parser = do
     string capPreffix
-    clusterName <- takeText
+    clusterName <- parser
     return $ ClusterArnPath clusterName
 
 instance ToText ClusterArnPath where
   toText (ClusterArnPath clusterName) =
-    T.append capPreffix clusterName
+    T.append capPreffix $ toText clusterName
 
 data Cluster = Cluster
   { _cClusterArn :: Maybe ClusterArn
@@ -168,20 +187,29 @@ data Cluster = Cluster
 cClusterArn :: Getter Cluster (Maybe ClusterArn)
 cClusterArn = to _cClusterArn
 
-cClusterName :: Getting (First Text) Cluster Text
+cClusterName :: Getting (First Text) Cluster ClusterName
 cClusterName = cClusterArn . _Just . arnClusterName
 
 -- Container Instance
 
-newtype ContainerInstanceArnPath = ContainerInstanceArnPath UUID
+newtype ContainerInstanceId = ContainerInstanceId UUID
   deriving (Eq, Show)
 
-ciapContainerInstanceId :: Getter ContainerInstanceArnPath UUID
+instance FromText ContainerInstanceId where
+  parser = ContainerInstanceId <$> uuid
+
+instance ToText ContainerInstanceId where
+  toText (ContainerInstanceId s) = UUID.toText s
+
+newtype ContainerInstanceArnPath = ContainerInstanceArnPath ContainerInstanceId
+  deriving (Eq, Show)
+
+ciapContainerInstanceId :: Getter ContainerInstanceArnPath ContainerInstanceId
 ciapContainerInstanceId = to (\(ContainerInstanceArnPath x) -> x)
 
 type ContainerInstanceArn = Arn ContainerInstanceArnPath
 
-arnContainerInstanceId :: Getter ContainerInstanceArn UUID
+arnContainerInstanceId :: Getter ContainerInstanceArn ContainerInstanceId
 arnContainerInstanceId = arnResourcePath . ciapContainerInstanceId
 
 ciapPreffix :: Text
@@ -190,24 +218,33 @@ ciapPreffix = "container-instance/"
 instance FromText ContainerInstanceArnPath where
   parser = do
     string ciapPreffix
-    instanceId <- uuid
+    instanceId <- parser
     return $ ContainerInstanceArnPath instanceId
 
 instance ToText ContainerInstanceArnPath where
   toText (ContainerInstanceArnPath instanceId) =
-    T.append ciapPreffix $ UUID.toText instanceId
+    T.append ciapPreffix $ toText instanceId
 
 -- Container Service
 
-newtype ContainerServiceArnPath = ContainerServiceArnPath Text
+newtype ServiceName = ServiceName Text
   deriving (Eq, Show)
 
-csapContainerServiceName :: Getter ContainerServiceArnPath Text
+instance FromText ServiceName where
+  parser = ServiceName <$> takeText
+
+instance ToText ServiceName where
+  toText (ServiceName s) = s
+
+newtype ContainerServiceArnPath = ContainerServiceArnPath ServiceName
+  deriving (Eq, Show)
+
+csapContainerServiceName :: Getter ContainerServiceArnPath ServiceName
 csapContainerServiceName = to (\(ContainerServiceArnPath x) -> x)
 
 type ContainerServiceArn = Arn ContainerServiceArnPath
 
-arnContainerServiceName :: Getter ContainerServiceArn Text
+arnContainerServiceName :: Getter ContainerServiceArn ServiceName
 arnContainerServiceName = arnResourcePath . csapContainerServiceName
 
 csapPreffix :: Text
@@ -216,24 +253,33 @@ csapPreffix = "service/"
 instance FromText ContainerServiceArnPath where
   parser = do
     string csapPreffix
-    serviceName <- takeText
+    serviceName <- parser
     return $ ContainerServiceArnPath serviceName
 
 instance ToText ContainerServiceArnPath where
   toText (ContainerServiceArnPath serviceName) =
-    T.append csapPreffix serviceName
+    T.append csapPreffix $ toText serviceName
 
 -- Task
 
-newtype TaskArnPath = TaskArnPath UUID
+newtype TaskId = TaskId UUID
   deriving (Eq, Show)
 
-tapTaskId :: Getter TaskArnPath UUID
+instance FromText TaskId where
+  parser = TaskId <$> uuid
+
+instance ToText TaskId where
+  toText (TaskId s) = UUID.toText s
+
+newtype TaskArnPath = TaskArnPath TaskId
+  deriving (Eq, Show)
+
+tapTaskId :: Getter TaskArnPath TaskId
 tapTaskId = to (\(TaskArnPath x) -> x)
 
 type TaskArn = Arn TaskArnPath
 
-arnTaskId :: Getter TaskArn UUID
+arnTaskId :: Getter TaskArn TaskId
 arnTaskId = arnResourcePath . tapTaskId
 
 tapPreffix :: Text
@@ -242,25 +288,57 @@ tapPreffix = "task/"
 instance FromText TaskArnPath where
   parser = do
     string tapPreffix
-    taskId <- uuid
+    taskId <- parser
     return $ TaskArnPath taskId
 
 instance ToText TaskArnPath where
   toText (TaskArnPath taskId) =
-    T.append tapPreffix $ UUID.toText taskId
+    T.append tapPreffix $ toText taskId
 
 -- Task Definition
 
-newtype TaskDefArnPath = TaskDefArnPath Text
+newtype TaskFamily = TaskFamily Text
   deriving (Eq, Show)
 
-tdapTaskDefId :: Getter TaskDefArnPath Text
+instance FromText TaskFamily where
+  parser = TaskFamily <$> takeText
+
+instance ToText TaskFamily where
+  toText (TaskFamily s) = s
+
+data TaskDefId = TaskDefId
+  { _tdiTaskFamily   :: TaskFamily
+  , _tdiTaskRevision :: Int
+  } deriving (Eq, Show)
+
+makeLenses ''TaskDefId
+
+instance FromText TaskDefId where
+  parser = do
+    family   <- subparser =<< takeTill (== ':')
+    revision <- decimal
+    return $ TaskDefId family revision
+
+instance ToText TaskDefId where
+  toText (TaskDefId family revision) =
+    T.concat [toText family, ":", toText revision]
+
+newtype TaskDefArnPath = TaskDefArnPath TaskDefId
+  deriving (Eq, Show)
+
+tdapTaskDefId :: Getter TaskDefArnPath TaskDefId
 tdapTaskDefId = to (\(TaskDefArnPath x) -> x)
 
 type TaskDefArn = Arn TaskDefArnPath
 
-arnTaskDefId :: Getter TaskDefArn Text
+arnTaskDefId :: Getter TaskDefArn TaskDefId
 arnTaskDefId = arnResourcePath . tdapTaskDefId
+
+arnTaskDefFamily :: Getter TaskDefArn TaskFamily
+arnTaskDefFamily = arnTaskDefId . tdiTaskFamily
+
+arnTaskDefRevision :: Getter TaskDefArn Int
+arnTaskDefRevision = arnTaskDefId . tdiTaskRevision
 
 tdapPreffix :: Text
 tdapPreffix = "task-definition/"
@@ -268,8 +346,9 @@ tdapPreffix = "task-definition/"
 instance FromText TaskDefArnPath where
   parser = do
     string tdapPreffix
-    taskDefId <- takeText
+    taskDefId <- parser
     return $ TaskDefArnPath taskDefId
 
 instance ToText TaskDefArnPath where
-  toText (TaskDefArnPath taskDefId) = T.append tdapPreffix taskDefId
+  toText (TaskDefArnPath taskDefId) =
+    T.append tdapPreffix $ toText taskDefId

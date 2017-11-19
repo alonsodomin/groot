@@ -83,7 +83,6 @@ executable groot
                      , time
                      , mtl                     
                      , transformers
-                     , uuid
                      , yaml
                      , amazonka >= 1.5.0 && < 1.6
                      , amazonka-core

@@ -14,7 +14,6 @@ import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Data.Data
 import qualified Data.Text as T
-import qualified Data.UUID as UUID
 import GHC.Generics
 import Text.PrettyPrint.Tabulate
 import Network.AWS
@@ -47,7 +46,7 @@ instance HasSummary TaskAndRelatives TaskSummary where
           tId         =
             let parsedArn = parseOnly parser <$> t ^. ECS.tTaskARN
                 arn = join $ either (\_ -> Nothing) Just <$> parsedArn
-            in (T.unpack . UUID.toText . view arnTaskId) <$> arn
+            in (T.unpack . toText . view arnTaskId) <$> arn
           tTaskDef    = T.unpack <$> ((\x y -> T.concat [x, ":", y]) <$> tFamily <*> tRevision)
           tStatus     = T.unpack <$> t ^. ECS.tLastStatus
           tCluster    = T.unpack <$> c ^. ECS.cClusterName
