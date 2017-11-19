@@ -14,7 +14,7 @@ module Groot.Types
      , arnServiceId
      , Ami (..)
      -- Cluster
-     --, ClusterArnPath (..)
+     , ClusterArnPath (..)
      , ClusterArn
      , arnClusterName
      , Cluster (..)
