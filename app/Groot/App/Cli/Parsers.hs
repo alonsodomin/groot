@@ -49,9 +49,9 @@ credsOpt =
                  <> metavar "SECRET_KEY"
                  <> help "AWS Secret Key" )
       file = strOption
-             ( long "env"
-            <> metavar "ENV"
-            <> help "AWS Environment config file" )
+             ( long "creds"
+            <> metavar "CRENDENTIALS_FILE"
+            <> help "AWS Credentials config file" )
   in let fromProfile = AwsProfile <$> (optional profile) <*> (optional file)
          fromKeys    = AwsKeys <$> accessKey <*> secretKey
      in fromKeys <|> fromProfile

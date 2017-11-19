@@ -1,14 +1,22 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Groot.App.Cli
      (
        Cmd (..)
-     , CliOptions (..)
+     , CliOptions
+     , cliAwsCreds
+     , cliAwsRegion
+     , cliCmd
      , module Groot.App.Cli.Parsers
      , runGroot
      ) where
 
-import Options.Applicative
-import Data.Semigroup ((<>))
+import Control.Lens
+import Data.Monoid
+import Data.Version (showVersion)
 import Network.AWS (Region)
+import Options.Applicative
+import Paths_groot (version)
 
 import Groot.App.Cli.Parsers
 import Groot.App.Compose
@@ -26,10 +34,21 @@ data Cmd =
   deriving (Eq, Show)
 
 data CliOptions = CliOptions
-  { awsCreds  :: AwsCredentials
-  , awsRegion :: Maybe Region
-  , cmd       :: Cmd
+  { _cliAwsCreds  :: AwsCredentials
+  , _cliAwsRegion :: Maybe Region
+  , _cliCmd       :: Cmd
   } deriving Eq
+
+cliAwsCreds :: Getter CliOptions AwsCredentials
+cliAwsCreds = to _cliAwsCreds
+
+cliAwsRegion :: Getting (First Region) CliOptions Region
+cliAwsRegion = (to _cliAwsRegion) . _Just
+
+cliCmd :: Getter CliOptions Cmd
+cliCmd = to _cliCmd
+
+-- CLI Parsers
 
 commands :: Parser Cmd
 commands = hsubparser
@@ -40,11 +59,22 @@ commands = hsubparser
   <> command "task"    (info (TaskCmd    <$> grootTaskCli)    (progDesc "Manage ECS tasks"))
    )
 
+cliVersionParser :: Parser (a -> a)
+cliVersionParser = infoOption versionInfo $ mconcat [
+    long "version"
+  , short 'v'
+  , help "Show version number"
+  ]
+
 cliParser :: Parser CliOptions
-cliParser = CliOptions
+cliParser = ( CliOptions
           <$> credsOpt
           <*> optional regionOpt
           <*> commands
+          ) <**> cliVersionParser
+
+versionInfo :: String
+versionInfo = "groot " ++ (showVersion version)
 
 runGroot :: (CliOptions -> IO ()) -> IO ()
 runGroot prog =

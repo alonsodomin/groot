@@ -34,7 +34,7 @@ import Groot.Exception
 loadEnv :: CliOptions -> IO Env
 loadEnv opts = do
   configFile       <- defaultConfigFile
-  (creds, profile) <- buildCreds $ awsCreds opts
+  (creds, profile) <- buildCreds $ opts ^. cliAwsCreds
   env              <- newEnv creds
   assignRegion (findRegion configFile profile) env
     where buildCreds :: AwsCredentials -> IO (Credentials, Maybe Text)
@@ -47,7 +47,7 @@ loadEnv opts = do
 
           findRegion :: FilePath -> Maybe Text -> MaybeT IO Region
           findRegion confFile profile = regionFromOpts <|> regionFromCfg
-            where regionFromOpts = MaybeT . return $ awsRegion opts
+            where regionFromOpts = MaybeT . return $ opts ^? cliAwsRegion
                   regionFromCfg  = MaybeT $ do
                     reg <- runExceptT $ regionFromConfig confFile profile
                     case reg of
@@ -130,4 +130,4 @@ handleExceptions action = catches action [
   ]
 
 groot :: CliOptions -> IO ()
-groot opts = handleExceptions $ loadEnv opts >>= grootCmd (cmd opts)
+groot opts = handleExceptions $ loadEnv opts >>= grootCmd (opts ^. cliCmd)
