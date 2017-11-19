@@ -34,13 +34,15 @@ module Groot.Types
      , arnTaskDefId
      ) where
 
-import           Prelude               hiding (takeWhile)
+import           Prelude          hiding (takeWhile)
 import           Control.Lens
 import           Data.Monoid
-import           Data.Text             (Text)
-import qualified Data.Text             as T
+import           Data.Text        (Text)
+import qualified Data.Text        as T
 import           Data.String
-import           GHC.Generics          hiding (to)
+import           Data.UUID        (UUID)
+import qualified Data.UUID        as UUID
+import           GHC.Generics     hiding (to)
 import           Groot.Data.Text
 import           Network.AWS
 
@@ -98,11 +100,11 @@ arnResourcePath = to _arnResourcePath
 instance FromText a => FromText (Arn a) where
   parser = do
     "arn:aws:"
-    serviceId <- subparser parser =<< takeTill (== ':')
+    serviceId <- subparser =<< takeTill (== ':')
     char ':'
-    region <- subparser parser =<< takeTill (== ':')
+    region    <- subparser =<< takeTill (== ':')
     char ':'
-    account <- takeWhile (/= ':')
+    account   <- takeWhile (/= ':')
     char ':'
     path <- parser
     return $ Arn serviceId region (AccountId account) path
@@ -171,15 +173,15 @@ cClusterName = cClusterArn . _Just . arnClusterName
 
 -- Container Instance
 
-newtype ContainerInstanceArnPath = ContainerInstanceArnPath Text
+newtype ContainerInstanceArnPath = ContainerInstanceArnPath UUID
   deriving (Eq, Show)
 
-ciapContainerInstanceId :: Getter ContainerInstanceArnPath Text
+ciapContainerInstanceId :: Getter ContainerInstanceArnPath UUID
 ciapContainerInstanceId = to (\(ContainerInstanceArnPath x) -> x)
 
 type ContainerInstanceArn = Arn ContainerInstanceArnPath
 
-arnContainerInstanceId :: Getter ContainerInstanceArn Text
+arnContainerInstanceId :: Getter ContainerInstanceArn UUID
 arnContainerInstanceId = arnResourcePath . ciapContainerInstanceId
 
 ciapPreffix :: Text
@@ -188,12 +190,12 @@ ciapPreffix = "container-instance/"
 instance FromText ContainerInstanceArnPath where
   parser = do
     string ciapPreffix
-    instanceId <- takeText
+    instanceId <- uuid
     return $ ContainerInstanceArnPath instanceId
 
 instance ToText ContainerInstanceArnPath where
   toText (ContainerInstanceArnPath instanceId) =
-    T.append ciapPreffix instanceId
+    T.append ciapPreffix $ UUID.toText instanceId
 
 -- Container Service
 
@@ -223,15 +225,15 @@ instance ToText ContainerServiceArnPath where
 
 -- Task
 
-newtype TaskArnPath = TaskArnPath Text
+newtype TaskArnPath = TaskArnPath UUID
   deriving (Eq, Show)
 
-tapTaskId :: Getter TaskArnPath Text
+tapTaskId :: Getter TaskArnPath UUID
 tapTaskId = to (\(TaskArnPath x) -> x)
 
 type TaskArn = Arn TaskArnPath
 
-arnTaskId :: Getter TaskArn Text
+arnTaskId :: Getter TaskArn UUID
 arnTaskId = arnResourcePath . tapTaskId
 
 tapPreffix :: Text
@@ -240,11 +242,12 @@ tapPreffix = "task/"
 instance FromText TaskArnPath where
   parser = do
     string tapPreffix
-    taskId <- takeText
+    taskId <- uuid
     return $ TaskArnPath taskId
 
 instance ToText TaskArnPath where
-  toText (TaskArnPath taskId) = T.append tapPreffix taskId
+  toText (TaskArnPath taskId) =
+    T.append tapPreffix $ UUID.toText taskId
 
 -- Task Definition
 
