@@ -7,7 +7,6 @@ module Groot.App.List.Task
      ( printTaskSummary
      ) where
 
-import Control.Monad
 import Control.Monad.Trans.Maybe
 import Control.Lens
 import Data.Conduit
@@ -37,26 +36,21 @@ data TaskSummary = TaskSummary
 
 instance Tabulate TaskSummary
 
-data TaskAndRelatives = TR ECS.Task ECS.TaskDefinition ECS.Cluster ECS.ContainerInstance
+data TaskAndRelatives = TR ECS.Task ECS.ContainerInstance
 
 instance HasSummary TaskAndRelatives TaskSummary where
-  summarize (TR t td c i) = TaskSummary <$> tId <*> tTaskDef <*> tStatus <*> tCluster <*> tInstanceId <*> tStartedAt <*> tStoppedAt
-    where tFamily     = td ^. ECS.tdFamily
-          tRevision   = toText <$> td ^. ECS.tdRevision
-          tId         =
-            let parsedArn = parseOnly parser <$> t ^. ECS.tTaskARN
-                arn = join $ either (\_ -> Nothing) Just <$> parsedArn
-            in (T.unpack . toText . view arnTaskId) <$> arn
-          tTaskDef    = T.unpack <$> ((\x y -> T.concat [x, ":", y]) <$> tFamily <*> tRevision)
+  summarize (TR t i) = TaskSummary <$> tId <*> tTaskDef <*> tStatus <*> tCluster <*> tInstanceId <*> tStartedAt <*> tStoppedAt
+    where tId         = (asString . view arnTaskId) <$> viewArn (ECS.tTaskARN . _Just) t
+          tTaskDef    = (asString . view arnTaskDefId) <$> viewArn (ECS.tTaskDefinitionARN . _Just) t
           tStatus     = T.unpack <$> t ^. ECS.tLastStatus
-          tCluster    = T.unpack <$> c ^. ECS.cClusterName
+          tCluster    = (asString . view arnClusterName) <$> viewArn (ECS.tClusterARN . _Just) t
           tInstanceId = T.unpack <$> i ^. ECS.ciEc2InstanceId
           tStartedAt  = pure $ maybe "" show $ t ^. ECS.tStartedAt
           tStoppedAt  = pure $ maybe "" show $ t ^. ECS.tStoppedAt
 
 annotateTask :: MonadAWS m => Conduit ECS.Task m TaskAndRelatives
 annotateTask = CL.mapMaybeM (\t -> runMaybeT $ 
-    (TR t) <$> (taskDefFromTask t) <*> (taskCluster t) <*> (taskInstance t)
+    (TR t) <$> taskInstance t
   )
 
 summarizeTasks :: Maybe ClusterRef -> AWS [TaskSummary]

@@ -12,6 +12,7 @@ module Groot.Types
      , arnRegion
      , arnResourcePath
      , arnServiceId
+     , viewArn
      , Ami (..)
      -- Cluster
      , ClusterName (..)
@@ -45,6 +46,7 @@ module Groot.Types
      ) where
 
 import           Prelude          hiding (takeWhile)
+import           Control.Monad    (join)
 import           Control.Lens
 import           Data.Monoid
 import           Data.Text        (Text)
@@ -130,6 +132,9 @@ instance ToText a => ToText (Arn a) where
     , ":"
     , toText path
     ]
+
+viewArn :: forall a b. FromText b => Getting (First Text) a Text -> a -> Maybe (Arn b)
+viewArn l item = join $ either (\_ -> Nothing) Just <$> fromText <$> item ^? l
 
 -- | An AWS Machine Image, used to uniquely identify a given
 -- image for an specific instance
@@ -316,7 +321,8 @@ makeLenses ''TaskDefId
 instance FromText TaskDefId where
   parser = do
     family   <- subparser =<< takeTill (== ':')
-    revision <- decimal
+    char ':'
+    revision <- parser
     return $ TaskDefId family revision
 
 instance ToText TaskDefId where

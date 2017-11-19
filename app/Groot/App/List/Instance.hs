@@ -7,7 +7,6 @@ module Groot.App.List.Instance
      ( printInstanceSummary
      ) where
 
-import Control.Monad
 import Control.Lens
 import Data.Conduit
 import qualified Data.Conduit.List as CL
@@ -76,10 +75,7 @@ instance Tabulate InstanceSummary
 
 instance HasSummary ECS.ContainerInstance InstanceSummary where
   summarize inst = InstanceSummary <$> iId <*> iEc2Id <*> iStatus <*> iRunning <*> iPending <*> iMem <*> iCpu <*> iAgentV <*> iDockerV
-    where iId      =
-            let parsedArn = parseOnly parser <$> inst ^. ECS.ciContainerInstanceARN
-                arn = join $ either (\_ -> Nothing) Just <$> parsedArn
-            in (T.unpack . toText . view arnContainerInstanceId) <$> arn
+    where iId      = (asString . view arnContainerInstanceId) <$> viewArn (ECS.ciContainerInstanceARN . _Just) inst
           iEc2Id   = T.unpack <$> inst ^. ECS.ciEc2InstanceId
           iStatus  = T.unpack <$> inst ^. ECS.ciStatus
           iRunning = inst ^. ECS.ciRunningTasksCount
