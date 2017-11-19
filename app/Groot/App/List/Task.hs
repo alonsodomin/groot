@@ -44,10 +44,7 @@ instance HasSummary TaskAndRelatives TaskSummary where
     where tFamily     = td ^. ECS.tdFamily
           tRevision   = toText <$> td ^. ECS.tdRevision
           tId         =
-            let parsedArn :: Maybe (Either String TaskArn)
-                parsedArn = parseOnly parser <$> t ^. ECS.tTaskARN
-
-                arn :: Maybe TaskArn
+            let parsedArn = parseOnly parser <$> t ^. ECS.tTaskARN
                 arn = join $ either (\_ -> Nothing) Just <$> parsedArn
             in (T.unpack . view arnTaskId) <$> arn
           tTaskDef    = T.unpack <$> ((\x y -> T.concat [x, ":", y]) <$> tFamily <*> tRevision)

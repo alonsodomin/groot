@@ -7,6 +7,7 @@ module Groot.App.List.Instance
      ( printInstanceSummary
      ) where
 
+import Control.Monad
 import Control.Lens
 import Data.Conduit
 import qualified Data.Conduit.List as CL
@@ -16,13 +17,14 @@ import qualified Data.Text as T
 import GHC.Generics
 import Network.AWS
 import qualified Network.AWS.ECS as ECS
-import Network.AWS.Data.Text
 import Numeric
 import Text.PrettyPrint.Tabulate
 
 import Groot.App.List.Base
 import Groot.Core
 import Groot.Data
+import Groot.Data.Text
+import Groot.Types
 
 data ResourceType =
     Memory
@@ -60,6 +62,7 @@ resourceSummary resType inst = (ResourceSummary resType) <$> rAlloc <*> rAvail
 
 data InstanceSummary = InstanceSummary
   { instanceId      :: String
+  , ec2InstaceId    :: String
   , status          :: String
   , runningTasks    :: Int
   , pendingTasks    :: Int
@@ -72,8 +75,12 @@ data InstanceSummary = InstanceSummary
 instance Tabulate InstanceSummary
 
 instance HasSummary ECS.ContainerInstance InstanceSummary where
-  summarize inst = InstanceSummary <$> iId <*> iStatus <*> iRunning <*> iPending <*> iMem <*> iCpu <*> iAgentV <*> iDockerV
-    where iId      = T.unpack <$> inst ^. ECS.ciEc2InstanceId
+  summarize inst = InstanceSummary <$> iId <*> iEc2Id <*> iStatus <*> iRunning <*> iPending <*> iMem <*> iCpu <*> iAgentV <*> iDockerV
+    where iId      =
+            let parsedArn = parseOnly parser <$> inst ^. ECS.ciContainerInstanceARN
+                arn = join $ either (\_ -> Nothing) Just <$> parsedArn
+            in (T.unpack . view arnContainerInstanceId) <$> arn
+          iEc2Id   = T.unpack <$> inst ^. ECS.ciEc2InstanceId
           iStatus  = T.unpack <$> inst ^. ECS.ciStatus
           iRunning = inst ^. ECS.ciRunningTasksCount
           iPending = inst ^. ECS.ciPendingTasksCount
