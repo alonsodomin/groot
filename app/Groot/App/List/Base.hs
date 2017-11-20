@@ -39,12 +39,18 @@ extractAttrs attrs item = foldr (\attr m -> Map.insert attr (readAttr attr item)
 ppheaders :: (Traversable f, SummaryAttr a) => f a -> PP.Doc
 ppheaders hdrs = foldl' (<+>) PP.empty $ (PP.text . T.unpack . attrName) <$> hdrs
 
-pprintRow :: SummaryAttr a => Map a Text -> PP.Doc
-pprintRow row = Map.foldWithKey (\attr txt doc -> doc <+> printAttr attr txt) PP.empty row
+pprintRow :: (Foldable f, SummaryAttr a) => f a -> AttrResource a -> PP.Doc
+pprintRow attrs item = foldl' (\doc attr -> doc <+> attrDoc attr) PP.empty attrs
+  where attrDoc attr = printAttr attr $ readAttr attr item
 
 pprintResources :: (Traversable t, Traversable t', SummaryAttr a) => t a -> t' (AttrResource a) -> PP.Doc
 pprintResources attrs items = foldl' (<$$>) PP.empty $ pprintSingle <$> items
-  where pprintSingle item = pprintRow $ extractAttrs attrs item
+  where pprintSingle item = pprintRow attrs item
+
+pprintColumn :: SummaryAttr a => Map Int a -> [AttrResource a] -> PP.Doc
+pprintColumn cols items = PP.column pprintSingleCol
+  where pprintSingleCol idx = maybe PP.empty drawCol $ Map.lookup idx cols
+        drawCol attr = foldl' (\doc item -> doc <$$> (printAttr attr $ readAttr attr item)) PP.empty items
 
 pprintSink :: (Traversable t, SummaryAttr a) => t a -> Sink [AttrResource a] IO ()
 pprintSink attrs = transPipe (\x -> evalStateT x False) $ pprintSink' attrs

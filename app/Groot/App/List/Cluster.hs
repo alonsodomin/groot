@@ -54,6 +54,7 @@ instance SummaryAttr ClusterAttr where
 
   printAttr CAStatus txt@"INACTIVE" = PP.red . PP.text $ T.unpack txt
   printAttr CAStatus txt@"ACTIVE"   = PP.dullgreen . PP.text $ T.unpack txt
+  printAttr CAName   txt            = PP.dullblue . PP.text $ T.unpack txt
   printAttr _        txt            = PP.text . T.unpack $ txt
 
 defaultClusterAttrs :: [ClusterAttr]
