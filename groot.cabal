@@ -45,6 +45,7 @@ library
                      , ansi-terminal
                      , attoparsec
                      , directory
+                     , hashmap
                      , exceptions
                      , lens
                      , lifted-base
@@ -75,10 +76,13 @@ executable groot
   build-depends:       base
                      , attoparsec
                      , ansi-terminal
+                     , ansi-wl-pprint
                      , boxes
                      , bytestring
                      , conduit                     
                      , exceptions
+                     , hashable
+                     , hashmap
                      , http-conduit
                      , http-types
                      , optparse-applicative                                                               

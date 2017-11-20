@@ -23,7 +23,7 @@ import Groot.App.List.Service
 import Groot.Data
 
 data ListCmd =
-    ClustersCmd (Maybe ClusterRef)
+    ClustersCmd
   | InstancesCmd (Maybe ClusterRef)
   | TasksCmd (Maybe ClusterRef)
   | TaskDefsCmd Bool (Maybe TaskFamily)
@@ -35,7 +35,7 @@ data ListOptions = ListOptions ListCmd deriving (Eq, Show)
 -- CLI
 
 clustersCli :: Parser ListCmd
-clustersCli = ClustersCmd <$> optional clusterOpt
+clustersCli = pure ClustersCmd
 
 instancesCli :: Parser ListCmd
 instancesCli = InstancesCmd <$> optional clusterOpt
@@ -69,7 +69,7 @@ grootListCli = ListOptions <$> listCmds
 -- Run function
 
 runGrootList :: ListOptions -> Env -> IO ()
-runGrootList (ListOptions (ClustersCmd clusterId))        = printClusterSummary clusterId
+runGrootList (ListOptions  ClustersCmd)                   = printClusterSummary
 runGrootList (ListOptions (InstancesCmd clusterId))       = printInstanceSummary clusterId
 runGrootList (ListOptions (TasksCmd clusterId))           = printTaskSummary clusterId
 runGrootList (ListOptions (ServicesCmd clusterId))        = printServiceSummary clusterId

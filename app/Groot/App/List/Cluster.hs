@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Groot.App.List.Cluster
      ( printClusterSummary
@@ -9,23 +10,57 @@ module Groot.App.List.Cluster
 
 import Control.Monad.Trans.Maybe
 import Control.Lens
+import Data.Hashable
 import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Data.Data
 import Data.Maybe (maybeToList)
-import Data.Text
+import qualified Data.Text as T
 import GHC.Generics
-import Text.PrettyPrint.Tabulate
 import Network.AWS
 import qualified Network.AWS.ECS as ECS
+import qualified Text.PrettyPrint.ANSI.Leijen as PP
+import Text.PrettyPrint.Tabulate
 
 import Groot.App.List.Base
 import Groot.Core
+import Groot.Core.Console
 import Groot.Data
+
+data ClusterAttr =
+    CAName
+  | CAStatus
+  | CARunningTasks
+  | CAPendingTasks
+  | CAInstanceCount
+  deriving (Eq, Show, Enum, Bounded, Ord, Generic)
+
+instance Hashable ClusterAttr
+
+instance SummaryAttr ClusterAttr where
+  type AttrResource ClusterAttr = ECS.Cluster
+
+  attrName CAName          = "Name"
+  attrName CAStatus        = "Status"
+  attrName CARunningTasks  = "Running Tasks"
+  attrName CAPendingTasks  = "Pending Tasks"
+  attrName CAInstanceCount = "# Instances"
+
+  attrGetter CAName          = ECS.cClusterName
+  attrGetter CAStatus        = ECS.cStatus
+  attrGetter CARunningTasks  = toTextGetter ECS.cRunningTasksCount
+  attrGetter CAPendingTasks  = toTextGetter ECS.cPendingTasksCount
+  attrGetter CAInstanceCount = toTextGetter ECS.cRegisteredContainerInstancesCount
+
+  printAttr CAStatus txt@"INACTIVE" = PP.red . PP.text $ T.unpack txt
+  printAttr CAStatus txt@"ACTIVE"   = PP.dullgreen . PP.text $ T.unpack txt
+  printAttr _        txt            = PP.text . T.unpack $ txt
+
+defaultClusterAttrs :: [ClusterAttr]
+defaultClusterAttrs = [CAName, CAStatus, CARunningTasks, CAPendingTasks, CAInstanceCount]
 
 data ClusterSummary = ClusterSummary
   { name         :: String
-  --, arn          :: String
   , status       :: String
   , runningTasks :: Int
   , pendingTasks :: Int
@@ -36,9 +71,8 @@ instance Tabulate ClusterSummary
 
 instance HasSummary ECS.Cluster ClusterSummary where
   summarize cls = ClusterSummary <$> cName <*> cStatus <*> cRunning <*> cPending <*> cInstances
-     where cName      = unpack <$> cls ^. ECS.cClusterName
-           --cArn       = unpack <$> cls ^. ECS.cClusterARN
-           cStatus    = unpack <$> cls ^. ECS.cStatus
+     where cName      = T.unpack <$> cls ^. ECS.cClusterName
+           cStatus    = T.unpack <$> cls ^. ECS.cStatus
            cRunning   = cls ^. ECS.cRunningTasksCount
            cPending   = cls ^. ECS.cPendingTasksCount
            cInstances = cls ^. ECS.cRegisteredContainerInstancesCount
@@ -49,7 +83,10 @@ summarizeClusters (Just c) = maybeToList <$> do
   cl <- runMaybeT (findCluster c)
   return $ cl >>= summarize
 
-printClusterSummary :: Maybe ClusterRef -> Env -> IO ()
-printClusterSummary x env = do
-  xs <- runResourceT . runAWS env $ summarizeClusters x
-  printTable' "No clusters found" xs
+summarizeClusters' :: Env -> IO ()
+summarizeClusters' env = clusterStream $$ pprintSink defaultClusterAttrs
+  where clusterStream :: Source IO [ECS.Cluster]
+        clusterStream = transPipe (runResourceT . runAWS env) $ fetchClusters =$= CL.chunksOf 5
+
+printClusterSummary :: Env -> IO ()
+printClusterSummary = summarizeClusters'

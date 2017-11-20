@@ -1,6 +1,9 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Groot.Core.Console where
 
 import Control.Monad.IO.Class
+import Control.Monad.Trans.Control
 import Control.Monad.Trans.Resource
 import Data.Char
 import System.IO
@@ -15,7 +18,7 @@ redText = [SetColor Foreground Vivid Red]
 yellowText :: [SGR]
 yellowText = [SetColor Foreground Dull Yellow]
 
-withSGR :: [SGR] -> IO a -> ResourceT IO a
+withSGR :: (MonadResourceBase m) => [SGR] -> IO a -> ResourceT m a
 withSGR sgr action = do
   (releaseKey, _) <- allocate (setSGR sgr) (\_ -> setSGR [Reset])
   result <- liftIO action
