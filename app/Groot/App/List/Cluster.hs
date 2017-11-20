@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -15,10 +16,13 @@ import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Data.Data
 import Data.Maybe (maybeToList)
+import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics
 import Network.AWS
 import qualified Network.AWS.ECS as ECS
+import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Render.Terminal
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Text.PrettyPrint.Tabulate
 
@@ -26,6 +30,8 @@ import Groot.App.List.Base
 import Groot.Core
 import Groot.Core.Console
 import Groot.Data
+import Groot.Data.Text.Lens
+import Groot.Data.Text.PrettyPrint
 
 data ClusterAttr =
     CAName
@@ -36,6 +42,28 @@ data ClusterAttr =
   deriving (Eq, Show, Enum, Bounded, Ord, Generic)
 
 instance Hashable ClusterAttr
+
+instance PrettyColumn ClusterAttr where
+  type PrettyItemOf ClusterAttr = ECS.Cluster
+
+  columnHeader CAName          = "NAME"
+  columnHeader CAStatus        = "STATUS"
+  columnHeader CARunningTasks  = "RUNNING TASKS"
+  columnHeader CAPendingTasks  = "PENDING TASKS"
+  columnHeader CAInstanceCount = "# INSTANCES"
+
+  columnCell CAName cluster =
+    annotate (colorDull Blue) . pretty $ cluster ^. ECS.cClusterName . orEmpty
+  columnCell CAStatus cluster =
+    let st = cluster ^. ECS.cStatus . orEmpty
+        cl = case st of
+               "ACTIVE"   -> colorDull Green
+               "INACTIVE" -> color Red
+               _          -> mempty
+    in annotate cl $ pretty st
+  columnCell CARunningTasks cluster = pretty $ cluster ^. ECS.cRunningTasksCount . orEmpty
+  columnCell CAPendingTasks cluster = pretty $ cluster ^. ECS.cPendingTasksCount . orEmpty
+  columnCell CAInstanceCount cluster = pretty $ cluster ^. ECS.cRegisteredContainerInstancesCount . orEmpty
 
 instance SummaryAttr ClusterAttr where
   type AttrResource ClusterAttr = ECS.Cluster
@@ -90,4 +118,6 @@ summarizeClusters' env = clusterStream $$ pprintSink defaultClusterAttrs
         clusterStream = transPipe (runResourceT . runAWS env) $ fetchClusters =$= CL.chunksOf 5
 
 printClusterSummary :: Env -> IO ()
-printClusterSummary = summarizeClusters'
+printClusterSummary env = do
+  clusters <- runResourceT . runAWS env $ sourceToList fetchClusters
+  renderAnsiDefault $ table defaultClusterAttrs clusters

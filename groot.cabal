@@ -33,6 +33,8 @@ library
                      , Groot.Data.Task
                      , Groot.Data.TaskDef
                      , Groot.Data.Text
+                     , Groot.Data.Text.Lens
+                     , Groot.Data.Text.PrettyPrint
                      , Groot.Data
                      , Groot.Exception.Cluster
                      , Groot.Exception.Instance
@@ -54,6 +56,8 @@ library
                      , conduit
                      , conduit-combinators
                      , mtl
+                     , prettyprinter
+                     , prettyprinter-ansi-terminal
                      , resourcet
                      , stm
                      , stm-chans
@@ -97,6 +101,8 @@ executable groot
                      , amazonka-core
                      , amazonka-ecs
                      , pptable
+                     , prettyprinter
+                     , prettyprinter-ansi-terminal
                      , groot
   other-modules:       Groot.App.Cli
                      , Groot.App.Cli.Parsers
