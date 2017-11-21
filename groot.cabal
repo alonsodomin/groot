@@ -35,6 +35,8 @@ library
                      , Groot.Data.Text
                      , Groot.Data.Text.Lens
                      , Groot.Data.Text.PrettyPrint
+                     , Groot.Data.Text.PrettyPrint.ANSI
+                     , Groot.Data.Text.PrettyPrint.Table
                      , Groot.Data
                      , Groot.Exception.Cluster
                      , Groot.Exception.Instance
@@ -46,6 +48,7 @@ library
                      , aeson
                      , ansi-terminal
                      , attoparsec
+                     , boxes
                      , directory
                      , hashmap
                      , exceptions
