@@ -10,6 +10,7 @@ import Network.AWS
 import qualified Network.AWS.ECS as ECS
 
 import Groot.Core
+import Groot.Data.Text
 import Groot.Data.Text.Lens
 import Groot.Data.Text.PrettyPrint
 
@@ -34,11 +35,11 @@ instance PrettyColumn ClusterAttr where
   -- columnStyle CAStatus "INACTIVE" = color Vivid Red
   -- columnStyle _        _          = mempty
 
-  columnCell CAName          = ECS.cClusterName . orEmpty
-  columnCell CAStatus        = ECS.cStatus . orEmpty
-  columnCell CARunningTasks  = ECS.cRunningTasksCount . orEmpty
-  columnCell CAPendingTasks  = ECS.cPendingTasksCount . orEmpty
-  columnCell CAInstanceCount = ECS.cRegisteredContainerInstancesCount . orEmpty
+  columnCell CAName          = ECS.cClusterName
+  columnCell CAStatus        = ECS.cStatus
+  columnCell CARunningTasks  = ECS.cRunningTasksCount
+  columnCell CAPendingTasks  = ECS.cPendingTasksCount
+  columnCell CAInstanceCount = ECS.cRegisteredContainerInstancesCount
 
 defaultClusterAttrs :: [ClusterAttr]
 defaultClusterAttrs = [CAName, CAStatus, CARunningTasks, CAPendingTasks, CAInstanceCount]

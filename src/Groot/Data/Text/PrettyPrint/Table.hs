@@ -1,5 +1,6 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Groot.Data.Text.PrettyPrint.Table
@@ -8,6 +9,7 @@ module Groot.Data.Text.PrettyPrint.Table
      ) where
 
 import Control.Lens
+import Data.Monoid
 import Data.List (transpose)
 import qualified Data.Text as T
 import Groot.Data.Text
@@ -38,7 +40,7 @@ class PrettyColumn a where
 
   columnHeader :: a -> Text
 
-  columnCell :: a -> Getter (PrettyItemOf a) Text
+  columnCell :: forall m b. (Monoid m, ToText b) => a -> Getting m (PrettyItemOf a) b
 
   columnStyle :: a -> Text -> AnsiStyle
   columnStyle _ _ = mempty
@@ -53,7 +55,7 @@ tableHeaders cols = (styled headerStyle . columnHeader) <$> cols
 tableRow :: PrettyColumn a => [a] -> PrettyItemOf a -> [B.Box]
 tableRow cols item = renderCol <$> cols
   where renderCol col =
-          let content = item ^. (columnCell col)
+          let content = maybe "" id $ item ^? (columnCell col)
           in styled (columnStyle col content) content
 
 printTable :: PrettyColumn a => [a] -> [PrettyItemOf a] -> IO ()

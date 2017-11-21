@@ -23,6 +23,8 @@ import Groot.App.List.Base
 import Groot.Core
 import Groot.Data
 import Groot.Data.Text
+import Groot.Data.Text.Lens
+import Groot.Data.Text.PrettyPrint
 import Groot.Types
 
 data ResourceType =
@@ -58,6 +60,31 @@ resourceSummary resType inst = (ResourceSummary resType) <$> rAlloc <*> rAvail
         
         rAlloc = findResource $ inst ^. ECS.ciRegisteredResources
         rAvail = findResource $ inst ^. ECS.ciRemainingResources
+
+data ContainerInstanceAttr =
+    CIId
+  | CIEC2Id
+  | CIStatus
+  | CIRunningTasks
+  | CIPendingTasks
+  | CIMemory
+  | CICPU
+  | CIAgentVersion
+  | CIDockerVersion
+  deriving (Eq, Show, Enum, Ord, Bounded)
+
+instance PrettyColumn ContainerInstanceAttr where
+  columnHeader CIId            = "INSTANCE ID"
+  columnHeader CIEC2Id         = "EC2 ID"
+  columnHeader CIStatus        = "STATUS"
+  columnHeader CIRunningTasks  = "RUNNING TASKS"
+  columnHeader CIPendingTasks  = "PENDING TASKS"
+  columnHeader CIMemory        = "MEMORY"
+  columnHeader CICPU           = "CPU"
+  columnHeader CIAgentVersion  = "AGENT"
+  columnHeader CIDockerVersion = "DOCKER"
+
+  columnCell CIId = ECS.ciContainerInstanceARN . asArn . (arnContainerInstanceId . _Just)
 
 data InstanceSummary = InstanceSummary
   { instanceId      :: String
