@@ -137,7 +137,7 @@ instance ToText a => ToText (Arn a) where
 viewArn :: forall a b. FromText b => Getting (First Text) a Text -> a -> Maybe (Arn b)
 viewArn l item = join $ either (\_ -> Nothing) Just <$> fromText <$> item ^? l
 
-asArn :: forall a b. FromText b => Getting (First (Arn b)) Text (Arn b)
+asArn :: forall a. FromText a => Getting (First (Arn a)) Text (Arn a)
 asArn = to (\txt -> either (\_ -> Nothing) Just $ fromText txt) . _Just
 
 -- | An AWS Machine Image, used to uniquely identify a given

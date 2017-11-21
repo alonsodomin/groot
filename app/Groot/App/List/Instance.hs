@@ -84,7 +84,7 @@ instance PrettyColumn ContainerInstanceAttr where
   columnHeader CIAgentVersion  = "AGENT"
   columnHeader CIDockerVersion = "DOCKER"
 
-  columnCell CIId = ECS.ciContainerInstanceARN . asArn . (arnContainerInstanceId . _Just)
+  columnCell CIId = ECS.ciContainerInstanceARN . _Just . asArn . arnContainerInstanceId
 
 data InstanceSummary = InstanceSummary
   { instanceId      :: String

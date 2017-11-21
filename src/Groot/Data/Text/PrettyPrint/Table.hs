@@ -40,7 +40,7 @@ class PrettyColumn a where
 
   columnHeader :: a -> Text
 
-  columnCell :: forall m b. (Monoid m, ToText b) => a -> Getting m (PrettyItemOf a) b
+  columnCell :: forall b. ToText b => a -> Getting (First b) (PrettyItemOf a) b
 
   columnStyle :: a -> Text -> AnsiStyle
   columnStyle _ _ = mempty
