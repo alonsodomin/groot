@@ -2,11 +2,13 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Groot.Data.Text.PrettyPrint.Table where
+module Groot.Data.Text.PrettyPrint.Table
+     ( PrettyColumn (..)
+     , printTable
+     ) where
 
 import Control.Lens
 import Data.List (transpose)
-import Data.Semigroup ((<>))
 import qualified Data.Text as T
 import Groot.Data.Text
 import Groot.Data.Text.PrettyPrint.ANSI

@@ -59,8 +59,6 @@ library
                      , conduit
                      , conduit-combinators
                      , mtl
-                     , prettyprinter
-                     , prettyprinter-ansi-terminal
                      , resourcet
                      , stm
                      , stm-chans
@@ -83,7 +81,6 @@ executable groot
   build-depends:       base
                      , attoparsec
                      , ansi-terminal
-                     , ansi-wl-pprint
                      , boxes
                      , bytestring
                      , conduit                     
