@@ -28,6 +28,7 @@ library
                      , Groot.Core.Events
                      , Groot.Data.Base
                      , Groot.Data.Cluster
+                     , Groot.Data.Conduit
                      , Groot.Data.Instance
                      , Groot.Data.Service
                      , Groot.Data.Task
@@ -51,9 +52,9 @@ library
                      , text
                      , conduit
                      , conduit-combinators
-                     , conduit-merge
                      , mtl
                      , resourcet
+                     , stm-conduit
                      , transformers
                      , uuid
                      , vector
