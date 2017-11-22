@@ -82,6 +82,9 @@ describeAmi = hspec $ do
 describeBaseTypes :: IO ()
 describeBaseTypes = describeARN *> describeAmi *> quickCheckDummyArn
 
+instance Arbitrary ClusterName where
+  arbitrary = ClusterName <$> arbitrary
+
 instance Arbitrary ClusterArnPath where
   arbitrary = ClusterArnPath <$> arbitrary
 
