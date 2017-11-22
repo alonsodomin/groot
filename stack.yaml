@@ -46,6 +46,7 @@ extra-deps:
   - amazonka-ecs-1.5.0
   - conduit-merge-0.1.2.0
   - pptable-0.2.0.0
+  - exceptions-0.8.3
 
 # Override default flag values for local packages and extra-deps
 flags: {}
