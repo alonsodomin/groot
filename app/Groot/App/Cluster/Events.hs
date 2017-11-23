@@ -32,13 +32,14 @@ clusterEventsCli = ClusterEventOptions
                 <> help "Folow the trail of events" )
                <*> many clusterRefArg
 
-fetchEvents :: Traversable t => Env -> t ClusterRef -> Bool -> Source IO ECS.ServiceEvent
+fetchEvents :: Env -> [ClusterRef] -> Bool -> IO (Source IO ECS.ServiceEvent)
 fetchEvents env clusterRefs inf =
-  transPipe (runResourceT . runAWS env) $ clusterServiceEventLog clusterRefs inf
+  runResourceT $ clusterServiceEventLog env clusterRefs inf
 
 runClusterEvents :: ClusterEventOptions -> Env -> IO ()
-runClusterEvents (ClusterEventOptions follow [])          env = do
+runClusterEvents (ClusterEventOptions follow []) env = do
   clusterRefs <- runResourceT . runAWS env . sourceToList $ fetchClusters =$= CL.mapMaybe clusterName
   runClusterEvents (ClusterEventOptions follow clusterRefs) env
-runClusterEvents (ClusterEventOptions follow clusterRefs) env =
-  runConduit $ fetchEvents env clusterRefs follow =$ printEventSink
+runClusterEvents (ClusterEventOptions follow clusterRefs) env = do
+  eventSource <- fetchEvents env clusterRefs follow
+  runConduit $ eventSource =$ printEventSink

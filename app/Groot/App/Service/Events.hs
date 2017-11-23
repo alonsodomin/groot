@@ -5,6 +5,7 @@ module Groot.App.Service.Events
      ) where
 
 import Data.Conduit
+import Data.Foldable
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Semigroup ((<>))
 import Data.String
@@ -38,13 +39,15 @@ serviceEventsCli = ServiceEventOptions
                  <> help "Follow the trail of events" )
                <*> serviceRefArgList
 
-fetchEvents :: (Traversable t) => Env -> t ServiceCoords -> Bool -> Source IO ECS.ServiceEvent
+fetchEvents :: Foldable f => Env -> f ServiceCoords -> Bool -> IO (Source IO ECS.ServiceEvent)
 fetchEvents env coords inf =
-  transPipe (runResourceT . runAWS env) $ servicesEventLog coords inf
+  runResourceT $ servicesEventLog env (toList coords) inf
 
 runServiceEvents :: ServiceEventOptions -> Env -> IO ()
-runServiceEvents (ServiceEventOptions (Just clusterRef) follow serviceRefs) env =
-  runConduit $ fetchEvents env (fmap (\x -> ServiceCoords x clusterRef) serviceRefs) follow =$ printEventSink
+runServiceEvents (ServiceEventOptions (Just clusterRef) follow serviceRefs) env = do
+  eventSource <- fetchEvents env (fmap (\x -> ServiceCoords x clusterRef) serviceRefs) follow
+  runConduit $ eventSource =$ printEventSink
 runServiceEvents (ServiceEventOptions Nothing follow serviceRefs) env = do
-  coords <- runResourceT . runAWS env $ findServiceCoords serviceRefs
-  runConduit $ fetchEvents env coords follow =$ printEventSink
+  coords      <- runResourceT . runAWS env $ findServiceCoords serviceRefs
+  eventSource <- fetchEvents env coords follow
+  runConduit $ eventSource =$ printEventSink

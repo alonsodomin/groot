@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Groot.AWS.Service
      (
        serviceCoords
@@ -137,55 +139,48 @@ serviceEventLog (ServiceCoords serviceRef clusterRef) inf = yield Nothing =$= lo
               (events, nextTime) <- lift $ fetch lastEventTime              
               CL.sourceList $ reverse events
               if inf then do                
-                liftIO $ TH.threadDelay 1000000
+                liftIO . TH.forkIO $ do
+                  TH.yield
+                  TH.threadDelay 1000000
                 leftover $ nextTime <|> lastEventTime
                 loop
               else return ()
 
-servicesEventLog' :: (MonadResource m) 
-                  => [ServiceCoords]
-                  -> Bool
-                  -> m [Source m ECS.ServiceEvent]
-servicesEventLog' coords inf = merge eventSources
+servicesEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadIO mo)
+                 => Env
+                 -> [ServiceCoords]
+                 -> Bool
+                 -> mi (Source mo ECS.ServiceEvent)
+servicesEventLog env coords inf = merge eventSources
   where ignoreServicesBecomingInactive :: MonadCatch m => m () -> m ()
         ignoreServicesBecomingInactive action =
           catching _InactiveService action $ \_ -> return ()
 
-        --safeEventSource :: MonadAWS m => ServiceCoords -> Source m ECS.ServiceEvent
-        safeEventSource s = ignoreServicesBecomingInactive (serviceEventLog s inf)
+        safeEventSource :: MonadResource m => ServiceCoords -> Source m ECS.ServiceEvent
+        safeEventSource s = transPipe (runAWS env) $ ignoreServicesBecomingInactive $ serviceEventLog s inf
 
-        --eventSources :: MonadAWS m => [Source m ECS.ServiceEvent]
+        eventSources :: MonadResource m => [Source m ECS.ServiceEvent]
         eventSources = safeEventSource <$> coords
 
         merge sources = CH.mergeSources sources 500
 
-servicesEventLog :: (MonadAWS m, Traversable t) => t ServiceCoords -> Bool -> Source m ECS.ServiceEvent
-servicesEventLog coords inf = CM.mergeSourcesOn eventOrd eventSources
-  where epoch = UTCTime (ModifiedJulianDay 40587) (secondsToDiffTime 0)
+clusterServiceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadIO mo)
+                       => Env
+                       -> [ClusterRef]
+                       -> Bool
+                       -> mi (Source mo ECS.ServiceEvent)
+clusterServiceEventLog env clusterRefs inf = mergeClusterEvents
+  where clusterServiceCoords :: MonadAWS m => ClusterRef -> m [ServiceCoords]
+        clusterServiceCoords cref = sourceToList $ fetchServices cref
+          =$= filterC isActiveService
+          =$= CL.mapMaybe serviceCoords
 
-        eventOrd :: ECS.ServiceEvent -> UTCTime
-        eventOrd event = maybe epoch id $ event ^. ECS.seCreatedAt
+        allServiceCoords :: MonadAWS m => m [ServiceCoords]
+        allServiceCoords = do
+          coords <- concat <$> mapM clusterServiceCoords clusterRefs
+          liftIO . putStrLn $ "Found the following services: " ++ (show coords)
+          return coords
 
-        ignoreServicesBecomingInactive :: MonadCatch m => m () -> m ()
-        ignoreServicesBecomingInactive action =
-          catching _InactiveService action $ \_ -> return ()
-
-        safeEventSource s = ignoreServicesBecomingInactive (serviceEventLog s inf)
-        eventSources = safeEventSource <$> coords
-
-clusterServiceEventLog :: (MonadAWS m, Traversable t) => t ClusterRef -> Bool -> Source m ECS.ServiceEvent
-clusterServiceEventLog clusterRefs inf = 
-  let clusterServiceCoords :: MonadAWS m => ClusterRef -> m [ServiceCoords]
-      clusterServiceCoords cref = sourceToList $ fetchServices cref
-        =$= filterC isActiveService
-        =$= CL.mapMaybe serviceCoords
-
-      allServiceCoords :: MonadAWS m => m [ServiceCoords]
-      allServiceCoords = do
-        coords <- concat <$> mapM clusterServiceCoords clusterRefs
-        liftIO . putStrLn $ "Found the following services: " ++ (show coords)
-        return coords
-
-      mergeEvents :: MonadAWS m => Conduit [ServiceCoords] m ECS.ServiceEvent
-      mergeEvents = awaitForever (\coords -> toProducer $ servicesEventLog coords inf)
-  in yieldM allServiceCoords =$= mergeEvents
+        mergeClusterEvents = do
+          coords <- runAWS env $ allServiceCoords
+          servicesEventLog env coords inf
