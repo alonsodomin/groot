@@ -54,7 +54,9 @@ library
                      , conduit-combinators
                      , mtl
                      , resourcet
+                     , stm
                      , stm-conduit
+                     , stm-delay
                      , transformers
                      , uuid
                      , vector

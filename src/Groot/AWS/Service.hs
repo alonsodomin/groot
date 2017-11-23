@@ -16,6 +16,7 @@ module Groot.AWS.Service
 
 import Control.Applicative
 import qualified Control.Concurrent as TH
+import Control.Concurrent.STM.TBQueue
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Control.Monad.Trans
@@ -23,6 +24,7 @@ import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Resource
 import Control.Lens
 import Data.Conduit
+import qualified Data.Conduit.Async as A
 import qualified Data.Conduit.List as CL
 import qualified Data.Conduit.TMChan as CH
 import Data.Maybe (listToMaybe)
@@ -108,6 +110,16 @@ getService serviceName clusterRef = do
   case serv of
     Just x  -> return x
     Nothing -> throwM $ serviceNotFound serviceName clusterRef
+
+serviceEventLog' :: (MonadIO m, MonadBaseControl IO m)
+                 => ServiceCoords
+                 -> Bool
+                 -> Source m ECS.ServiceEvent
+serviceEventLog' coords inf = A.gatherFrom 500 serviceEventPoller
+  where serviceEventPoller :: (MonadIO m, MonadBaseControl IO m)
+                           => TBQueue ECS.ServiceEvent
+                           -> m ()
+        serviceEventPoller = undefined
 
 serviceEventLog :: MonadAWS m
                 => ServiceCoords
