@@ -16,7 +16,7 @@ module Groot.AWS.Service
 import Control.Applicative
 import qualified Control.Concurrent as TH
 import Control.Concurrent.STM.Delay
-import Control.Concurrent.STM.TMChan
+import Control.Concurrent.STM.TBMChan
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Control.Monad.STM
@@ -114,7 +114,7 @@ getService serviceName clusterRef = do
 pollServiceEvents :: Env
                   -> ServiceCoords
                   -> Bool
-                  -> TMChan ECS.ServiceEvent
+                  -> TBMChan ECS.ServiceEvent
                   -> IO ()
 pollServiceEvents env (ServiceCoords serviceRef clusterRef) inf chan = pollForever
   where pollForever = do
@@ -125,7 +125,7 @@ pollServiceEvents env (ServiceCoords serviceRef clusterRef) inf chan = pollForev
         loop = do
           lastEventTime <- get
           events <- liftIO . runResourceT . runAWS env $ serviceEvents lastEventTime
-          liftIO . atomically $ forM_ (reverse events) $ writeTMChan chan
+          liftIO $ forM_ (reverse events) $ atomically . tryWriteTBMChan chan
           if inf then do
             delay <- liftIO $ newDelay 2000000
             let nextTime = listToMaybe events >>= view ECS.seCreatedAt
@@ -151,15 +151,15 @@ serviceEventLog :: Env
                 -> IO (Source IO ECS.ServiceEvent)
 serviceEventLog env coords inf = bindSourcesToChannel
   where bindSourcesToChannel = do
-          chan <- newTMChanIO
+          chan <- newTBMChanIO 500
           forM_ coords $ eventSource chan
-          return $ CH.sourceTMChan chan
+          return $ CH.sourceTBMChan chan
     
         ignoreServicesBecomingInactive :: MonadCatch m => m () -> m ()
         ignoreServicesBecomingInactive action =
           catching _InactiveService action $ \_ -> return ()
 
-        eventSource :: TMChan ECS.ServiceEvent -> ServiceCoords -> IO ()
+        eventSource :: TBMChan ECS.ServiceEvent -> ServiceCoords -> IO ()
         eventSource chan crds =
           ignoreServicesBecomingInactive $ pollServiceEvents env crds inf chan
 
