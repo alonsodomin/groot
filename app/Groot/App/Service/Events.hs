@@ -40,8 +40,7 @@ serviceEventsCli = ServiceEventOptions
                <*> serviceRefArgList
 
 fetchEvents :: Foldable f => Env -> f ServiceCoords -> Bool -> IO (Source IO ECS.ServiceEvent)
-fetchEvents env coords inf =
-  runResourceT $ servicesEventLog env (toList coords) inf
+fetchEvents env coords inf = serviceEventLog env (toList coords) inf
 
 runServiceEvents :: ServiceEventOptions -> Env -> IO ()
 runServiceEvents (ServiceEventOptions (Just clusterRef) follow serviceRefs) env = do

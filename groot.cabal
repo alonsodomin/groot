@@ -28,7 +28,6 @@ library
                      , Groot.Core.Events
                      , Groot.Data.Base
                      , Groot.Data.Cluster
-                     , Groot.Data.Conduit
                      , Groot.Data.Instance
                      , Groot.Data.Service
                      , Groot.Data.Task
@@ -55,6 +54,7 @@ library
                      , mtl
                      , resourcet
                      , stm
+                     , stm-chans
                      , stm-conduit
                      , stm-delay
                      , transformers
