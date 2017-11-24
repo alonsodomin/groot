@@ -116,68 +116,64 @@ pollServiceEvents :: Env
                   -> Bool
                   -> TBMChan ECS.ServiceEvent
                   -> IO ()
-pollServiceEvents env (ServiceCoords serviceRef clusterRef) inf chan = pollForever
-  where pollForever = do
-          TH.forkIO $ evalStateT loop Nothing
-          return ()
-    
-        loop :: StateT (Maybe UTCTime) IO ()
-        loop = do
-          lastEventTime <- get
-          events <- liftIO . runResourceT . runAWS env $ serviceEvents lastEventTime
-          liftIO $ forM_ (reverse events) $ atomically . tryWriteTBMChan chan
-          if inf then do
-            delay <- liftIO $ newDelay 2000000
-            let nextTime = listToMaybe events >>= view ECS.seCreatedAt
-            liftIO . atomically $ waitDelay delay
-            put $ nextTime <|> lastEventTime
-            loop
-          else return ()
+pollServiceEvents env (ServiceCoords serviceRef clusterRef) inf chan = do
+  TH.forkIO $ evalStateT loop Nothing
+  return ()
+    where
+      loop :: StateT (Maybe UTCTime) IO ()
+      loop = do
+        lastEventTime <- get
+        events <- liftIO . runResourceT . runAWS env $ serviceEvents lastEventTime
+        liftIO $ forM_ (reverse events) $ atomically . tryWriteTBMChan chan
+        if inf then do
+          delay <- liftIO $ newDelay 2000000
+          let nextTime = listToMaybe events >>= view ECS.seCreatedAt
+          liftIO . atomically $ waitDelay delay
+          put $ nextTime <|> lastEventTime
+          loop
+        else return ()
 
-        serviceEvents :: MonadAWS m => Maybe UTCTime -> m [ECS.ServiceEvent]
-        serviceEvents lastEventTime = do
-          service  <- getService serviceRef (Just clusterRef)
-          service' <- if (matches isActiveService service)
-                      then return service
-                      else throwM $ inactiveService serviceRef clusterRef
-          events  <- return $ service' ^. ECS.csEvents
-          return $ case lastEventTime of
-            Nothing -> take 25 events
-            Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. ECS.seCreatedAt) events
+      serviceEvents :: MonadAWS m => Maybe UTCTime -> m [ECS.ServiceEvent]
+      serviceEvents lastEventTime = do
+        service  <- getService serviceRef (Just clusterRef)
+        service' <- if (matches isActiveService service)
+                    then return service
+                    else throwM $ inactiveService serviceRef clusterRef
+        events  <- return $ service' ^. ECS.csEvents
+        return $ case lastEventTime of
+          Nothing -> take 25 events
+          Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. ECS.seCreatedAt) events
 
 serviceEventLog :: Env
                 -> [ServiceCoords]
                 -> Bool
                 -> IO (Source IO ECS.ServiceEvent)
-serviceEventLog env coords inf = bindSourcesToChannel
-  where bindSourcesToChannel = do
-          chan <- newTBMChanIO 500
-          forM_ coords $ eventSource chan
-          return $ CH.sourceTBMChan chan
-    
-        ignoreServicesBecomingInactive :: MonadCatch m => m () -> m ()
-        ignoreServicesBecomingInactive action =
-          catching _InactiveService action $ \_ -> return ()
+serviceEventLog env coords inf = do
+  chan <- newTBMChanIO 500
+  forM_ coords $ eventSource chan
+  return $ CH.sourceTBMChan chan
+    where
+      ignoreServicesBecomingInactive :: MonadCatch m => m () -> m ()
+      ignoreServicesBecomingInactive action =
+        catching _InactiveService action $ \_ -> return ()
 
-        eventSource :: TBMChan ECS.ServiceEvent -> ServiceCoords -> IO ()
-        eventSource chan crds =
-          ignoreServicesBecomingInactive $ pollServiceEvents env crds inf chan
+      eventSource :: TBMChan ECS.ServiceEvent -> ServiceCoords -> IO ()
+      eventSource chan crds =
+        ignoreServicesBecomingInactive $ pollServiceEvents env crds inf chan
 
 clusterServiceEventLog :: Env
                        -> [ClusterRef]
                        -> Bool
                        -> IO (Source IO ECS.ServiceEvent)
-clusterServiceEventLog env clusterRefs inf = mergeClusterEvents
-  where clusterServiceCoords :: MonadAWS m => ClusterRef -> m [ServiceCoords]
-        clusterServiceCoords cref = sourceToList $ fetchServices cref
-          =$= filterC isActiveService
-          =$= CL.mapMaybe serviceCoords
+clusterServiceEventLog env clusterRefs inf = do
+  coords <- runResourceT . runAWS env $ allServiceCoords
+  serviceEventLog env coords inf
+    where clusterServiceCoords :: MonadAWS m => ClusterRef -> m [ServiceCoords]
+          clusterServiceCoords cref = sourceToList $ fetchServices cref
+            =$= filterC isActiveService
+            =$= CL.mapMaybe serviceCoords
 
-        allServiceCoords :: MonadAWS m => m [ServiceCoords]
-        allServiceCoords = do
-          coords <- concat <$> mapM clusterServiceCoords clusterRefs
-          return coords
-
-        mergeClusterEvents = do
-          coords <- runResourceT . runAWS env $ allServiceCoords
-          serviceEventLog env coords inf
+          allServiceCoords :: MonadAWS m => m [ServiceCoords]
+          allServiceCoords = do
+            coords <- concat <$> mapM clusterServiceCoords clusterRefs
+            return coords
