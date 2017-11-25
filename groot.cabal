@@ -47,6 +47,7 @@ library
                      , directory
                      , exceptions
                      , lens
+                     , lifted-base
                      , ini
                      , text
                      , conduit
@@ -82,10 +83,11 @@ executable groot
                      , http-types
                      , optparse-applicative                                                               
                      , lens
+                     , resourcet
                      , text
                      , time
-                     , mtl                     
                      , transformers
+                     , mtl
                      , yaml
                      , amazonka >= 1.5.0 && < 1.6
                      , amazonka-core

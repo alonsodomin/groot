@@ -36,6 +36,6 @@ runClusterEvents :: ClusterEventOptions -> Env -> IO ()
 runClusterEvents (ClusterEventOptions follow []) env = do
   clusterRefs <- runResourceT . runAWS env . sourceToList $ fetchClusters =$= CL.mapMaybe clusterName
   runClusterEvents (ClusterEventOptions follow clusterRefs) env
-runClusterEvents (ClusterEventOptions follow clusterRefs) env = do
+runClusterEvents (ClusterEventOptions follow clusterRefs) env = runResourceT $ do
   eventSource <- clusterServiceEventLog env clusterRefs follow
   runConduit $ eventSource =$ printEventSink
