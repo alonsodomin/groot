@@ -24,15 +24,12 @@ import qualified Control.Exception.Lifted as Lifted
 import Control.Monad
 import Control.Monad.Catch
 import Control.Monad.IO.Class
-import Control.Monad.STM
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Resource
 import Control.Lens
 import Data.Conduit
 import qualified Data.Conduit.List as CL
-import qualified Data.Conduit.TMChan as CH
-import Data.Foldable
 import Data.Maybe (listToMaybe)
 import Data.Time
 import Groot.AWS.Cluster
@@ -83,9 +80,6 @@ fetchServicesC' services =
     return $ map ((,) cref) servs
   ) =$= CL.concat
 
-fetchServicesC :: MonadAWS m => [ServiceRef] -> Conduit ClusterRef m ECS.ContainerService
-fetchServicesC services = fetchServicesC' services =$= CL.map snd
-
 fetchAllServicesC :: MonadAWS m => Conduit ClusterRef m ECS.ContainerService
 fetchAllServicesC = awaitForever (\cref -> yieldM . sourceToList $ fetchServices cref) =$= CL.concat
 
@@ -116,9 +110,6 @@ getService serviceName clusterRef = do
     Just x  -> return x
     Nothing -> throwM $ serviceNotFound serviceName clusterRef
 
-liftSTM :: forall (m :: * -> *) a. MonadIO m => STM a -> m a
-liftSTM = liftIO . atomically
-
 pollServiceEvents :: Env
                   -> ServiceCoords
                   -> Bool
@@ -138,7 +129,7 @@ pollServiceEvents env (ServiceCoords serviceRef clusterRef) inf chan onComplete 
             liftIO . atomically $ waitDelay delay
             put $ nextTime <|> lastEventTime
             loop
-          else liftSTM $ onComplete chan
+          else liftIO . atomically $ onComplete chan
 
         serviceEvents :: MonadAWS m => Maybe UTCTime -> m [ECS.ServiceEvent]
         serviceEvents lastEventTime = do
@@ -158,7 +149,7 @@ chanSource :: MonadIO m
            -> Source m a
 chanSource ch reader closer = loop
   where loop = do
-          a <- liftSTM $ reader ch
+          a <- liftIO . atomically $ reader ch
           case a of
             Just x  -> yieldOr x close >> loop
             Nothing -> return ()
@@ -171,11 +162,11 @@ serviceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadIO mo)
                 -> Bool
                 -> mi (Source mo ECS.ServiceEvent)
 serviceEventLog env coords inf = do
-  chan <- liftSTM $ newTBMChan 500
-  refCount <- liftSTM . newTVar $ length coords
-  regs <- forM coords $ \sc -> Lifted.mask_ $ do
+  chan     <- liftIO . atomically $ newTBMChan 500
+  refCount <- liftIO . atomically . newTVar $ length coords
+  regs     <- forM coords $ \sc -> Lifted.mask_ $ do
     register . TH.killThread <=< runResourceT $ resourceForkIO $ liftIO . publishInto chan sc $ decRefCount refCount
-  return $ chanSource chan readTBMChan (\ch -> do liftSTM $ closeTBMChan ch
+  return $ chanSource chan readTBMChan (\ch -> do liftIO . atomically $ closeTBMChan ch
                                                   mapM_ release regs)
   
     where
