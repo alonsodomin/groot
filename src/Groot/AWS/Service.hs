@@ -177,11 +177,7 @@ serviceEventLog env coords inf = do
     register . TH.killThread <=< runResourceT $ resourceForkIO $ liftIO . publishInto chan sc $ decRefCount refCount
   return $ chanSource chan readTBMChan (\ch -> do liftSTM $ closeTBMChan ch
                                                   mapM_ release regs)
-  -- (releaseKey, chan) <- allocate (newTBMChanIO 500) (\c -> atomically $ closeTBMChan c)
-  -- liftIO $ forM_ coords $ publishInto chan
-  -- source <- return $ CH.sourceTBMChan chan
-  -- release releaseKey
-  -- return $ source
+  
     where
       modifyTVar'' :: TVar a -> (a -> a) -> STM a
       modifyTVar'' tvar f = do
