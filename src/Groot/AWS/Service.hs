@@ -1,3 +1,7 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE RankNTypes #-}
+
 module Groot.AWS.Service
      (
        serviceCoords
@@ -8,21 +12,24 @@ module Groot.AWS.Service
      , fetchServices
      , fetchAllServices
      , serviceEventLog
-     , servicesEventLog
      , clusterServiceEventLog
      ) where
 
 import Control.Applicative
-import Control.Concurrent (threadDelay)
+import qualified Control.Concurrent as TH
+import Control.Concurrent.STM
+import Control.Concurrent.STM.Delay
+import Control.Concurrent.STM.TBMChan
+import qualified Control.Exception.Lifted as Lifted
+import Control.Monad
 import Control.Monad.Catch
 import Control.Monad.IO.Class
-import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.Resource
 import Control.Lens
 import Data.Conduit
-import qualified Data.Conduit.Merge as CM
 import qualified Data.Conduit.List as CL
-import Data.Foldable
 import Data.Maybe (listToMaybe)
 import Data.Time
 import Groot.AWS.Cluster
@@ -73,9 +80,6 @@ fetchServicesC' services =
     return $ map ((,) cref) servs
   ) =$= CL.concat
 
-fetchServicesC :: MonadAWS m => [ServiceRef] -> Conduit ClusterRef m ECS.ContainerService
-fetchServicesC services = fetchServicesC' services =$= CL.map snd
-
 fetchAllServicesC :: MonadAWS m => Conduit ClusterRef m ECS.ContainerService
 fetchAllServicesC = awaitForever (\cref -> yieldM . sourceToList $ fetchServices cref) =$= CL.concat
 
@@ -106,12 +110,28 @@ getService serviceName clusterRef = do
     Just x  -> return x
     Nothing -> throwM $ serviceNotFound serviceName clusterRef
 
-serviceEventLog :: MonadAWS m
-                => ServiceCoords
-                -> Bool
-                -> Source m ECS.ServiceEvent
-serviceEventLog (ServiceCoords serviceRef clusterRef) inf = yield Nothing =$= loop
-  where serviceEvents :: MonadAWS m => Maybe UTCTime -> m [ECS.ServiceEvent]
+pollServiceEvents :: Env
+                  -> ServiceCoords
+                  -> Bool
+                  -> TBMChan ECS.ServiceEvent
+                  -> (TBMChan ECS.ServiceEvent -> STM ())
+                  -> IO ()
+pollServiceEvents env (ServiceCoords serviceRef clusterRef) inf chan onComplete =
+  liftIO $ evalStateT loop Nothing
+  where loop :: MonadIO m => StateT (Maybe UTCTime) m ()
+        loop = do
+          lastEventTime <- get
+          events <- liftIO . runResourceT . runAWS env $ serviceEvents lastEventTime
+          liftIO $ forM_ (reverse events) $ atomically . tryWriteTBMChan chan
+          if inf then do
+            delay <- liftIO $ newDelay 2000000
+            let nextTime = listToMaybe events >>= view ECS.seCreatedAt
+            liftIO . atomically $ waitDelay delay
+            put $ nextTime <|> lastEventTime
+            loop
+          else liftIO . atomically $ onComplete chan
+
+        serviceEvents :: MonadAWS m => Maybe UTCTime -> m [ECS.ServiceEvent]
         serviceEvents lastEventTime = do
           service  <- getService serviceRef (Just clusterRef)
           service' <- if (matches isActiveService service)
@@ -119,51 +139,73 @@ serviceEventLog (ServiceCoords serviceRef clusterRef) inf = yield Nothing =$= lo
                       else throwM $ inactiveService serviceRef clusterRef
           events  <- return $ service' ^. ECS.csEvents
           return $ case lastEventTime of
-            Nothing -> events
+            Nothing -> take 25 events
             Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. ECS.seCreatedAt) events
 
-        fetch :: MonadAWS m => Maybe UTCTime -> m ([ECS.ServiceEvent], Maybe UTCTime)
-        fetch lastEventTime = do
-          events <- serviceEvents lastEventTime
-          return $ (events, listToMaybe events >>= view ECS.seCreatedAt)
+chanSource :: MonadIO m
+           => chan
+           -> (chan -> STM (Maybe a))
+           -> (chan -> IO ())
+           -> Source m a
+chanSource ch reader closer = loop
+  where loop = do
+          a <- liftIO . atomically $ reader ch
+          case a of
+            Just x  -> yieldOr x close >> loop
+            Nothing -> return ()
 
-        loop :: MonadAWS m => Conduit (Maybe UTCTime) m ECS.ServiceEvent
-        loop = do
-          prev <- await
-          case prev of
-            Nothing            -> return ()
-            Just lastEventTime -> do
-              (events, nextTime) <- lift $ fetch lastEventTime
-              CL.sourceList $ reverse events
-              if inf then do
-                leftover $ nextTime <|> lastEventTime
-                liftIO $ threadDelay 1000000
-                loop
-              else return ()
+        close = liftIO $ closer ch
 
-servicesEventLog :: (MonadAWS m, Traversable t) => t ServiceCoords -> Bool -> Source m ECS.ServiceEvent
-servicesEventLog coords inf = CM.mergeSourcesOn eventOrd eventSources
-  where epoch = UTCTime (ModifiedJulianDay 40587) (secondsToDiffTime 0)
+serviceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadIO mo)
+                => Env
+                -> [ServiceCoords]
+                -> Bool
+                -> mi (Source mo ECS.ServiceEvent)
+serviceEventLog env coords inf = do
+  chan     <- liftIO . atomically $ newTBMChan 500
+  refCount <- liftIO . atomically . newTVar $ length coords
+  regs     <- forM coords $ \sc -> Lifted.mask_ $ do
+    register . TH.killThread <=< runResourceT $ resourceForkIO $ liftIO . publishInto chan sc $ decRefCount refCount
+  return $ chanSource chan readTBMChan (\ch -> do liftIO . atomically $ closeTBMChan ch
+                                                  mapM_ release regs)
+  
+    where
+      modifyTVar'' :: TVar a -> (a -> a) -> STM a
+      modifyTVar'' tvar f = do
+        x <- f <$> readTVar tvar
+        writeTVar tvar x
+        return x
 
-        eventOrd :: ECS.ServiceEvent -> UTCTime
-        eventOrd event = maybe epoch id $ event ^. ECS.seCreatedAt
+      decRefCount :: TVar Int -> TBMChan a -> STM ()
+      decRefCount tvar chan = do
+        n <- modifyTVar'' tvar (subtract 1)
+        when (n == 0) $ closeTBMChan chan
 
-        ignoreServicesBecomingInactive :: MonadCatch m => m () -> m ()
-        ignoreServicesBecomingInactive action =
-          catching _InactiveService action $ \_ -> return ()
+      ignoreServicesBecomingInactive :: MonadCatch m => m () -> m ()
+      ignoreServicesBecomingInactive action =
+        catching _InactiveService action $ \_ -> return ()
 
-        eventSources = fmap (\x -> ignoreServicesBecomingInactive (serviceEventLog x inf)) coords
+      publishInto :: TBMChan ECS.ServiceEvent
+                  -> ServiceCoords
+                  -> (TBMChan ECS.ServiceEvent -> STM ())
+                  -> IO ()
+      publishInto chan crds onComplete =
+        ignoreServicesBecomingInactive $ pollServiceEvents env crds inf chan onComplete
 
-clusterServiceEventLog :: (MonadAWS m, Traversable t) => t ClusterRef -> Bool -> Source m ECS.ServiceEvent
-clusterServiceEventLog clusterRefs inf = 
-  let clusterServiceCoords :: MonadAWS m => ClusterRef -> m [ServiceCoords]
-      clusterServiceCoords cref = sourceToList $ fetchServices cref
-        =$= filterC isActiveService
-        =$= CL.mapMaybe serviceCoords
+clusterServiceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadIO mo)
+                       => Env
+                       -> [ClusterRef]
+                       -> Bool
+                       -> mi (Source mo ECS.ServiceEvent)
+clusterServiceEventLog env clusterRefs inf = do
+  coords <- runResourceT . runAWS env $ allServiceCoords
+  serviceEventLog env coords inf
+    where clusterServiceCoords :: MonadAWS m => ClusterRef -> m [ServiceCoords]
+          clusterServiceCoords cref = sourceToList $ fetchServices cref
+            =$= filterC isActiveService
+            =$= CL.mapMaybe serviceCoords
 
-      allServiceCoords :: MonadAWS m => m [ServiceCoords]
-      allServiceCoords = concat <$> mapM clusterServiceCoords clusterRefs
-
-      mergeEvents :: MonadAWS m => Conduit [ServiceCoords] m ECS.ServiceEvent
-      mergeEvents = awaitForever (\coords -> toProducer $ servicesEventLog coords inf)
-  in yieldM allServiceCoords =$= mergeEvents
+          allServiceCoords :: MonadAWS m => m [ServiceCoords]
+          allServiceCoords = do
+            coords <- concat <$> mapM clusterServiceCoords clusterRefs
+            return coords
