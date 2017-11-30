@@ -20,7 +20,7 @@ import           Text.PrettyPrint.Tabulate
 
 import           Groot.CLI.List.Common
 import           Groot.Core
-import           Groot.Data
+import           Groot.Types
 
 data ServiceSummary = ServiceSummary
   { name    :: String

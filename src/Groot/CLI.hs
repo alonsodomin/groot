@@ -29,9 +29,9 @@ import           Groot.CLI.List
 import           Groot.CLI.Service
 import           Groot.Config
 import           Groot.Core.Console
-import           Groot.Data                 (ClusterRef (..))
 import           Groot.Data.Text            hiding (Parser, option)
 import           Groot.Exception
+import           Groot.Types                (ClusterRef (..))
 
 data CredentialsOpt =
     ProfileOpt (Maybe Text) (Maybe FilePath)

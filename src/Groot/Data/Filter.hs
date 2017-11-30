@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Groot.Data.Base where
+module Groot.Data.Filter where
 
 import           Control.Monad
 import           Data.Conduit
@@ -13,17 +13,17 @@ data FilterOp a =
   | Not a
   deriving (Eq, Show)
 
-class FilterPredicate a where
-  type CanBeFilteredBy a :: *
+class Filter a where
+  type FilterItem a :: *
 
-  matches :: a -> CanBeFilteredBy a -> Bool
+  matches :: a -> FilterItem a -> Bool
 
-  maybeMatchesM :: Monad m => a -> m (CanBeFilteredBy a) -> m (Maybe (CanBeFilteredBy a))
+  maybeMatchesM :: Monad m => a -> m (FilterItem a) -> m (Maybe (FilterItem a))
   maybeMatchesM p me = do
     e <- me
     return $ if (matches p e) then (Just e) else Nothing
 
-  maybeMatches :: a -> CanBeFilteredBy a -> Maybe (CanBeFilteredBy a)
+  maybeMatches :: a -> FilterItem a -> Maybe (FilterItem a)
   maybeMatches p e = runIdentity $ maybeMatchesM p (Identity e)
 
   (|||) :: a -> a -> FilterOp a
@@ -35,33 +35,33 @@ class FilterPredicate a where
   notP :: a -> FilterOp a
   notP x = Not x
 
-instance FilterPredicate a => FilterPredicate (FilterOp a) where
-  type CanBeFilteredBy (FilterOp a) = CanBeFilteredBy a
+instance Filter a => Filter (FilterOp a) where
+  type FilterItem (FilterOp a) = FilterItem a
 
   matches (Or x y)  res = (matches x res) || (matches y res)
   matches (And x y) res = (matches x res) && (matches y res)
   matches (Not x)   res = not (matches x res)
 
-filterOnM :: (MonadPlus m, FilterPredicate p)
-          => (a -> CanBeFilteredBy p)
+filterOnM :: (MonadPlus m, Filter p)
+          => (a -> FilterItem p)
           -> p                        -- The actual predicate
           -> m a                      -- The item to which to apply the filter, wrapped in a Monad
           -> m a                      -- The result after applying the predicate, wrapped in the same Monad
 filterOnM f p = mfilter (\x -> matches p $ f x)
 
-filterM :: (MonadPlus m, FilterPredicate p)
+filterM :: (MonadPlus m, Filter p)
         => p
-        -> m (CanBeFilteredBy p)
-        -> m (CanBeFilteredBy p)
+        -> m (FilterItem p)
+        -> m (FilterItem p)
 filterM = filterOnM id
 
-filterC :: (Monad m, FilterPredicate p)
+filterC :: (Monad m, Filter p)
         => p
-        -> Conduit (CanBeFilteredBy p) m (CanBeFilteredBy p)
+        -> Conduit (FilterItem p) m (FilterItem p)
 filterC = filterOnC id
 
-filterOnC :: (Monad m, FilterPredicate p)
-          => (a -> CanBeFilteredBy p)
+filterOnC :: (Monad m, Filter p)
+          => (a -> FilterItem p)
           -> p
           -> Conduit a m a
 filterOnC f p = CL.filter (\x -> matches p $ f x)

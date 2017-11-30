@@ -19,8 +19,8 @@ import qualified Network.AWS.ECS       as ECS
 import           Network.AWS.Waiter
 
 import           Groot.AWS
-import           Groot.Data
 import           Groot.Exception
+import           Groot.Types
 
 -- Tasks
 
@@ -38,7 +38,7 @@ stopTask tref@(TaskRef taskRef) clusterRef onStop onStopped =
     result <- A.await tasksStopped describeReq
     case result of
       AcceptSuccess -> onStopped tref clusterRef
-      _             -> throwM $ taskStatusTransitionFailed tref Running Stopped
+      _             -> throwM $ taskStatusTransitionFailed tref TSRunning TSStopped
 
 startTask :: MonadAWS m
           => TaskRef
@@ -54,4 +54,4 @@ startTask tref@(TaskRef taskRef) clusterRef onStart onStarted =
     result <- A.await tasksRunning describeReq
     case result of
       AcceptSuccess -> onStarted tref clusterRef
-      _             -> throwM $ taskStatusTransitionFailed tref Stopped Running
+      _             -> throwM $ taskStatusTransitionFailed tref TSStopped TSRunning

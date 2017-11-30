@@ -5,7 +5,7 @@ import           Data.Semigroup       ((<>))
 import           Data.String
 import           Options.Applicative
 
-import           Groot.Data           (ClusterRef (..), TaskFamily (..))
+import           Groot.Types          (ClusterRef (..), TaskFamily (..))
 
 attoReadM :: A.Parser a -> ReadM a
 attoReadM p = eitherReader (A.parseOnly p . fromString)

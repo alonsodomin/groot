@@ -6,7 +6,7 @@ import           Control.Exception.Lens
 import           Control.Lens
 import           Control.Monad.Catch    hiding (Handler)
 import           Data.Typeable
-import           Groot.Data
+import           Groot.Types
 
 data ClusterException =
   ClusterNotFound ClusterNotFound

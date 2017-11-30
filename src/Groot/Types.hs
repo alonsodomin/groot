@@ -1,8 +1,12 @@
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes        #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE DeriveGeneric        #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE LambdaCase           #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE TemplateHaskell      #-}
+{-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Groot.Types
      ( ServiceId (..)
@@ -19,22 +23,35 @@ module Groot.Types
      , ClusterArnPath (..)
      , ClusterArn
      , arnClusterName
-     , Cluster (..)
-     , cClusterName
-     , cClusterArn
+     , ClusterRef(..)
+     , ClusterStatus(..)
+     , ClusterFilter
+     , isActiveCluster
+     , isInactiveCluster
      -- Container Instance
      , ContainerInstanceId (..)
      , ContainerInstanceArn
      , arnContainerInstanceId
+     , ContainerInstanceRef(..)
      -- Container Service
      , ServiceName (..)
      , ContainerServiceArn
      , arnContainerServiceName
+     , ContainerServiceRef(..)
+     , ContainerServiceCoords(..)
+     , ContainerServiceStatus(..)
+     , ContainerServiceFilter
+     , isActiveContainerService
+     , isInactiveContainerService
+     , isContainerService
      -- Task
      , TaskId (..)
      , TaskArn
      , arnTaskId
+     , TaskRef(..)
+     , TaskStatus(..)
      -- Task Definition
+     , TaskDefRef(..)
      , TaskFamily (..)
      , TaskDefId (..)
      , tdiTaskFamily
@@ -43,27 +60,33 @@ module Groot.Types
      , arnTaskDefId
      , arnTaskDefFamily
      , arnTaskDefRevision
+     , TaskDefStatus(..)
+     , TaskDefFilter(..)
      ) where
 
 import           Control.Lens
-import           Control.Monad   (join)
+import           Control.Monad     (join)
+import           Data.Data
 import           Data.Monoid
 import           Data.String
-import           Data.Text       (Text)
-import qualified Data.Text       as T
-import           Data.UUID       (UUID)
-import qualified Data.UUID       as UUID
-import           GHC.Generics    hiding (to)
-import           Groot.Data.Text
+import           Data.Text         (Text)
+import qualified Data.Text         as T
+import           Data.UUID         (UUID)
+import qualified Data.UUID         as UUID
+import           GHC.Generics      hiding (to)
 import           Network.AWS
-import           Prelude         hiding (takeWhile)
+import qualified Network.AWS.ECS   as ECS
+import           Prelude           hiding (takeWhile)
+
+import           Groot.Data.Filter
+import           Groot.Data.Text
 
 -- | An AWS service identifier, typically used in AWS ARNs
 data ServiceId =
     AutoScaling
   | ECS
   | EC2
-  deriving (Eq, Show, Generic, Enum, Bounded)
+  deriving (Eq, Show, Generic, Enum, Bounded, Data)
 
 instance FromText ServiceId where
   parser = takeLowerText >>= \case
@@ -80,7 +103,7 @@ instance ToText ServiceId where
 
 -- | An AWS account identifier
 newtype AccountId = AccountId Text
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Generic)
 
 instance IsString AccountId where
   fromString = AccountId . T.pack
@@ -95,7 +118,7 @@ data Arn a = Arn
   , _arnRegion       :: Region
   , _arnAccountId    :: AccountId
   , _arnResourcePath :: a
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Data, Generic)
 
 arnServiceId :: forall a. Getter (Arn a) ServiceId
 arnServiceId = to _arnServiceId
@@ -139,7 +162,7 @@ viewArn l item = join $ either (\_ -> Nothing) Just <$> fromText <$> item ^? l
 -- | An AWS Machine Image, used to uniquely identify a given
 -- image for an specific instance
 newtype Ami = Ami Text
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Generic)
 
 instance FromText Ami where
   parser = do
@@ -153,7 +176,10 @@ instance ToText Ami where
 -- Cluster
 
 newtype ClusterName = ClusterName Text
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Generic)
+
+instance IsString ClusterName where
+  fromString = ClusterName . T.pack
 
 instance FromText ClusterName where
   parser = ClusterName <$> takeText
@@ -162,7 +188,7 @@ instance ToText ClusterName where
   toText (ClusterName x) = x
 
 newtype ClusterArnPath = ClusterArnPath ClusterName
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Generic)
 
 capClusterName :: Getter ClusterArnPath ClusterName
 capClusterName = to (\(ClusterArnPath name) -> name)
@@ -185,15 +211,42 @@ instance ToText ClusterArnPath where
   toText (ClusterArnPath clusterName) =
     T.append capPreffix $ toText clusterName
 
-data Cluster = Cluster
-  { _cClusterArn :: Maybe ClusterArn
-  } deriving (Eq, Show)
+newtype ClusterRef = ClusterRef Text
+  deriving (Eq, Show, Data, Generic)
 
-cClusterArn :: Getter Cluster (Maybe ClusterArn)
-cClusterArn = to _cClusterArn
+instance IsString ClusterRef where
+  fromString = ClusterRef . T.pack
 
-cClusterName :: Getting (First Text) Cluster ClusterName
-cClusterName = cClusterArn . _Just . arnClusterName
+instance ToText ClusterRef where
+  toText (ClusterRef txt) = txt
+
+data ClusterStatus =
+    CSActive
+  | CSInactive
+  deriving (Eq, Show, Ord, Read, Enum, Bounded, Data, Generic)
+
+data ClusterFilter =
+    CFRef ClusterRef
+  | CFStatus ClusterStatus
+  deriving (Eq, Show)
+
+isActiveCluster, isInactiveCluster :: ClusterFilter
+isActiveCluster   = CFStatus CSActive
+isInactiveCluster = CFStatus CSInactive
+
+clusterHasNameOrArn :: Text -> ClusterFilter
+clusterHasNameOrArn = CFRef . ClusterRef
+
+instance Filter ClusterFilter where
+  type FilterItem ClusterFilter = ECS.Cluster
+
+  matches (CFRef (ClusterRef txt)) cluster =
+       maybe False (== txt) (cluster ^. ECS.cClusterName)
+    || maybe False (== txt) (cluster ^. ECS.cClusterARN)
+  matches (CFStatus CSActive) cluster =
+    maybe False (== (T.pack "ACTIVE")) $ cluster ^. ECS.cStatus
+  matches (CFStatus CSInactive) cluster =
+    maybe False (== (T.pack "INACTIVE")) $ cluster ^. ECS.cStatus
 
 -- Container Instance
 
@@ -230,6 +283,15 @@ instance ToText ContainerInstanceArnPath where
   toText (ContainerInstanceArnPath instanceId) =
     T.append ciapPreffix $ toText instanceId
 
+newtype ContainerInstanceRef = ContainerInstanceRef Text
+  deriving (Eq, Show, Data, Read, Generic)
+
+instance ToText ContainerInstanceRef where
+  toText (ContainerInstanceRef s) = s
+
+instance IsString ContainerInstanceRef where
+  fromString = ContainerInstanceRef . T.pack
+
 -- Container Service
 
 newtype ServiceName = ServiceName Text
@@ -264,6 +326,47 @@ instance FromText ContainerServiceArnPath where
 instance ToText ContainerServiceArnPath where
   toText (ContainerServiceArnPath serviceName) =
     T.append csapPreffix $ toText serviceName
+
+newtype ContainerServiceRef = ContainerServiceRef Text
+  deriving (Eq, Show, Generic, Data, Read)
+
+instance IsString ContainerServiceRef where
+  fromString = ContainerServiceRef . T.pack
+
+instance ToText ContainerServiceRef where
+  toText (ContainerServiceRef s) = s
+
+data ContainerServiceCoords = ContainerServiceCoords ContainerServiceRef ClusterRef
+  deriving (Eq, Show, Generic, Data)
+
+data ContainerServiceStatus =
+    CSSActive
+  | CSSInactive
+  deriving (Eq, Show, Ord, Enum, Bounded, Data, Generic)
+
+data ContainerServiceFilter =
+    CSFRef ContainerServiceRef
+  | CSFStatus ContainerServiceStatus
+  deriving (Eq, Show)
+
+isActiveContainerService, isInactiveContainerService :: ContainerServiceFilter
+isActiveContainerService   = CSFStatus CSSActive
+isInactiveContainerService = CSFStatus CSSInactive
+
+isContainerService :: ContainerServiceRef -> ContainerServiceFilter
+isContainerService = CSFRef
+
+instance Filter ContainerServiceFilter where
+  type FilterItem ContainerServiceFilter = ECS.ContainerService
+
+  matches (CSFStatus CSSActive) serv =
+    maybe False (== (T.pack "ACTIVE")) (serv ^. ECS.csStatus)
+  matches (CSFStatus CSSInactive) serv =
+    maybe False (== (T.pack "INACTIVE")) (serv ^. ECS.csStatus)
+
+  matches (CSFRef (ContainerServiceRef ref)) serv =
+       maybe False (== ref) (serv ^. ECS.csServiceName)
+    || maybe False (== ref) (serv ^. ECS.csServiceARN)
 
 -- Task
 
@@ -300,10 +403,37 @@ instance ToText TaskArnPath where
   toText (TaskArnPath taskId) =
     T.append tapPreffix $ toText taskId
 
+newtype TaskRef = TaskRef Text
+  deriving (Eq, Show, Generic, Data, Read)
+
+instance IsString TaskRef where
+  fromString = TaskRef . T.pack
+
+instance ToText TaskRef where
+  toText (TaskRef t) = t
+
+data TaskStatus =
+    TSRunning
+  | TSStopped
+  | TSPending
+  deriving (Eq, Show, Ord, Enum, Bounded, Data, Generic, Read)
+
 -- Task Definition
 
+newtype TaskDefRef = TaskDefRef Text
+  deriving (Eq, Generic, Data, Show, Read)
+
+instance IsString TaskDefRef where
+  fromString = TaskDefRef . T.pack
+
+instance ToText TaskDefRef where
+  toText (TaskDefRef t) = t
+
 newtype TaskFamily = TaskFamily Text
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Generic)
+
+instance IsString TaskFamily where
+  fromString = TaskFamily . T.pack
 
 instance FromText TaskFamily where
   parser = TaskFamily <$> takeText
@@ -314,7 +444,7 @@ instance ToText TaskFamily where
 data TaskDefId = TaskDefId
   { _tdiTaskFamily   :: TaskFamily
   , _tdiTaskRevision :: Int
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Data, Generic)
 
 makeLenses ''TaskDefId
 
@@ -330,7 +460,7 @@ instance ToText TaskDefId where
     T.concat [toText family, ":", toText revision]
 
 newtype TaskDefArnPath = TaskDefArnPath TaskDefId
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Generic)
 
 tdapTaskDefId :: Getter TaskDefArnPath TaskDefId
 tdapTaskDefId = to (\(TaskDefArnPath x) -> x)
@@ -358,3 +488,23 @@ instance FromText TaskDefArnPath where
 instance ToText TaskDefArnPath where
   toText (TaskDefArnPath taskDefId) =
     T.append tdapPreffix $ toText taskDefId
+
+data TaskDefStatus =
+    TDSActive
+  | TDSInactive
+  deriving (Eq, Show, Ord, Enum, Bounded, Read, Generic, Data)
+
+data TaskDefFilter =
+    TDFFamily TaskFamily
+  | TDFStatus TaskDefStatus
+  deriving (Eq, Show)
+
+instance Filter TaskDefFilter where
+  type FilterItem TaskDefFilter = ECS.TaskDefinition
+
+  matches (TDFFamily (TaskFamily family)) taskDef =
+    maybe False (== family) $ taskDef ^. ECS.tdFamily
+  matches (TDFStatus TDSActive) taskDef =
+    maybe False (== ECS.TDSActive) $ taskDef ^. ECS.tdStatus
+  matches (TDFStatus TDSInactive) taskDef =
+    maybe False (== ECS.TDSInactive) $ taskDef ^. ECS.tdStatus

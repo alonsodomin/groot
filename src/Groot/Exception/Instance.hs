@@ -6,7 +6,7 @@ import           Control.Exception.Lens
 import           Control.Lens
 import           Control.Monad.Catch    hiding (Handler)
 import           Data.Typeable
-import           Groot.Data
+import           Groot.Types
 
 data InstanceException =
     InstanceNotFound InstanceNotFound
@@ -16,21 +16,21 @@ data InstanceException =
 instance Exception InstanceException
 
 data InstanceNotFound =
-  InstanceNotFound' InstanceRef (Maybe ClusterRef)
+  InstanceNotFound' ContainerInstanceRef (Maybe ClusterRef)
   deriving (Eq, Show, Typeable)
 
 instance Exception InstanceNotFound
 
-instanceNotFound :: InstanceRef -> Maybe ClusterRef -> SomeException
+instanceNotFound :: ContainerInstanceRef -> Maybe ClusterRef -> SomeException
 instanceNotFound instanceRef clusterRef =
   toException . InstanceNotFound $ InstanceNotFound' instanceRef clusterRef
 
-data DrainingInstance = DrainingInstance' InstanceRef
+data DrainingInstance = DrainingInstance' ContainerInstanceRef
   deriving (Eq, Show, Typeable)
 
 instance Exception DrainingInstance
 
-drainingInstance :: InstanceRef -> SomeException
+drainingInstance :: ContainerInstanceRef -> SomeException
 drainingInstance = toException . DrainingInstance . DrainingInstance'
 
 class AsInstanceException t where

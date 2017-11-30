@@ -13,7 +13,7 @@ import           Options.Applicative
 
 import           Groot.Core
 import           Groot.Core.Events
-import           Groot.Data
+import           Groot.Types
 
 data ClusterEventOptions = ClusterEventOptions
   { _follow       :: Bool

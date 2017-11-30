@@ -4,9 +4,10 @@ import           Control.Lens
 import           Control.Monad.Trans.Maybe
 import           Data.Conduit
 import qualified Data.Conduit.List         as CL
-import           Groot.Data
 import           Network.AWS
 import qualified Network.AWS.ECS           as ECS
+
+import           Groot.Types
 
 getTaskDef :: MonadAWS m => TaskDefRef -> MaybeT m ECS.TaskDefinition
 getTaskDef (TaskDefRef arn) = MaybeT $ do
@@ -21,12 +22,12 @@ taskDefFromTask tsk = do
 fetchTaskDefs :: (MonadAWS m, Foldable f) => f TaskDefFilter -> Source m ECS.TaskDefinition
 fetchTaskDefs filters =
   let tds :: TaskDefStatus -> ECS.TaskDefinitionStatus
-      tds TaskActive   = ECS.TDSActive
-      tds TaskInactive = ECS.TDSInactive
+      tds TDSActive   = ECS.TDSActive
+      tds TDSInactive = ECS.TDSInactive
 
       withFilter :: TaskDefFilter -> ECS.ListTaskDefinitions -> ECS.ListTaskDefinitions
-      withFilter (FamilyFilter (TaskFamily f)) = ECS.ltdFamilyPrefix ?~ f
-      withFilter (StatusFilter s)              = ECS.ltdStatus ?~ (tds s)
+      withFilter (TDFFamily (TaskFamily f)) = ECS.ltdFamilyPrefix ?~ f
+      withFilter (TDFStatus s)              = ECS.ltdStatus ?~ (tds s)
 
   in paginate (foldr withFilter ECS.listTaskDefinitions filters)
      =$= CL.concatMap (view ECS.ltdrsTaskDefinitionARNs)
