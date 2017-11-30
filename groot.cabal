@@ -22,6 +22,7 @@ library
                      , Groot.AWS.TaskDef
                      , Groot.AWS
                      , Groot.CLI.Common
+                     , Groot.CLI.Compose
                      , Groot.CLI.Cluster.Events
                      , Groot.CLI.Cluster
                      , Groot.CLI.List.Common
@@ -52,6 +53,10 @@ library
   other-modules:       Paths_groot
   build-depends:       base >= 4.7 && < 5
                      , aeson
+                     , amazonka >= 1.5.0 && < 1.6
+                     , amazonka-core
+                     , amazonka-autoscaling
+                     , amazonka-ecs
                      , ansi-terminal
                      , attoparsec
                      , bytestring
@@ -75,14 +80,12 @@ library
                      , stm-conduit
                      , stm-delay
                      , text
-                     , transformers                     
+                     , time
+                     , transformers      
+                     , unordered-containers               
                      , uuid
                      , vector
-                     , time
-                     , amazonka >= 1.5.0 && < 1.6
-                     , amazonka-core
-                     , amazonka-autoscaling
-                     , amazonka-ecs
+                     , yaml
   default-language:    Haskell2010
 
 executable groot

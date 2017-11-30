@@ -3,6 +3,23 @@
     role: "Hi"
     containers:
       - name: pluto
-        image: 140821111621.dkr.ecr.eu-west-1.amazonaws.com/cf-rideways-qa/pluto:{{IMAGE_TAG}}
+        image: 140821111621.dkr.ecr.eu-west-1.amazonaws.com/cf-rideways-qa/pluto
+        cpu: 1024
+        memory: 4048
+        port-mappings:
+          - container-port: 8080
+          - container-port: 2551
+            host-port: 9030
+        logging:
+          driver: awslogs
+          options:
+            awslogs-group: pluto-service
+      - name: mysql
+        image: library/mysql
+        environment:
+          MYSQL_PASSWORD: password
   service:
+    name: pluto
     role: "Bye"
+    desired: 5
+    deployment-strategy: rolling
