@@ -1,4 +1,4 @@
-module Groot.App.Service
+module Groot.CLI.Service
      ( ServiceSubCmd
      , serviceCmds
      , runServiceCmd
@@ -10,15 +10,15 @@ import Options.Applicative
 import Groot.CLI.Service.Events
 
 data ServiceSubCmd =
-  ServiceEventsCmd ServiceEventOptions
+  ServiceEventsCmd ServiceEventOpts
   deriving (Eq, Show)
 
 -- CLI
 
 serviceEventsCmd :: Parser ServiceSubCmd
-serviceEventsCmd = ServiceEventsCmd <$> serviceEventsCli
+serviceEventsCmd = ServiceEventsCmd <$> serviceEventsOpt
 
-serviceCmds :: Parser ServiceCmd
+serviceCmds :: Parser ServiceSubCmd
 serviceCmds = hsubparser
   ( command "events" (info serviceEventsCmd (progDesc "Display events of the given services"))
   )

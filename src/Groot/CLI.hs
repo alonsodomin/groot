@@ -1,34 +1,40 @@
-module Groot.CLI 
+{-# LANGUAGE TemplateHaskell    #-}
+
+module Groot.CLI
      ( CredentialsOpt(..)
      , GrootCmd(..)
      , GrootOpts(..)
      , runGroot
      ) where
 
-import           Control.Monad.Trans.Maybe      
-import qualified Data.Attoparsec.Text as A
-import           Data.Semigroup ((<>))
+import           Control.Exception.Lens
+import           Control.Monad.Catch
+import           Control.Monad.Trans.Except
+import           Control.Monad.Trans.Maybe
+import           Control.Lens
+import qualified Data.ByteString.Char8      as BS
+import           Data.List                  (intercalate)
+import           Data.Semigroup             ((<>))
 import           Data.String
-import           Data.Text (Text)
-import qualified Data.Text as T
-import           Data.Version (showVersion)
-import           Network.AWS (
-                               AccessKey(..)
-                             , SecretKey(..)
-                             , Region
-                             )
+import           Data.Text                  (Text)
+import qualified Data.Text                  as T
+import           Data.Version               (showVersion)
+import           Network.AWS
+import           Network.HTTP.Conduit
+import           Network.HTTP.Types.Status
 import           Options.Applicative
-import           Paths_groot (version)
+import           Paths_groot                (version)
+import           System.Console.ANSI
 
 import Groot.CLI.Common
 import Groot.CLI.Cluster
 import Groot.CLI.List
 import Groot.CLI.Service
-import Groot.Data (
-    ClusterRef(..)
-  , TaskFamily(..)
-  )
+import Groot.Config
+import Groot.Core.Console
+import Groot.Data (ClusterRef(..))
 import Groot.Data.Text hiding (Parser, option)
+import Groot.Exception
 
 data CredentialsOpt =
     ProfileOpt (Maybe Text) (Maybe FilePath)
@@ -82,10 +88,12 @@ data GrootCmd =
   deriving (Eq, Show)
 
 data GrootOpts = GrootOpts
-  { cliCreds  :: CredentialsOpt
-  , cliRegion :: Maybe Region
-  , cliCmd    :: GrootCmd
+  { _grootCreds  :: CredentialsOpt
+  , _grootRegion :: Maybe Region
+  , _grootCmd    :: GrootCmd
   } deriving Eq
+
+makeLenses ''GrootOpts
 
 commands :: Parser GrootCmd
 commands = hsubparser
@@ -107,7 +115,7 @@ grootOpts = ( GrootOpts
 loadEnv :: GrootOpts -> IO Env
 loadEnv opts = do
   configFile       <- defaultConfigFile
-  (creds, profile) <- buildCreds $ opts ^. cliAwsCreds
+  (creds, profile) <- buildCreds $ opts ^. grootCreds
   env              <- newEnv creds
   assignRegion (findRegion configFile profile) env
     where buildCreds :: CredentialsOpt -> IO (Credentials, Maybe Text)
@@ -120,8 +128,11 @@ loadEnv opts = do
 
           findRegion :: FilePath -> Maybe Text -> MaybeT IO Region
           findRegion confFile profile = regionFromOpts <|> regionFromCfg
-            where regionFromOpts = MaybeT . return $ opts ^? cliAwsRegion
-                  regionFromCfg  = MaybeT $ do
+            where regionFromOpts :: MaybeT IO Region
+                  regionFromOpts = MaybeT . return $ opts ^. grootRegion
+
+                  regionFromCfg :: MaybeT IO Region
+                  regionFromCfg = MaybeT $ do
                     reg <- runExceptT $ regionFromConfig confFile profile
                     case reg of
                       Left err -> do
@@ -134,6 +145,68 @@ loadEnv opts = do
             maybeRegion <- runMaybeT r
             return $ maybe id (\x -> envRegion .~ x) maybeRegion env
 
+-- AWS Error handlers
+
+handleHttpException :: HttpException -> IO ()
+handleHttpException (InvalidUrlException url reason) =
+  printError $ "Url " <> url <> " is invalid due to: " <> reason
+handleHttpException (HttpExceptionRequest req _) =
+  printError $ "Could not communicate with '" <> (BS.unpack . host $ req) <> "'."
+
+handleServiceError :: ServiceError -> IO ()
+handleServiceError err =
+  let servName  = T.unpack . toText $ err ^. serviceAbbrev
+      statusMsg = BS.unpack . statusMessage $ err ^. serviceStatus
+      message   = maybe "" (T.unpack . toText) $ err ^. serviceMessage
+  in do
+    putError
+    putStr " "
+    setSGR [SetColor Foreground Dull Yellow]
+    putStr $ concat [servName, " ", statusMsg]
+    setSGR [Reset]
+    putStrLn $ ' ':message
+
+-- Groot Error handlers
+
+handleClusterNotFound :: ClusterNotFound -> IO ()
+handleClusterNotFound (ClusterNotFound' (ClusterRef ref)) =
+  printError $ "Could not find cluster '" <> (T.unpack ref) <> "'"
+
+handleServiceNotFound :: ServiceNotFound -> IO ()
+handleServiceNotFound (ServiceNotFound' serviceRef clusterRef) =
+  printError $ "Could not find service '" <> (T.unpack . toText $ serviceRef) <> "'" <>
+    maybe "" (\x -> " in cluster " <> (T.unpack . toText $ x)) clusterRef
+
+handleAmbiguousServiceName :: AmbiguousServiceName -> IO ()
+handleAmbiguousServiceName (AmbiguousServiceName' serviceRef clusters) =
+  let stringifyClusters = "\n - " <> (intercalate "\n - " $ map (T.unpack . toText) clusters)
+  in printError $ "Service name '" <> (T.unpack . toText $ serviceRef) 
+     <> "' is ambiguous. It was found in the following clusters:" <> stringifyClusters
+
+handleInactiveService :: InactiveService -> IO ()
+handleInactiveService (InactiveService' serviceRef clusterRef) =
+  printError $ "Service '" <> (T.unpack . toText $ serviceRef) <> "' in cluster '"
+    <> (T.unpack . toText $ clusterRef) <> "' is not active."
+
+handleTaskNotFound :: TaskNotFound -> IO ()
+handleTaskNotFound (TaskNotFound' taskRef clusterRef) =
+  printError $ "Could not find task '" <> (T.unpack . toText $ taskRef) <> "'" <>
+    maybe "" (\x -> " in cluster " <> (T.unpack . toText $ x)) clusterRef
+
+-- Main Program execution
+
+handleExceptions :: IO () -> IO ()
+handleExceptions act = catches act [
+    handler _TransportError       handleHttpException
+  , handler _ServiceError         handleServiceError
+  , handler _ClusterNotFound      handleClusterNotFound
+  , handler _ServiceNotFound      handleServiceNotFound
+  , handler _AmbiguousServiceName handleAmbiguousServiceName
+  , handler _InactiveService      handleInactiveService
+  , handler _TaskNotFound         handleTaskNotFound
+  ]
+
+-- | Runs a Groot command with the given AWS environment
 runCmd :: GrootCmd -> Env -> IO ()
 --runCmd (ComposeCmd opts) = runGrootCompose opts
 runCmd (ClusterCmd opts) = runClusterCmd opts
@@ -141,12 +214,12 @@ runCmd (ListCmd opts)    = runListCmd opts
 runCmd (ServiceCmd opts) = runServiceCmd opts
 --runCmd (TaskCmd opts)    = runGrootTask opts
 
-runGroot :: GrootOpts -> IO ()
-runGroot opts =
+runGroot :: IO ()
+runGroot =
   prog =<< (execParser cli)
-  where prog = do
+  where prog opts = do
           env <- loadEnv opts
-          runCmd (cliCmd opts) env
+          handleExceptions $ runCmd (opts ^. grootCmd) env
         
         cli = info (grootOpts <**> helper)
           ( fullDesc

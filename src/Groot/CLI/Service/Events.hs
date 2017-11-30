@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Groot.App.Service.Events
+module Groot.CLI.Service.Events
      ( ServiceEventOpts
      , serviceEventsOpt
      , runServiceEvents

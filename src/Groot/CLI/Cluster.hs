@@ -1,4 +1,4 @@
-module Groot.App.Cluster
+module Groot.CLI.Cluster
      ( ClusterSubCmd
      , clusterCmds
      , runClusterCmd
