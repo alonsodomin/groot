@@ -15,7 +15,7 @@ import           Groot.CLI.List.ContainerInstance
 import           Groot.CLI.List.ContainerService
 import           Groot.CLI.List.Task
 import           Groot.CLI.List.TaskDef
-import           Groot.Data
+import           Groot.Types
 
 data ListSubCmd =
     ListClustersCmd (Maybe ClusterRef)

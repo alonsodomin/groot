@@ -21,18 +21,18 @@ import           Options.Applicative
 import           Groot.CLI.Common             (clusterOpt)
 import           Groot.Core
 import           Groot.Core.Events
-import           Groot.Data
+import           Groot.Types
 
 data ServiceEventOpts = ServiceEventOpts
   { _clusterId    :: Maybe ClusterRef
   , _follow       :: Bool
-  , _serviceNames :: NonEmpty ServiceRef
+  , _serviceNames :: NonEmpty ContainerServiceRef
   } deriving (Eq, Show)
 
-serviceRefArg :: Parser ServiceRef
+serviceRefArg :: Parser ContainerServiceRef
 serviceRefArg = fromString <$> argument str (metavar "SERVICE_NAMES")
 
-serviceRefArgList :: Parser (NonEmpty ServiceRef)
+serviceRefArgList :: Parser (NonEmpty ContainerServiceRef)
 serviceRefArgList = fmap (\x -> (head x) :| (tail x)) (some serviceRefArg)
 
 serviceEventsOpt :: Parser ServiceEventOpts
@@ -46,14 +46,14 @@ serviceEventsOpt = ServiceEventOpts
 
 fetchEvents :: (MonadResource mi, MonadBaseControl IO mi, MonadIO mo, Foldable f)
             => Env
-            -> f ServiceCoords
+            -> f ContainerServiceCoords
             -> Bool
             -> mi (Source mo ECS.ServiceEvent)
 fetchEvents env coords inf = serviceEventLog env (toList coords) inf
 
 runServiceEvents :: ServiceEventOpts -> Env -> IO ()
 runServiceEvents (ServiceEventOpts (Just clusterRef) follow serviceRefs) env = runResourceT $ do
-  eventSource <- fetchEvents env (fmap (\x -> ServiceCoords x clusterRef) serviceRefs) follow
+  eventSource <- fetchEvents env (fmap (\x -> ContainerServiceCoords x clusterRef) serviceRefs) follow
   runConduit $ eventSource =$ printEventSink
 runServiceEvents (ServiceEventOpts Nothing follow serviceRefs) env = runResourceT $ do
   coords      <- runAWS env $ findServiceCoords serviceRefs

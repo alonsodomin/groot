@@ -42,6 +42,7 @@ library
                      , Groot.Data.Base
                      , Groot.Data.Cluster
                      , Groot.Data.Conduit.STM
+                     , Groot.Data.Filter
                      , Groot.Data.Instance
                      , Groot.Data.Service
                      , Groot.Data.Task

@@ -15,15 +15,6 @@ import           Groot.Data.Base
 import           Network.AWS.Data.Text
 import qualified Network.AWS.ECS       as ECS
 
-newtype ClusterRef = ClusterRef Text
-  deriving (Eq, Show, Generic, Data, Read)
-
-instance IsString ClusterRef where
-  fromString = ClusterRef . T.pack
-
-instance ToText ClusterRef where
-  toText (ClusterRef ref) = ref
-
 data ClusterStatus =
     ClusterActive
   | ClusterInactive

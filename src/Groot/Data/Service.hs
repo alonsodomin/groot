@@ -11,10 +11,11 @@ import           Data.String
 import           Data.Text             (Text)
 import qualified Data.Text             as T
 import           GHC.Generics
-import           Groot.Data.Base
-import           Groot.Data.Cluster    (ClusterRef)
 import           Network.AWS.Data.Text
 import qualified Network.AWS.ECS       as ECS
+
+import           Groot.Data.Base
+import           Groot.Types    (ClusterRef)
 
 newtype ServiceRef = ServiceRef Text
   deriving (Eq, Show, Generic, Data, Read)
@@ -26,7 +27,7 @@ instance ToText ServiceRef where
   toText (ServiceRef s) = s
 
 data ServiceCoords = ServiceCoords ServiceRef ClusterRef
-  deriving (Eq, Show, Generic, Data, Read)
+  deriving (Eq, Show, Generic, Data)
 
 data ServiceStatus =
     ServiceActive

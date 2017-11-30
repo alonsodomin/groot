@@ -30,8 +30,9 @@ import qualified Network.AWS.ECS                as ECS
 
 import           Groot.AWS.Service
 import           Groot.Core.Console
-import           Groot.Data
+import           Groot.Types
 import           Groot.Data.Conduit.STM
+import           Groot.Data.Filter
 import           Groot.Exception
 
 formatEventTime :: MonadIO m => UTCTime -> m String
@@ -40,12 +41,12 @@ formatEventTime time = do
   return $ formatTime defaultTimeLocale "%d/%m/%Y %T" dt
 
 pollServiceEvents :: Env
-                  -> ServiceCoords
+                  -> ContainerServiceCoords
                   -> Bool
                   -> TBMChan ECS.ServiceEvent
                   -> (TBMChan ECS.ServiceEvent -> STM ())
                   -> IO ()
-pollServiceEvents env (ServiceCoords serviceRef clusterRef) inf chan onComplete =
+pollServiceEvents env (ContainerServiceCoords serviceRef clusterRef) inf chan onComplete =
   liftIO $ evalStateT loop Nothing
   where loop :: MonadIO m => StateT (Maybe UTCTime) m ()
         loop = do
@@ -63,7 +64,7 @@ pollServiceEvents env (ServiceCoords serviceRef clusterRef) inf chan onComplete 
         serviceEvents :: MonadAWS m => Maybe UTCTime -> m [ECS.ServiceEvent]
         serviceEvents lastEventTime = do
           service  <- getService serviceRef (Just clusterRef)
-          service' <- if (matches isActiveService service)
+          service' <- if (matches isActiveContainerService service)
                       then return service
                       else throwM $ inactiveService serviceRef clusterRef
           events  <- return $ service' ^. ECS.csEvents
@@ -73,7 +74,7 @@ pollServiceEvents env (ServiceCoords serviceRef clusterRef) inf chan onComplete 
 
 serviceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadIO mo)
                 => Env
-                -> [ServiceCoords]
+                -> [ContainerServiceCoords]
                 -> Bool
                 -> mi (Source mo ECS.ServiceEvent)
 serviceEventLog env coords inf = do
@@ -101,7 +102,7 @@ serviceEventLog env coords inf = do
       catching _InactiveService action $ \_ -> return ()
 
     publishInto :: TBMChan ECS.ServiceEvent
-                -> ServiceCoords
+                -> ContainerServiceCoords
                 -> (TBMChan ECS.ServiceEvent -> STM ())
                 -> IO ()
     publishInto chan crds onComplete =
@@ -115,12 +116,12 @@ clusterServiceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadIO mo)
 clusterServiceEventLog env clusterRefs inf = do
   coords <- runResourceT . runAWS env $ allServiceCoords
   serviceEventLog env coords inf
-  where clusterServiceCoords :: MonadAWS m => ClusterRef -> m [ServiceCoords]
+  where clusterServiceCoords :: MonadAWS m => ClusterRef -> m [ContainerServiceCoords]
         clusterServiceCoords cref = sourceToList $ fetchServices cref
-          =$= filterC isActiveService
+          =$= filterC isActiveContainerService
           =$= CL.mapMaybe serviceCoords
 
-        allServiceCoords :: MonadAWS m => m [ServiceCoords]
+        allServiceCoords :: MonadAWS m => m [ContainerServiceCoords]
         allServiceCoords = do
           coords <- concat <$> mapM clusterServiceCoords clusterRefs
           return coords

@@ -12,12 +12,13 @@ import           Control.Monad.Catch
 import           Control.Monad.Trans.Maybe
 import           Data.Conduit
 import qualified Data.Conduit.List         as CL
-import           Groot.AWS.Cluster
-import           Groot.Data
-import           Groot.Exception
 import           Network.AWS
 import           Network.AWS.Data.Text
 import qualified Network.AWS.ECS           as ECS
+
+import           Groot.AWS.Cluster
+import           Groot.Types
+import           Groot.Exception
 
 fetchTaskBatch :: MonadAWS m => [TaskRef] -> ClusterRef -> m [ECS.Task]
 fetchTaskBatch []       _          = return []

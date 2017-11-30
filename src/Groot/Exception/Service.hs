@@ -6,7 +6,7 @@ import           Control.Exception.Lens
 import           Control.Lens
 import           Control.Monad.Catch    hiding (Handler)
 import           Data.Typeable
-import           Groot.Data
+import           Groot.Types
 
 data ServiceException =
     ServiceNotFound ServiceNotFound
@@ -17,32 +17,32 @@ data ServiceException =
 instance Exception ServiceException
 
 data ServiceNotFound =
-  ServiceNotFound' ServiceRef (Maybe ClusterRef)
+  ServiceNotFound' ContainerServiceRef (Maybe ClusterRef)
   deriving (Eq, Show, Typeable)
 
-serviceNotFound :: ServiceRef -> Maybe ClusterRef -> SomeException
+serviceNotFound :: ContainerServiceRef -> Maybe ClusterRef -> SomeException
 serviceNotFound serviceName clusterRef =
   toException . ServiceNotFound $ ServiceNotFound' serviceName clusterRef
 
 instance Exception ServiceNotFound
 
 data AmbiguousServiceName =
-  AmbiguousServiceName' ServiceRef [ClusterRef]
+  AmbiguousServiceName' ContainerServiceRef [ClusterRef]
   deriving (Eq, Typeable, Show)
 
-ambiguousServiceName :: ServiceRef -> [ClusterRef] -> SomeException
+ambiguousServiceName :: ContainerServiceRef -> [ClusterRef] -> SomeException
 ambiguousServiceName serviceName clusters =
   toException . AmbiguousServiceName $ AmbiguousServiceName' serviceName clusters
 
 instance Exception AmbiguousServiceName
 
 data InactiveService =
-  InactiveService' ServiceRef ClusterRef
+  InactiveService' ContainerServiceRef ClusterRef
   deriving (Eq, Typeable, Show)
 
 instance Exception InactiveService
 
-inactiveService :: ServiceRef -> ClusterRef -> SomeException
+inactiveService :: ContainerServiceRef -> ClusterRef -> SomeException
 inactiveService serviceRef clusterRef =
   toException . InactiveService $ InactiveService' serviceRef clusterRef
 

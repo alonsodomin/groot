@@ -31,7 +31,7 @@ import           Network.AWS
 import           Network.AWS.ECS
 
 import           Groot.Core
-import           Groot.Data
+import           Groot.Types
 
 data Protocol = TCP | UDP
   deriving (Eq, Show, Ord, Read, Generic)
@@ -107,12 +107,12 @@ instance FromJSON GrootCompose where
 
 -- Validates that the given id points to an active cluster
 findActiveCluster :: ClusterRef -> MaybeT AWS Cluster
-findActiveCluster clusterRef =
-  filterM (ClusterStatusFilter ClusterActive) (findCluster clusterRef)
+findActiveCluster clusterRef = undefined
+--  filterM (ClusterStatusFilter ClusterActive) (findCluster clusterRef)
 
-findActiveService :: ServiceRef -> ClusterRef -> MaybeT AWS ContainerService
-findActiveService serviceRef clusterRef =
-  filterM (ServiceStatusFilter ServiceActive) (getService serviceRef (Just clusterRef))
+findActiveService :: ContainerServiceRef -> ClusterRef -> MaybeT AWS ContainerService
+findActiveService serviceRef clusterRef = undefined
+--  filterM (ServiceStatusFilter ServiceActive) (getService serviceRef (Just clusterRef))
 
 grootDeploy :: GrootCompose -> NEL.NonEmpty Text -> AWS ()
 grootDeploy = undefined
