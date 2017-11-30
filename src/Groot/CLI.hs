@@ -1,7 +1,8 @@
 module Groot.CLI 
      ( CredentialsOpt(..)
-     , CliCmd(..)
-     , CliOptions(..)
+     , GrootCmd(..)
+     , GrootOpts(..)
+     , runGroot
      ) where
 
 import           Options.Applicative
@@ -73,14 +74,38 @@ versionOpt = infoOption versionInfo $ mconcat [
   , help "Show version number"
   ]
 
-data CliCmd =
+data GrootCmd =
     ClusterCmd ClusterSubCmd
   | ListCmd ListSubCmd
   | ServiceCmd ServiceSubCmd
   deriving (Eq, Show)
 
-data CliOptions = CliOptions
+data GrootOpts = GrootOpts
   { cliCreds  :: CredentialsOpt
   , cliRegion :: Maybe Region
-  , cliCmd    :: CliCmd
+  , cliCmd    :: GrootCmd
   } deriving Eq
+
+commands :: Parser GrootCmd
+commands = hsubparser
+   ( command "ls"      (info (ListCmd    <$> listCmds)    (progDesc "List ECS resources"))
+  <> command "cluster" (info (ClusterCmd <$> clusterCmds) (progDesc "Perform cluster related operations"))
+  <> command "service" (info (ServiceCmd <$> serviceCmds) (progDesc "Perform service related operations"))
+  -- <> command "compose" (info (ComposeCmd <$> grootComposeCli) (progDesc "Handle Groot compose files"))
+  -- <> command "task"    (info (TaskCmd    <$> grootTaskCli)    (progDesc "Manage ECS tasks"))
+    )
+
+grootOpts :: Parser GrootOpts
+grootOpts = ( GrootOpts
+          <$> credsOpt
+          <*> optional regionOpt
+          <*> commands
+          ) <**> versionOpt
+
+runGroot :: (GrootOpts -> IO ()) -> IO ()
+runGroot prog =
+  prog =<< (execParser opts)
+  where opts = info (grootOpts <**> helper)
+          ( fullDesc
+          <> progDesc "Utility to manage ECS Clusters"
+          <> header "groot" )
