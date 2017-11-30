@@ -111,11 +111,25 @@ instance FromJSON DeploymentStrategy where
       "rolling"    -> return DSRolling
       _            -> fail $ "Invalid deployment strategy: " ++ (T.unpack txt)
 
+data ServiceLoadBalancer = ServiceLoadBalancer
+  { _slbTargetGroup   :: Text
+  , _slbContainerName :: Text
+  , _slbContainerPort :: Int
+  } deriving (Eq, Show, Generic)
+
+instance FromJSON ServiceLoadBalancer where
+  parseJSON = withObject "load balancer" $ \o -> do
+    _slbTargetGroup   <- o .: "target-group"
+    _slbContainerName <- o .: "container-name"
+    _slbContainerPort <- o .: "container-port"
+    return ServiceLoadBalancer{..}
+
 data ServiceDetails = ServiceDetails
   { _sdName               :: Text
   , _sdRole               :: Text
   , _sdDesiredCount       :: Int
   , _sdDeploymentStrategy :: DeploymentStrategy
+  , _sdLoadBalancers      :: [ServiceLoadBalancer]
   } deriving (Eq, Show, Generic)
 
 makeLenses ''ServiceDetails
@@ -126,6 +140,7 @@ instance FromJSON ServiceDetails where
     _sdRole               <- o .: "role"
     _sdDesiredCount       <- o .: "desired"
     _sdDeploymentStrategy <- maybe defaultDeploymentStrategy id <$> o .:? "deployment-strategy"
+    _sdLoadBalancers      <- maybe [] id <$> o .:? "load-balancers"
     return ServiceDetails{..}
 
 data Deployment = Deployment

@@ -23,3 +23,7 @@
     role: "Bye"
     desired: 5
     deployment-strategy: rolling
+    load-balancers:
+      - target-group: pluto-target-group
+        container-name: pluto
+        container-port: 8080
