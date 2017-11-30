@@ -19,13 +19,13 @@ import           Control.Monad.Trans.Maybe
 import           Data.Conduit
 import qualified Data.Conduit.List         as CL
 import           Data.Maybe                (isJust, listToMaybe)
-import qualified Data.Text as T
+import qualified Data.Text                 as T
 import           Network.AWS
 import           Network.AWS.Data.Text
 import qualified Network.AWS.ECS           as ECS
 
-import           Groot.Types
 import           Groot.Exception
+import           Groot.Types
 
 clusterName :: ECS.Cluster -> Maybe ClusterRef
 clusterName cluster = ClusterRef <$> cluster ^. ECS.cClusterName

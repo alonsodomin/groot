@@ -30,10 +30,10 @@ import qualified Network.AWS.ECS                as ECS
 
 import           Groot.AWS.Service
 import           Groot.Core.Console
-import           Groot.Types
 import           Groot.Data.Conduit.STM
 import           Groot.Data.Filter
 import           Groot.Exception
+import           Groot.Types
 
 formatEventTime :: MonadIO m => UTCTime -> m String
 formatEventTime time = do

@@ -15,7 +15,7 @@ import           Network.AWS.Data.Text
 import qualified Network.AWS.ECS       as ECS
 
 import           Groot.Data.Base
-import           Groot.Types    (ClusterRef)
+import           Groot.Types           (ClusterRef)
 
 newtype ServiceRef = ServiceRef Text
   deriving (Eq, Show, Generic, Data, Read)

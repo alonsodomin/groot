@@ -19,8 +19,8 @@ import qualified Network.AWS.ECS       as ECS
 import           Network.AWS.Waiter
 
 import           Groot.AWS
-import           Groot.Types
 import           Groot.Exception
+import           Groot.Types
 
 -- Tasks
 

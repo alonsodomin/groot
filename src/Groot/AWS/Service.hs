@@ -24,8 +24,8 @@ import qualified Network.AWS.ECS           as ECS
 
 import           Groot.AWS.Cluster
 import           Groot.Data.Filter
-import           Groot.Types
 import           Groot.Exception
+import           Groot.Types
 
 serviceCoords :: ECS.ContainerService -> Maybe ContainerServiceCoords
 serviceCoords service = ContainerServiceCoords <$> serviceRef <*> clusterRef

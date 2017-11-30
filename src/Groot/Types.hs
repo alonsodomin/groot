@@ -1,12 +1,12 @@
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes        #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE DeriveGeneric        #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE LambdaCase           #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE TemplateHaskell      #-}
+{-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeFamilies #-}
 
 module Groot.Types
      ( ServiceId (..)
@@ -51,6 +51,7 @@ module Groot.Types
      , TaskRef(..)
      , TaskStatus(..)
      -- Task Definition
+     , TaskDefRef(..)
      , TaskFamily (..)
      , TaskDefId (..)
      , tdiTaskFamily
@@ -59,21 +60,23 @@ module Groot.Types
      , arnTaskDefId
      , arnTaskDefFamily
      , arnTaskDefRevision
+     , TaskDefStatus(..)
+     , TaskDefFilter(..)
      ) where
 
 import           Control.Lens
-import           Control.Monad   (join)
-import Data.Data
+import           Control.Monad     (join)
+import           Data.Data
 import           Data.Monoid
 import           Data.String
-import           Data.Text       (Text)
-import qualified Data.Text       as T
-import           Data.UUID       (UUID)
-import qualified Data.UUID       as UUID
-import           GHC.Generics    hiding (to)
+import           Data.Text         (Text)
+import qualified Data.Text         as T
+import           Data.UUID         (UUID)
+import qualified Data.UUID         as UUID
+import           GHC.Generics      hiding (to)
 import           Network.AWS
-import qualified Network.AWS.ECS as ECS
-import           Prelude         hiding (takeWhile)
+import qualified Network.AWS.ECS   as ECS
+import           Prelude           hiding (takeWhile)
 
 import           Groot.Data.Filter
 import           Groot.Data.Text
@@ -355,7 +358,7 @@ isContainerService = CSFRef
 
 instance Filter ContainerServiceFilter where
   type FilterItem ContainerServiceFilter = ECS.ContainerService
-  
+
   matches (CSFStatus CSSActive) serv =
     maybe False (== (T.pack "ACTIVE")) (serv ^. ECS.csStatus)
   matches (CSFStatus CSSInactive) serv =
@@ -417,6 +420,15 @@ data TaskStatus =
 
 -- Task Definition
 
+newtype TaskDefRef = TaskDefRef Text
+  deriving (Eq, Generic, Data, Show, Read)
+
+instance IsString TaskDefRef where
+  fromString = TaskDefRef . T.pack
+
+instance ToText TaskDefRef where
+  toText (TaskDefRef t) = t
+
 newtype TaskFamily = TaskFamily Text
   deriving (Eq, Show, Data, Generic)
 
@@ -476,3 +488,23 @@ instance FromText TaskDefArnPath where
 instance ToText TaskDefArnPath where
   toText (TaskDefArnPath taskDefId) =
     T.append tdapPreffix $ toText taskDefId
+
+data TaskDefStatus =
+    TDSActive
+  | TDSInactive
+  deriving (Eq, Show, Ord, Enum, Bounded, Read, Generic, Data)
+
+data TaskDefFilter =
+    TDFFamily TaskFamily
+  | TDFStatus TaskDefStatus
+  deriving (Eq, Show)
+
+instance Filter TaskDefFilter where
+  type FilterItem TaskDefFilter = ECS.TaskDefinition
+
+  matches (TDFFamily (TaskFamily family)) taskDef =
+    maybe False (== family) $ taskDef ^. ECS.tdFamily
+  matches (TDFStatus TDSActive) taskDef =
+    maybe False (== ECS.TDSActive) $ taskDef ^. ECS.tdStatus
+  matches (TDFStatus TDSInactive) taskDef =
+    maybe False (== ECS.TDSInactive) $ taskDef ^. ECS.tdStatus

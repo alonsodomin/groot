@@ -60,6 +60,6 @@ runListCmd (ListInstancesCmd clusterId)       = printInstanceSummary clusterId
 runListCmd (ListTasksCmd clusterId)           = printTaskSummary clusterId
 runListCmd (ListServicesCmd clusterId)        = printServiceSummary clusterId
 runListCmd (ListTaskDefsCmd showInactive fam) =
-  let statusFilter = if showInactive then [StatusFilter TaskInactive] else []
-      familyFilter = maybeToList $ FamilyFilter <$> fam
+  let statusFilter = if showInactive then [TDFStatus TDSInactive] else []
+      familyFilter = maybeToList $ TDFFamily <$> fam
   in printTaskDefsSummary $ statusFilter ++ familyFilter

@@ -18,8 +18,8 @@ import           Network.AWS.Data.Text
 import qualified Network.AWS.ECS           as ECS
 
 import           Groot.AWS.Cluster
-import           Groot.Types
 import           Groot.Exception
+import           Groot.Types
 
 taskInstance :: MonadAWS m => ECS.Task -> MaybeT m ECS.ContainerInstance
 taskInstance tsk = do
