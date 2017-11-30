@@ -2,11 +2,11 @@
 
 module Groot.Exception.Instance where
 
-import Control.Exception.Lens
-import Control.Monad.Catch hiding (Handler)
-import Control.Lens
-import Data.Typeable
-import Groot.Data
+import           Control.Exception.Lens
+import           Control.Lens
+import           Control.Monad.Catch    hiding (Handler)
+import           Data.Typeable
+import           Groot.Data
 
 data InstanceException =
     InstanceNotFound InstanceNotFound

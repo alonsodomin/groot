@@ -7,8 +7,8 @@ module Groot.AWS
      , module Groot.AWS.TaskDef
      ) where
 
-import Groot.AWS.Cluster
-import Groot.AWS.Instance
-import Groot.AWS.Service
-import Groot.AWS.Task
-import Groot.AWS.TaskDef
+import           Groot.AWS.Cluster
+import           Groot.AWS.Instance
+import           Groot.AWS.Service
+import           Groot.AWS.Task
+import           Groot.AWS.TaskDef

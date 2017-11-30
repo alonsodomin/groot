@@ -1,8 +1,8 @@
-{-# LANGUAGE DeriveGeneric      #-}
-{-# LANGUAGE LambdaCase         #-}
-{-# LANGUAGE RankNTypes         #-}
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE TemplateHaskell    #-}
+{-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Groot.Types
      ( ServiceId (..)
@@ -45,18 +45,18 @@ module Groot.Types
      , arnTaskDefRevision
      ) where
 
-import           Prelude          hiding (takeWhile)
-import           Control.Monad    (join)
 import           Control.Lens
+import           Control.Monad   (join)
 import           Data.Monoid
-import           Data.Text        (Text)
-import qualified Data.Text        as T
 import           Data.String
-import           Data.UUID        (UUID)
-import qualified Data.UUID        as UUID
-import           GHC.Generics     hiding (to)
+import           Data.Text       (Text)
+import qualified Data.Text       as T
+import           Data.UUID       (UUID)
+import qualified Data.UUID       as UUID
+import           GHC.Generics    hiding (to)
 import           Groot.Data.Text
 import           Network.AWS
+import           Prelude         hiding (takeWhile)
 
 -- | An AWS service identifier, typically used in AWS ARNs
 data ServiceId =
@@ -88,7 +88,7 @@ instance IsString AccountId where
 instance ToText AccountId where
   toText (AccountId s) = s
 
--- | An AWS Resource Name (ARN for short) used to uniquely identify 
+-- | An AWS Resource Name (ARN for short) used to uniquely identify
 -- a given resource
 data Arn a = Arn
   { _arnServiceId    :: ServiceId

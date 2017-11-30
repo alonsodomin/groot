@@ -8,9 +8,9 @@ module Groot.Data
      , module Groot.Data.Task
      ) where
 
-import Groot.Data.Base
-import Groot.Data.Cluster
-import Groot.Data.Instance
-import Groot.Data.Service
-import Groot.Data.Task
-import Groot.Data.TaskDef
+import           Groot.Data.Base
+import           Groot.Data.Cluster
+import           Groot.Data.Instance
+import           Groot.Data.Service
+import           Groot.Data.Task
+import           Groot.Data.TaskDef

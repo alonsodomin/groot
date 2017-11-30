@@ -1,4 +1,5 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Groot.CLI.Service.Events
      ( ServiceEventOpts
@@ -6,21 +7,21 @@ module Groot.CLI.Service.Events
      , runServiceEvents
      ) where
 
-import Control.Monad.IO.Class
-import Control.Monad.Trans.Resource
-import Data.Conduit
-import Data.Foldable
-import Data.List.NonEmpty (NonEmpty ((:|)))
-import Data.Semigroup ((<>))
-import Data.String
-import Network.AWS
-import qualified Network.AWS.ECS as ECS
-import Options.Applicative
+import           Control.Monad.IO.Class
+import           Control.Monad.Trans.Resource
+import           Data.Conduit
+import           Data.Foldable
+import           Data.List.NonEmpty           (NonEmpty ((:|)))
+import           Data.Semigroup               ((<>))
+import           Data.String
+import           Network.AWS
+import qualified Network.AWS.ECS              as ECS
+import           Options.Applicative
 
-import Groot.CLI.Common (clusterOpt)
-import Groot.Core
-import Groot.Core.Events
-import Groot.Data
+import           Groot.CLI.Common             (clusterOpt)
+import           Groot.Core
+import           Groot.Core.Events
+import           Groot.Data
 
 data ServiceEventOpts = ServiceEventOpts
   { _clusterId    :: Maybe ClusterRef

@@ -1,26 +1,26 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 module Groot.CLI.List.ContainerService
      ( printServiceSummary
      ) where
 
-import Control.Monad.Trans.Maybe
-import Control.Lens
-import Data.Conduit
-import qualified Data.Conduit.List as CL
-import Data.Data
-import Data.Text (unpack)
-import GHC.Generics
-import Text.PrettyPrint.Tabulate
-import Network.AWS
-import qualified Network.AWS.ECS as ECS
+import           Control.Lens
+import           Control.Monad.Trans.Maybe
+import           Data.Conduit
+import qualified Data.Conduit.List         as CL
+import           Data.Data
+import           Data.Text                 (unpack)
+import           GHC.Generics
+import           Network.AWS
+import qualified Network.AWS.ECS           as ECS
+import           Text.PrettyPrint.Tabulate
 
-import Groot.CLI.List.Common
-import Groot.Core
-import Groot.Data
+import           Groot.CLI.List.Common
+import           Groot.Core
+import           Groot.Data
 
 data ServiceSummary = ServiceSummary
   { name    :: String

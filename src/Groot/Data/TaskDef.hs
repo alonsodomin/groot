@@ -1,15 +1,15 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Groot.Data.TaskDef where
 
-import Data.Data
-import Data.String
-import Data.Text (Text)
-import qualified Data.Text as T
-import GHC.Generics
-import Network.AWS.Data.Text
+import           Data.Data
+import           Data.String
+import           Data.Text             (Text)
+import qualified Data.Text             as T
+import           GHC.Generics
+import           Network.AWS.Data.Text
 
 newtype TaskDefRef = TaskDefRef Text
   deriving (Eq, Generic, Data, Show, Read)

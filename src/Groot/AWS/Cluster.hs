@@ -10,17 +10,17 @@ module Groot.AWS.Cluster
      , serviceCluster
      ) where
 
-import Control.Monad.Catch
-import Control.Monad.Trans.Maybe
-import Control.Lens
-import Data.Conduit
-import qualified Data.Conduit.List as CL
-import Data.Maybe (listToMaybe, isJust)
-import Groot.Data
-import Groot.Exception
-import Network.AWS
-import qualified Network.AWS.ECS as ECS
-import Network.AWS.Data.Text
+import           Control.Lens
+import           Control.Monad.Catch
+import           Control.Monad.Trans.Maybe
+import           Data.Conduit
+import qualified Data.Conduit.List         as CL
+import           Data.Maybe                (isJust, listToMaybe)
+import           Groot.Data
+import           Groot.Exception
+import           Network.AWS
+import           Network.AWS.Data.Text
+import qualified Network.AWS.ECS           as ECS
 
 clusterName :: ECS.Cluster -> Maybe ClusterRef
 clusterName cluster = ClusterRef <$> cluster ^. ECS.cClusterName

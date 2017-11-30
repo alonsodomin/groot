@@ -1,4 +1,4 @@
-import Test.Groot.Types
+import           Test.Groot.Types
 
 main :: IO ()
 main = describeTypes

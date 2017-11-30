@@ -4,16 +4,16 @@ module Groot.CLI.Cluster.Events
      , runClusterEvents
      ) where
 
-import Data.Conduit
-import qualified Data.Conduit.List as CL
-import Data.Semigroup ((<>))
-import Data.String
-import Network.AWS
-import Options.Applicative
+import           Data.Conduit
+import qualified Data.Conduit.List   as CL
+import           Data.Semigroup      ((<>))
+import           Data.String
+import           Network.AWS
+import           Options.Applicative
 
-import Groot.Core
-import Groot.Core.Events
-import Groot.Data
+import           Groot.Core
+import           Groot.Core.Events
+import           Groot.Data
 
 data ClusterEventOptions = ClusterEventOptions
   { _follow       :: Bool

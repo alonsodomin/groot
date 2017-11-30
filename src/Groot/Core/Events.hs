@@ -1,4 +1,5 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Groot.Core.Events
        ( serviceEventLog
@@ -8,24 +9,24 @@ module Groot.Core.Events
        ) where
 
 import           Control.Applicative
-import           Control.Concurrent (killThread)
+import           Control.Concurrent             (killThread)
 import           Control.Concurrent.STM
 import           Control.Concurrent.STM.Delay
 import           Control.Concurrent.STM.TBMChan
-import qualified Control.Exception.Lifted as Lifted
+import qualified Control.Exception.Lifted       as Lifted
+import           Control.Lens                   hiding (argument)
 import           Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Resource
 import           Control.Monad.Trans.State.Lazy
-import           Control.Lens           hiding (argument)
 import           Data.Conduit
-import qualified Data.Conduit.List      as CL
-import           Data.Maybe (listToMaybe)
-import qualified Data.Text              as T
+import qualified Data.Conduit.List              as CL
+import           Data.Maybe                     (listToMaybe)
+import qualified Data.Text                      as T
 import           Data.Time
-import           Network.AWS hiding (await)
-import qualified Network.AWS.ECS        as ECS
+import           Network.AWS                    hiding (await)
+import qualified Network.AWS.ECS                as ECS
 
 import           Groot.AWS.Service
 import           Groot.Core.Console

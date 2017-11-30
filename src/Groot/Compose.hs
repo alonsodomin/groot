@@ -1,7 +1,7 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Groot.Compose
      (
@@ -16,37 +16,37 @@ module Groot.Compose
      , grootDeploy
      ) where
 
-import GHC.Generics
-import Control.Monad.Trans.Maybe
-import Control.Lens
-import Data.Aeson
-import Data.Aeson.Types
-import Data.Conduit
-import qualified Data.Conduit.List as CL
-import Data.List (drop, find)
-import qualified Data.List.NonEmpty as NEL
-import Data.Text hiding (drop, find)
-import qualified Data.Vector as V
-import Network.AWS
-import Network.AWS.ECS
+import           Control.Lens
+import           Control.Monad.Trans.Maybe
+import           Data.Aeson
+import           Data.Aeson.Types
+import           Data.Conduit
+import qualified Data.Conduit.List         as CL
+import           Data.List                 (drop, find)
+import qualified Data.List.NonEmpty        as NEL
+import           Data.Text                 hiding (drop, find)
+import qualified Data.Vector               as V
+import           GHC.Generics
+import           Network.AWS
+import           Network.AWS.ECS
 
-import Groot.Core
-import Groot.Data
+import           Groot.Core
+import           Groot.Data
 
 data Protocol = TCP | UDP
   deriving (Eq, Show, Ord, Read, Generic)
 
 data GrootPortMappings = GrootPortMappings
   { _containerPort :: Int
-  , _hostPort :: Int
-  , _portProtocol :: Protocol
+  , _hostPort      :: Int
+  , _portProtocol  :: Protocol
   } deriving (Eq, Show, Generic)
 
 data GrootContainerDef = GrootContainerDef
-  { _containerName :: Text
-  , _containerImage :: Text
+  { _containerName   :: Text
+  , _containerImage  :: Text
   , _containerMemory :: Maybe Int
-  , _containerCpu :: Maybe Int
+  , _containerCpu    :: Maybe Int
   } deriving (Eq, Show, Generic)
 
 instance FromJSON GrootContainerDef where
@@ -58,8 +58,8 @@ instance FromJSON GrootContainerDef where
     return GrootContainerDef{..}
 
 data GrootTaskDef = GrootTaskDef
-  { _taskName :: Text
-  , _taskRole :: Text
+  { _taskName       :: Text
+  , _taskRole       :: Text
   , _taskContainers :: [GrootContainerDef]
   } deriving (Eq, Show, Generic)
 
@@ -87,7 +87,7 @@ instance FromJSON GrootServiceDef where
     return GrootServiceDef{..}
 
 data GrootDeployment = GrootDeployment
-  { _taskDef :: GrootTaskDef
+  { _taskDef    :: GrootTaskDef
   , _serviceDef :: GrootServiceDef
   } deriving (Eq, Show, Generic)
 
@@ -113,6 +113,6 @@ findActiveCluster clusterRef =
 findActiveService :: ServiceRef -> ClusterRef -> MaybeT AWS ContainerService
 findActiveService serviceRef clusterRef =
   filterM (ServiceStatusFilter ServiceActive) (getService serviceRef (Just clusterRef))
-  
+
 grootDeploy :: GrootCompose -> NEL.NonEmpty Text -> AWS ()
 grootDeploy = undefined

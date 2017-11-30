@@ -2,10 +2,10 @@
 
 module Groot.CLI.List.Common where
 
-import Data.Text (Text)
-import qualified Data.Text as T
-import Groot.Data.Text
-import Text.PrettyPrint.Tabulate
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T
+import           Groot.Data.Text
+import           Text.PrettyPrint.Tabulate
 
 class HasSummary a b where
   summarize :: a -> Maybe b

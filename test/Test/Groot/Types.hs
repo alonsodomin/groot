@@ -1,17 +1,17 @@
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Test.Groot.Types
      ( describeTypes
      ) where
 
-import Data.Either
-import qualified Data.Text as T
-import Data.Text.Arbitrary
-import Groot.Data.Text
-import Groot.Types
-import Network.AWS.Types
-import Test.Hspec
-import Test.QuickCheck
+import           Data.Either
+import qualified Data.Text           as T
+import           Data.Text.Arbitrary
+import           Groot.Data.Text
+import           Groot.Types
+import           Network.AWS.Types
+import           Test.Hspec
+import           Test.QuickCheck
 
 -- Arbitrary instances
 

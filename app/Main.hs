@@ -1,6 +1,6 @@
 module Main where
 
-import Groot.CLI
+import           Groot.CLI
 
 main :: IO ()
 main = runGroot

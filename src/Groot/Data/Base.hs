@@ -2,10 +2,10 @@
 
 module Groot.Data.Base where
 
-import Control.Monad
-import Data.Conduit
-import qualified Data.Conduit.List as CL
-import Data.Functor.Identity
+import           Control.Monad
+import           Data.Conduit
+import qualified Data.Conduit.List     as CL
+import           Data.Functor.Identity
 
 data FilterOp a =
     Or a a

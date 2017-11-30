@@ -1,26 +1,26 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 module Groot.CLI.List.TaskDef
      ( printTaskDefsSummary
      , TaskDefFilter(..)
      ) where
 
-import Control.Lens
-import Data.Conduit
-import qualified Data.Conduit.List as CL
-import Data.Data
-import Data.Text hiding (foldr)
-import GHC.Generics
-import Text.PrettyPrint.Tabulate
-import Network.AWS
-import qualified Network.AWS.ECS as ECS
+import           Control.Lens
+import           Data.Conduit
+import qualified Data.Conduit.List         as CL
+import           Data.Data
+import           Data.Text                 hiding (foldr)
+import           GHC.Generics
+import           Network.AWS
+import qualified Network.AWS.ECS           as ECS
+import           Text.PrettyPrint.Tabulate
 
-import Groot.CLI.List.Common
-import Groot.Core
-import Groot.Data
+import           Groot.CLI.List.Common
+import           Groot.Core
+import           Groot.Data
 
 data TaskDefSummary = TaskDefSummary
   { family   :: String
@@ -35,11 +35,11 @@ instance HasSummary ECS.TaskDefinition TaskDefSummary where
     where tFamily = unpack <$> taskDef ^. ECS.tdFamily
           tRev    = taskDef ^. ECS.tdRevision
           tStatus = statusAsText <$> taskDef ^. ECS.tdStatus
-            where statusAsText ECS.TDSActive = "Active"
+            where statusAsText ECS.TDSActive   = "Active"
                   statusAsText ECS.TDSInactive = "Inactive"
 
 summarizeTaskDefs :: [TaskDefFilter] -> AWS [TaskDefSummary]
-summarizeTaskDefs filters = 
+summarizeTaskDefs filters =
   runConduit $ (fetchTaskDefs filters)
      =$= CL.mapMaybe summarize
      =$ CL.consume

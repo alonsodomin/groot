@@ -1,29 +1,29 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 module Groot.CLI.List.ContainerInstance
      ( printInstanceSummary
      ) where
 
-import Control.Lens
-import Data.Conduit
-import qualified Data.Conduit.List as CL
-import Data.Data
-import Data.List
-import qualified Data.Text as T
-import GHC.Generics
-import Network.AWS
-import qualified Network.AWS.ECS as ECS
-import Numeric
-import Text.PrettyPrint.Tabulate
+import           Control.Lens
+import           Data.Conduit
+import qualified Data.Conduit.List         as CL
+import           Data.Data
+import           Data.List
+import qualified Data.Text                 as T
+import           GHC.Generics
+import           Network.AWS
+import qualified Network.AWS.ECS           as ECS
+import           Numeric
+import           Text.PrettyPrint.Tabulate
 
-import Groot.CLI.List.Common
-import Groot.Core
-import Groot.Data
-import Groot.Data.Text
-import Groot.Types
+import           Groot.CLI.List.Common
+import           Groot.Core
+import           Groot.Data
+import           Groot.Data.Text
+import           Groot.Types
 
 data ResourceType =
     Memory
@@ -52,23 +52,23 @@ resourceSummary resType inst = (ResourceSummary resType) <$> rAlloc <*> rAvail
   where resName = case resType of
           Memory -> "MEMORY"
           CPU    -> "CPU"
-        
+
         findResource :: [ECS.Resource] -> Maybe Int
         findResource rs = (view ECS.rIntegerValue) =<< find (\x -> maybe False (== resName) $ x ^. ECS.rName) rs
-        
+
         rAlloc = findResource $ inst ^. ECS.ciRegisteredResources
         rAvail = findResource $ inst ^. ECS.ciRemainingResources
 
 data InstanceSummary = InstanceSummary
-  { instanceId      :: String
-  , ec2InstaceId    :: String
-  , status          :: String
-  , runningTasks    :: Int
-  , pendingTasks    :: Int
-  , memory          :: ResourceSummary
-  , cpu             :: ResourceSummary
-  , agentVersion    :: String
-  , dockerVersion   :: String
+  { instanceId    :: String
+  , ec2InstaceId  :: String
+  , status        :: String
+  , runningTasks  :: Int
+  , pendingTasks  :: Int
+  , memory        :: ResourceSummary
+  , cpu           :: ResourceSummary
+  , agentVersion  :: String
+  , dockerVersion :: String
   } deriving (Eq, Show, Generic, Data)
 
 instance Tabulate InstanceSummary
@@ -86,7 +86,7 @@ instance HasSummary ECS.ContainerInstance InstanceSummary where
           iDockerV = T.unpack <$> (inst ^. ECS.ciVersionInfo >>= view ECS.viDockerVersion)
 
 summarizeInstances :: Maybe ClusterRef -> AWS [InstanceSummary]
-summarizeInstances cId = 
+summarizeInstances cId =
   sourceToList $ instanceSource cId =$= CL.mapMaybe summarize
   where instanceSource Nothing  = fetchAllInstances
         instanceSource (Just x) = fetchInstances x

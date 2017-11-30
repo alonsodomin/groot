@@ -10,15 +10,15 @@ module Groot.Config
        , regionFromConfig
        ) where
 
-import Control.Applicative
-import Control.Monad.IO.Class
-import Control.Monad.Trans.Except
-import Data.Ini
-import Data.Text (Text)
-import qualified Data.Text as T
-import Network.AWS (Region(..))
-import Network.AWS.Data.Text
-import System.Directory
+import           Control.Applicative
+import           Control.Monad.IO.Class
+import           Control.Monad.Trans.Except
+import           Data.Ini
+import           Data.Text                  (Text)
+import qualified Data.Text                  as T
+import           Network.AWS                (Region (..))
+import           Network.AWS.Data.Text
+import           System.Directory
 
 defaultSectionName :: Text
 defaultSectionName = "default"
@@ -40,7 +40,7 @@ lookupRegionFromConfig profile config =
   where lookupWithFallback :: Maybe Text -> Text -> Ini -> Either String Text
         lookupWithFallback Nothing  key cfg =
           lookupValue defaultSectionName key cfg
-        lookupWithFallback (Just x) key cfg = 
+        lookupWithFallback (Just x) key cfg =
               lookupValue (sectionNameFromProfile x) key cfg
           <|> lookupWithFallback Nothing key cfg
 

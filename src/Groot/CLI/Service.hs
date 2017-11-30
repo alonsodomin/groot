@@ -4,10 +4,10 @@ module Groot.CLI.Service
      , runServiceCmd
      ) where
 
-import Network.AWS
-import Options.Applicative
+import           Network.AWS
+import           Options.Applicative
 
-import Groot.CLI.Service.Events
+import           Groot.CLI.Service.Events
 
 data ServiceSubCmd =
   ServiceEventsCmd ServiceEventOpts

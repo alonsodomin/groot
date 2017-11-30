@@ -1,14 +1,11 @@
 module Groot.CLI.Common where
 
-import           Options.Applicative
 import qualified Data.Attoparsec.Text as A
-import           Data.Semigroup          ((<>))
+import           Data.Semigroup       ((<>))
 import           Data.String
+import           Options.Applicative
 
-import Groot.Data (
-    ClusterRef(..)
-  , TaskFamily(..)
-  )
+import           Groot.Data           (ClusterRef (..), TaskFamily (..))
 
 attoReadM :: A.Parser a -> ReadM a
 attoReadM p = eitherReader (A.parseOnly p . fromString)

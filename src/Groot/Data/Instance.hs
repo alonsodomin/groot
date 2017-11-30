@@ -1,16 +1,16 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Groot.Data.Instance where
 
-import Data.Aeson
-import Data.Data
-import Data.String
-import Data.Text (Text)
-import qualified Data.Text as T
-import GHC.Generics
-import Network.AWS.Data.Text
+import           Data.Aeson
+import           Data.Data
+import           Data.String
+import           Data.Text             (Text)
+import qualified Data.Text             as T
+import           GHC.Generics
+import           Network.AWS.Data.Text
 
 newtype InstanceRef = InstanceRef Text
   deriving (Eq, Show, Data, Read, Generic)

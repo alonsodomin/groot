@@ -1,20 +1,20 @@
-{-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE TypeFamilies       #-}
 
 module Groot.Data.Service where
 
-import Control.Lens
-import Data.Data
-import Data.String
-import Data.Text (Text)
-import qualified Data.Text as T
-import GHC.Generics
-import Groot.Data.Base
-import Groot.Data.Cluster (ClusterRef)
-import Network.AWS.Data.Text
-import qualified Network.AWS.ECS as ECS
+import           Control.Lens
+import           Data.Data
+import           Data.String
+import           Data.Text             (Text)
+import qualified Data.Text             as T
+import           GHC.Generics
+import           Groot.Data.Base
+import           Groot.Data.Cluster    (ClusterRef)
+import           Network.AWS.Data.Text
+import qualified Network.AWS.ECS       as ECS
 
 newtype ServiceRef = ServiceRef Text
   deriving (Eq, Show, Generic, Data, Read)

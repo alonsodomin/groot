@@ -4,18 +4,18 @@ module Groot.CLI.List
      , runListCmd
      ) where
 
-import Data.Maybe (maybeToList)
-import Data.Semigroup ((<>))
-import Network.AWS
-import Options.Applicative
+import           Data.Maybe                       (maybeToList)
+import           Data.Semigroup                   ((<>))
+import           Network.AWS
+import           Options.Applicative
 
-import Groot.CLI.Common
-import Groot.CLI.List.Cluster
-import Groot.CLI.List.ContainerInstance
-import Groot.CLI.List.ContainerService
-import Groot.CLI.List.Task
-import Groot.CLI.List.TaskDef
-import Groot.Data
+import           Groot.CLI.Common
+import           Groot.CLI.List.Cluster
+import           Groot.CLI.List.ContainerInstance
+import           Groot.CLI.List.ContainerService
+import           Groot.CLI.List.Task
+import           Groot.CLI.List.TaskDef
+import           Groot.Data
 
 data ListSubCmd =
     ListClustersCmd (Maybe ClusterRef)

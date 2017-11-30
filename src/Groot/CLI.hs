@@ -1,14 +1,14 @@
-{-# LANGUAGE TemplateHaskell    #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Groot.CLI
      ( runGroot
      ) where
 
 import           Control.Exception.Lens
+import           Control.Lens
 import           Control.Monad.Catch
 import           Control.Monad.Trans.Except
 import           Control.Monad.Trans.Maybe
-import           Control.Lens
 import qualified Data.ByteString.Char8      as BS
 import           Data.List                  (intercalate)
 import           Data.Semigroup             ((<>))
@@ -23,15 +23,15 @@ import           Options.Applicative
 import           Paths_groot                (version)
 import           System.Console.ANSI
 
-import Groot.CLI.Common
-import Groot.CLI.Cluster
-import Groot.CLI.List
-import Groot.CLI.Service
-import Groot.Config
-import Groot.Core.Console
-import Groot.Data (ClusterRef(..))
-import Groot.Data.Text hiding (Parser, option)
-import Groot.Exception
+import           Groot.CLI.Cluster
+import           Groot.CLI.Common
+import           Groot.CLI.List
+import           Groot.CLI.Service
+import           Groot.Config
+import           Groot.Core.Console
+import           Groot.Data                 (ClusterRef (..))
+import           Groot.Data.Text            hiding (Parser, option)
+import           Groot.Exception
 
 data CredentialsOpt =
     ProfileOpt (Maybe Text) (Maybe FilePath)
@@ -177,7 +177,7 @@ handleServiceNotFound (ServiceNotFound' serviceRef clusterRef) =
 handleAmbiguousServiceName :: AmbiguousServiceName -> IO ()
 handleAmbiguousServiceName (AmbiguousServiceName' serviceRef clusters) =
   let stringifyClusters = "\n - " <> (intercalate "\n - " $ map (T.unpack . toText) clusters)
-  in printError $ "Service name '" <> (T.unpack . toText $ serviceRef) 
+  in printError $ "Service name '" <> (T.unpack . toText $ serviceRef)
      <> "' is ambiguous. It was found in the following clusters:" <> stringifyClusters
 
 handleInactiveService :: InactiveService -> IO ()
@@ -217,7 +217,7 @@ runGroot =
   where prog opts = do
           env <- loadEnv opts
           handleExceptions $ runCmd (opts ^. grootCmd) env
-        
+
         cli = info (grootOpts <**> helper)
           ( fullDesc
           <> progDesc "Utility to manage ECS Clusters"

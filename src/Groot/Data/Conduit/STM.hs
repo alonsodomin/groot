@@ -1,8 +1,8 @@
 module Groot.Data.Conduit.STM where
 
-import Control.Concurrent.STM
-import Control.Monad.IO.Class
-import Data.Conduit
+import           Control.Concurrent.STM
+import           Control.Monad.IO.Class
+import           Data.Conduit
 
 -- | Creates a Conduit Source from an async channel
 chanSource :: MonadIO m

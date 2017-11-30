@@ -1,7 +1,7 @@
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Groot.Data.Text
-     ( 
+     (
        module Data.Attoparsec.Text
      , module Network.AWS.Data.Text
      , uuid

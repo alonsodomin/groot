@@ -1,5 +1,5 @@
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes     #-}
 
 module Groot.AWS.Service
      (
@@ -12,18 +12,18 @@ module Groot.AWS.Service
      , fetchAllServices
      ) where
 
-import Control.Monad.Catch
-import Control.Monad.Trans.Maybe
-import Control.Lens
-import Data.Conduit
-import qualified Data.Conduit.List as CL
-import Data.Maybe (listToMaybe)
-import Groot.AWS.Cluster
-import Groot.Data
-import Groot.Exception
-import Network.AWS hiding (await)
-import qualified Network.AWS.ECS as ECS
-import Network.AWS.Data.Text
+import           Control.Lens
+import           Control.Monad.Catch
+import           Control.Monad.Trans.Maybe
+import           Data.Conduit
+import qualified Data.Conduit.List         as CL
+import           Data.Maybe                (listToMaybe)
+import           Groot.AWS.Cluster
+import           Groot.Data
+import           Groot.Exception
+import           Network.AWS               hiding (await)
+import           Network.AWS.Data.Text
+import qualified Network.AWS.ECS           as ECS
 
 serviceCoords :: ECS.ContainerService -> Maybe ServiceCoords
 serviceCoords service = ServiceCoords <$> serviceRef <*> clusterRef

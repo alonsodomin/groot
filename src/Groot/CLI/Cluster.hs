@@ -4,10 +4,10 @@ module Groot.CLI.Cluster
      , runClusterCmd
      ) where
 
-import Network.AWS
-import Options.Applicative
+import           Network.AWS
+import           Options.Applicative
 
-import Groot.CLI.Cluster.Events
+import           Groot.CLI.Cluster.Events
 
 data ClusterSubCmd =
   ClusterEventsCmd ClusterEventOptions

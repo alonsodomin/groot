@@ -1,28 +1,28 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 module Groot.CLI.List.Task
      ( printTaskSummary
      ) where
 
-import Control.Monad.Trans.Maybe
-import Control.Lens
-import Data.Conduit
-import qualified Data.Conduit.List as CL
-import Data.Data
-import qualified Data.Text as T
-import GHC.Generics
-import Text.PrettyPrint.Tabulate
-import Network.AWS
-import qualified Network.AWS.ECS as ECS
+import           Control.Lens
+import           Control.Monad.Trans.Maybe
+import           Data.Conduit
+import qualified Data.Conduit.List         as CL
+import           Data.Data
+import qualified Data.Text                 as T
+import           GHC.Generics
+import           Network.AWS
+import qualified Network.AWS.ECS           as ECS
+import           Text.PrettyPrint.Tabulate
 
-import Groot.CLI.List.Common
-import Groot.Core
-import Groot.Data
-import Groot.Data.Text
-import Groot.Types
+import           Groot.CLI.List.Common
+import           Groot.Core
+import           Groot.Data
+import           Groot.Data.Text
+import           Groot.Types
 
 data TaskSummary = TaskSummary
   { taskId     :: String
@@ -49,7 +49,7 @@ instance HasSummary TaskAndRelatives TaskSummary where
           tStoppedAt  = pure $ maybe "" show $ t ^. ECS.tStoppedAt
 
 annotateTask :: MonadAWS m => Conduit ECS.Task m TaskAndRelatives
-annotateTask = CL.mapMaybeM (\t -> runMaybeT $ 
+annotateTask = CL.mapMaybeM (\t -> runMaybeT $
     (TR t) <$> taskInstance t
   )
 

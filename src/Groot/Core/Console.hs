@@ -1,10 +1,10 @@
 module Groot.Core.Console where
 
-import Control.Monad.IO.Class
-import Control.Monad.Trans.Resource
-import Data.Char
-import System.IO
-import System.Console.ANSI
+import           Control.Monad.IO.Class
+import           Control.Monad.Trans.Resource
+import           Data.Char
+import           System.Console.ANSI
+import           System.IO
 
 blueText :: [SGR]
 blueText = [SetColor Foreground Dull Blue]
@@ -35,11 +35,11 @@ promptUserYN def msg = do
   answer <- promptUser $ msg ++ defStr
   return $ handleAnswer answer
   where defStr = " [" ++ (if def then "Yn" else "yN") ++ "] "
-        
+
         parseAnswer s =
           let s' = map toLower s
           in (s' == "y") || (s' == "yes")
-    
+
         handleAnswer Nothing  = def
         handleAnswer (Just s) = parseAnswer s
 

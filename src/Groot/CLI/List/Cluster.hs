@@ -1,27 +1,27 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 module Groot.CLI.List.Cluster
      ( printClusterSummary
      ) where
 
-import Control.Monad.Trans.Maybe
-import Control.Lens
-import Data.Conduit
-import qualified Data.Conduit.List as CL
-import Data.Data
-import Data.Maybe (maybeToList)
-import Data.Text
-import GHC.Generics
-import Text.PrettyPrint.Tabulate
-import Network.AWS
-import qualified Network.AWS.ECS as ECS
+import           Control.Lens
+import           Control.Monad.Trans.Maybe
+import           Data.Conduit
+import qualified Data.Conduit.List         as CL
+import           Data.Data
+import           Data.Maybe                (maybeToList)
+import           Data.Text
+import           GHC.Generics
+import           Network.AWS
+import qualified Network.AWS.ECS           as ECS
+import           Text.PrettyPrint.Tabulate
 
-import Groot.CLI.List.Common
-import Groot.Core
-import Groot.Data
+import           Groot.CLI.List.Common
+import           Groot.Core
+import           Groot.Data
 
 data ClusterSummary = ClusterSummary
   { name         :: String
@@ -29,7 +29,7 @@ data ClusterSummary = ClusterSummary
   , status       :: String
   , runningTasks :: Int
   , pendingTasks :: Int
-  , instances    :: Int 
+  , instances    :: Int
   } deriving (Eq, Show, Generic, Data)
 
 instance Tabulate ClusterSummary

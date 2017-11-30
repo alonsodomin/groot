@@ -8,17 +8,17 @@ module Groot.AWS.Instance
      , taskInstance
      ) where
 
-import Control.Monad.Catch
-import Control.Monad.Trans.Maybe
-import Control.Lens
-import Data.Conduit
-import qualified Data.Conduit.List as CL
-import Groot.AWS.Cluster
-import Groot.Data
-import Groot.Exception
-import Network.AWS
-import qualified Network.AWS.ECS as ECS
-import Network.AWS.Data.Text
+import           Control.Lens
+import           Control.Monad.Catch
+import           Control.Monad.Trans.Maybe
+import           Data.Conduit
+import qualified Data.Conduit.List         as CL
+import           Groot.AWS.Cluster
+import           Groot.Data
+import           Groot.Exception
+import           Network.AWS
+import           Network.AWS.Data.Text
+import qualified Network.AWS.ECS           as ECS
 
 taskInstance :: MonadAWS m => ECS.Task -> MaybeT m ECS.ContainerInstance
 taskInstance tsk = do
