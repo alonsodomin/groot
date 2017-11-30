@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 
@@ -11,27 +10,14 @@ module Groot.AWS.Service
      , getService
      , fetchServices
      , fetchAllServices
-     , serviceEventLog
-     , clusterServiceEventLog
      ) where
 
-import Control.Applicative
-import qualified Control.Concurrent as TH
-import Control.Concurrent.STM
-import Control.Concurrent.STM.Delay
-import Control.Concurrent.STM.TBMChan
-import qualified Control.Exception.Lifted as Lifted
-import Control.Monad
 import Control.Monad.Catch
-import Control.Monad.IO.Class
 import Control.Monad.Trans.Maybe
-import Control.Monad.Trans.State.Lazy
-import Control.Monad.Trans.Resource
 import Control.Lens
 import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Data.Maybe (listToMaybe)
-import Data.Time
 import Groot.AWS.Cluster
 import Groot.Data
 import Groot.Exception
@@ -109,103 +95,3 @@ getService serviceName clusterRef = do
   case serv of
     Just x  -> return x
     Nothing -> throwM $ serviceNotFound serviceName clusterRef
-
-pollServiceEvents :: Env
-                  -> ServiceCoords
-                  -> Bool
-                  -> TBMChan ECS.ServiceEvent
-                  -> (TBMChan ECS.ServiceEvent -> STM ())
-                  -> IO ()
-pollServiceEvents env (ServiceCoords serviceRef clusterRef) inf chan onComplete =
-  liftIO $ evalStateT loop Nothing
-  where loop :: MonadIO m => StateT (Maybe UTCTime) m ()
-        loop = do
-          lastEventTime <- get
-          events <- liftIO . runResourceT . runAWS env $ serviceEvents lastEventTime
-          liftIO $ forM_ (reverse events) $ atomically . tryWriteTBMChan chan
-          if inf then do
-            delay <- liftIO $ newDelay 2000000
-            let nextTime = listToMaybe events >>= view ECS.seCreatedAt
-            liftIO . atomically $ waitDelay delay
-            put $ nextTime <|> lastEventTime
-            loop
-          else liftIO . atomically $ onComplete chan
-
-        serviceEvents :: MonadAWS m => Maybe UTCTime -> m [ECS.ServiceEvent]
-        serviceEvents lastEventTime = do
-          service  <- getService serviceRef (Just clusterRef)
-          service' <- if (matches isActiveService service)
-                      then return service
-                      else throwM $ inactiveService serviceRef clusterRef
-          events  <- return $ service' ^. ECS.csEvents
-          return $ case lastEventTime of
-            Nothing -> take 25 events
-            Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. ECS.seCreatedAt) events
-
-chanSource :: MonadIO m
-           => chan
-           -> (chan -> STM (Maybe a))
-           -> (chan -> IO ())
-           -> Source m a
-chanSource ch reader closer = loop
-  where loop = do
-          a <- liftIO . atomically $ reader ch
-          case a of
-            Just x  -> yieldOr x close >> loop
-            Nothing -> return ()
-
-        close = liftIO $ closer ch
-
-serviceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadIO mo)
-                => Env
-                -> [ServiceCoords]
-                -> Bool
-                -> mi (Source mo ECS.ServiceEvent)
-serviceEventLog env coords inf = do
-  chan     <- liftIO . atomically $ newTBMChan 500
-  refCount <- liftIO . atomically . newTVar $ length coords
-  regs     <- forM coords $ \sc -> Lifted.mask_ $ do
-    register . TH.killThread <=< runResourceT $ resourceForkIO $ liftIO . publishInto chan sc $ decRefCount refCount
-  return $ chanSource chan readTBMChan (\ch -> do liftIO . atomically $ closeTBMChan ch
-                                                  mapM_ release regs)
-  
-    where
-      modifyTVar'' :: TVar a -> (a -> a) -> STM a
-      modifyTVar'' tvar f = do
-        x <- f <$> readTVar tvar
-        writeTVar tvar x
-        return x
-
-      decRefCount :: TVar Int -> TBMChan a -> STM ()
-      decRefCount tvar chan = do
-        n <- modifyTVar'' tvar (subtract 1)
-        when (n == 0) $ closeTBMChan chan
-
-      ignoreServicesBecomingInactive :: MonadCatch m => m () -> m ()
-      ignoreServicesBecomingInactive action =
-        catching _InactiveService action $ \_ -> return ()
-
-      publishInto :: TBMChan ECS.ServiceEvent
-                  -> ServiceCoords
-                  -> (TBMChan ECS.ServiceEvent -> STM ())
-                  -> IO ()
-      publishInto chan crds onComplete =
-        ignoreServicesBecomingInactive $ pollServiceEvents env crds inf chan onComplete
-
-clusterServiceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadIO mo)
-                       => Env
-                       -> [ClusterRef]
-                       -> Bool
-                       -> mi (Source mo ECS.ServiceEvent)
-clusterServiceEventLog env clusterRefs inf = do
-  coords <- runResourceT . runAWS env $ allServiceCoords
-  serviceEventLog env coords inf
-    where clusterServiceCoords :: MonadAWS m => ClusterRef -> m [ServiceCoords]
-          clusterServiceCoords cref = sourceToList $ fetchServices cref
-            =$= filterC isActiveService
-            =$= CL.mapMaybe serviceCoords
-
-          allServiceCoords :: MonadAWS m => m [ServiceCoords]
-          allServiceCoords = do
-            coords <- concat <$> mapM clusterServiceCoords clusterRefs
-            return coords
