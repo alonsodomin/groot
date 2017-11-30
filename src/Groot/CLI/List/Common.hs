@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Groot.App.List.Base where
+module Groot.CLI.List.Common where
 
 import Data.Text (Text)
 import qualified Data.Text as T

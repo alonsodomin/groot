@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Groot.App.List.Instance
+module Groot.CLI.List.ContainerInstance
      ( printInstanceSummary
      ) where
 
@@ -19,7 +19,7 @@ import qualified Network.AWS.ECS as ECS
 import Numeric
 import Text.PrettyPrint.Tabulate
 
-import Groot.App.List.Base
+import Groot.CLI.List.Common
 import Groot.Core
 import Groot.Data
 import Groot.Data.Text

@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Groot.App.List.Task
+module Groot.CLI.List.Task
      ( printTaskSummary
      ) where
 
@@ -18,7 +18,7 @@ import Text.PrettyPrint.Tabulate
 import Network.AWS
 import qualified Network.AWS.ECS as ECS
 
-import Groot.App.List.Base
+import Groot.CLI.List.Common
 import Groot.Core
 import Groot.Data
 import Groot.Data.Text

@@ -1,9 +1,9 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-module Groot.App.List.Cluster
+module Groot.CLI.List.Cluster
      ( printClusterSummary
      ) where
 
@@ -19,7 +19,7 @@ import Text.PrettyPrint.Tabulate
 import Network.AWS
 import qualified Network.AWS.ECS as ECS
 
-import Groot.App.List.Base
+import Groot.CLI.List.Common
 import Groot.Core
 import Groot.Data
 

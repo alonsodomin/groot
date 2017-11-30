@@ -1,6 +1,6 @@
-module Groot.App.Cluster.Events
+module Groot.CLI.Cluster.Events
      ( ClusterEventOptions
-     , clusterEventsCli
+     , clusterEventsOpt
      , runClusterEvents
      ) where
 
@@ -9,7 +9,6 @@ import qualified Data.Conduit.List as CL
 import Data.Semigroup ((<>))
 import Data.String
 import Network.AWS
-import qualified Network.AWS.ECS as ECS
 import Options.Applicative
 
 import Groot.Core
@@ -24,13 +23,13 @@ data ClusterEventOptions = ClusterEventOptions
 clusterRefArg :: Parser ClusterRef
 clusterRefArg = fromString <$> argument str (metavar "CLUSTER_NAMES")
 
-clusterEventsCli :: Parser ClusterEventOptions
-clusterEventsCli = ClusterEventOptions
-               <$> switch
-                 ( long "follow"
+clusterEventsOpt :: Parser ClusterEventOptions
+clusterEventsOpt = ClusterEventOptions
+                <$> switch
+                  ( long "follow"
                 <> short 'f'
                 <> help "Folow the trail of events" )
-               <*> many clusterRefArg
+                <*> many clusterRefArg
 
 runClusterEvents :: ClusterEventOptions -> Env -> IO ()
 runClusterEvents (ClusterEventOptions follow []) env = do

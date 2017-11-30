@@ -21,6 +21,19 @@ library
                      , Groot.AWS.Task
                      , Groot.AWS.TaskDef
                      , Groot.AWS
+                     , Groot.CLI.Common
+                     , Groot.CLI.Cluster.Events
+                     , Groot.CLI.Cluster
+                     , Groot.CLI.List.Common
+                     , Groot.CLI.List.Cluster
+                     , Groot.CLI.List.ContainerInstance
+                     , Groot.CLI.List.ContainerService
+                     , Groot.CLI.List.Task
+                     , Groot.CLI.List.TaskDef
+                     , Groot.CLI.List
+                     , Groot.CLI.Service.Events
+                     , Groot.CLI.Service
+                     , Groot.CLI
                      , Groot.Compose
                      , Groot.Config
                      , Groot.Core
@@ -40,25 +53,31 @@ library
                      , Groot.Exception.Service
                      , Groot.Exception
                      , Groot.Types
+  other-modules:       Paths_groot
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , ansi-terminal
                      , attoparsec
-                     , directory
-                     , exceptions
-                     , lens
-                     , lifted-base
-                     , ini
-                     , text
+                     , bytestring
                      , conduit
                      , conduit-combinators
+                     , directory
+                     , exceptions
+                     , http-conduit
+                     , http-types
+                     , ini
+                     , lens
+                     , lifted-base                     
                      , mtl
+                     , optparse-applicative
+                     , pptable
                      , resourcet
                      , stm
                      , stm-chans
                      , stm-conduit
                      , stm-delay
-                     , transformers
+                     , text
+                     , transformers                     
                      , uuid
                      , vector
                      , time
@@ -73,43 +92,7 @@ executable groot
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
-                     , attoparsec
-                     , ansi-terminal
-                     , boxes
-                     , bytestring
-                     , conduit                     
-                     , exceptions
-                     , http-conduit
-                     , http-types
-                     , optparse-applicative                                                               
-                     , lens
-                     , resourcet
-                     , text
-                     , time
-                     , transformers
-                     , mtl
-                     , yaml
-                     , amazonka >= 1.5.0 && < 1.6
-                     , amazonka-core
-                     , amazonka-ecs
-                     , pptable
                      , groot
-  other-modules:       Groot.App.Cli
-                     , Groot.App.Cli.Parsers
-                     , Groot.App.Compose                     
-                     , Groot.App.Cluster.Events
-                     , Groot.App.Cluster
-                     , Groot.App.List.Base
-                     , Groot.App.List.Cluster
-                     , Groot.App.List.Instance
-                     , Groot.App.List.Task
-                     , Groot.App.List.TaskDef
-                     , Groot.App.List.Service
-                     , Groot.App.List
-                     , Groot.App.Service.Events
-                     , Groot.App.Service
-                     , Groot.App.Task
-                     , Groot.App
   default-language:    Haskell2010
 
 test-suite groot-test
