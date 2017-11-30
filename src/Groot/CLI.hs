@@ -1,10 +1,7 @@
 {-# LANGUAGE TemplateHaskell    #-}
 
 module Groot.CLI
-     ( CredentialsOpt(..)
-     , GrootCmd(..)
-     , GrootOpts(..)
-     , runGroot
+     ( runGroot
      ) where
 
 import           Control.Exception.Lens
