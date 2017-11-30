@@ -5,7 +5,7 @@ module Groot.CLI
      , runGroot
      ) where
 
-import           Options.Applicative
+import           Control.Monad.Trans.Maybe      
 import qualified Data.Attoparsec.Text as A
 import           Data.Semigroup ((<>))
 import           Data.String
@@ -17,6 +17,7 @@ import           Network.AWS (
                              , SecretKey(..)
                              , Region
                              )
+import           Options.Applicative
 import           Paths_groot (version)
 
 import Groot.CLI.Common
@@ -102,10 +103,52 @@ grootOpts = ( GrootOpts
           <*> commands
           ) <**> versionOpt
 
-runGroot :: (GrootOpts -> IO ()) -> IO ()
-runGroot prog =
-  prog =<< (execParser opts)
-  where opts = info (grootOpts <**> helper)
+-- | Generates the AWS Env from the command line options
+loadEnv :: GrootOpts -> IO Env
+loadEnv opts = do
+  configFile       <- defaultConfigFile
+  (creds, profile) <- buildCreds $ opts ^. cliAwsCreds
+  env              <- newEnv creds
+  assignRegion (findRegion configFile profile) env
+    where buildCreds :: CredentialsOpt -> IO (Credentials, Maybe Text)
+          buildCreds (ProfileOpt profile file) = do
+            profileName <- return $ maybe defaultSectionName id profile
+            credsFile   <- maybe defaultCredsFile return file
+            return (FromFile profileName credsFile, Just profileName)
+          buildCreds (KeysOpt accessKey secretKey) =
+            return (FromKeys accessKey secretKey, Nothing)
+
+          findRegion :: FilePath -> Maybe Text -> MaybeT IO Region
+          findRegion confFile profile = regionFromOpts <|> regionFromCfg
+            where regionFromOpts = MaybeT . return $ opts ^? cliAwsRegion
+                  regionFromCfg  = MaybeT $ do
+                    reg <- runExceptT $ regionFromConfig confFile profile
+                    case reg of
+                      Left err -> do
+                        printWarn err
+                        return Nothing
+                      Right r -> return (Just r)
+
+          assignRegion :: MaybeT IO Region -> Env -> IO Env
+          assignRegion r env = do
+            maybeRegion <- runMaybeT r
+            return $ maybe id (\x -> envRegion .~ x) maybeRegion env
+
+runCmd :: GrootCmd -> Env -> IO ()
+--runCmd (ComposeCmd opts) = runGrootCompose opts
+runCmd (ClusterCmd opts) = runClusterCmd opts
+runCmd (ListCmd opts)    = runListCmd opts
+runCmd (ServiceCmd opts) = runServiceCmd opts
+--runCmd (TaskCmd opts)    = runGrootTask opts
+
+runGroot :: GrootOpts -> IO ()
+runGroot opts =
+  prog =<< (execParser cli)
+  where prog = do
+          env <- loadEnv opts
+          runCmd (cliCmd opts) env
+        
+        cli = info (grootOpts <**> helper)
           ( fullDesc
           <> progDesc "Utility to manage ECS Clusters"
           <> header "groot" )
