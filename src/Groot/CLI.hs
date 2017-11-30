@@ -19,6 +19,9 @@ import           Network.AWS (
 import           Paths_groot (version)
 
 import Groot.CLI.Common
+import Groot.CLI.Cluster
+import Groot.CLI.List
+import Groot.CLI.Service
 import Groot.Data (
     ClusterRef(..)
   , TaskFamily(..)
@@ -71,9 +74,9 @@ versionOpt = infoOption versionInfo $ mconcat [
   ]
 
 data CliCmd =
-    ClusterCmd
-  | ListCmd
-  | ServiceCmd
+    ClusterCmd ClusterSubCmd
+  | ListCmd ListSubCmd
+  | ServiceCmd ServiceSubCmd
   deriving (Eq, Show)
 
 data CliOptions = CliOptions
