@@ -4,11 +4,11 @@ module Groot.CLI.Service
      , runServiceCmd
      ) where
 
-import Data.Semigroup ((<>))
+import           Data.Semigroup            ((<>))
 import           Network.AWS
 import           Options.Applicative
 
-import Groot.CLI.Service.Compose
+import           Groot.CLI.Service.Compose
 import           Groot.CLI.Service.Events
 import           Groot.Core
 

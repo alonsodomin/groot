@@ -34,11 +34,11 @@ library
                      , Groot.CLI.Service.Compose
                      , Groot.CLI.Service.Events
                      , Groot.CLI.Service
-                     , Groot.CLI
-                     , Groot.Compose
+                     , Groot.CLI                     
                      , Groot.Config
                      , Groot.Core
                      , Groot.Core.Common
+                     , Groot.Core.Compose
                      , Groot.Core.Console
                      , Groot.Core.Events                     
                      , Groot.Data.Conduit.STM

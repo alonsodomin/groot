@@ -10,10 +10,13 @@ import           Data.Yaml           (decodeFileEither,
 import           Network.AWS
 import           Options.Applicative
 
-import           Groot.Compose
+import           Groot.CLI.Common
+import           Groot.Core.Compose
+import           Groot.Types
 
 data ServiceComposeOpts = ServiceComposeOpts
   { composeFile :: FilePath
+  , cluster     :: ClusterRef
   } deriving (Eq, Show)
 
 serviceComposeOpts :: Parser ServiceComposeOpts
@@ -23,10 +26,13 @@ serviceComposeOpts = ServiceComposeOpts
                   <> short 'f'
                   <> metavar "COMPOSE_FILE"
                   <> help "Compose file" )
+                 <*> clusterOpt
 
 runServiceCompose :: ServiceComposeOpts -> Env -> IO ()
-runServiceCompose opts _ = do
+runServiceCompose opts env = do
   parsed <- decodeFileEither $ composeFile opts
   case parsed of
     Left err         -> putStrLn $ prettyPrintParseException err
-    Right composeDef -> print (composeDef :: GrootCompose)
+    Right composeDef -> do
+      runResourceT . runAWS env $ composeServices composeDef (cluster opts)
+      print (composeDef :: GrootCompose)
