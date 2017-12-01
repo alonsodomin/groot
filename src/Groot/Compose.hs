@@ -5,15 +5,16 @@
 
 module Groot.Compose where
 
+import           Control.Applicative
 import           Control.Lens
 import           Control.Monad.Trans.Maybe
 import           Data.Aeson
 import           Data.Aeson.Types
+import           Data.HashMap.Strict       (HashMap)
+import qualified Data.HashMap.Strict       as Map
 import qualified Data.List.NonEmpty        as NEL
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
-import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as Map
 import           GHC.Generics
 import           Network.AWS
 import qualified Network.AWS.ECS           as ECS
@@ -29,15 +30,21 @@ defaultProtocol = TCP
 
 instance FromJSON Protocol where
   parseJSON = withText "protocol" $ \str ->
-    case str of
-      "TCP" -> return TCP
-      "UDP" -> return UDP
+    case (T.toLower str) of
+      "tcp" -> return TCP
+      "udp" -> return UDP
       _     -> fail $ "Invalid protocol: " ++ (T.unpack str)
+
+data PortELBLink =
+    NameLink Text
+  | TargetGroupLink Text
+  deriving (Eq, Show)
 
 data PortMapping = PortMapping
   { _pmContainerPort :: Int
   , _pmHostPort      :: Maybe Int
   , _pmProtocol      :: Protocol
+  , _pmElbLink       :: Maybe PortELBLink
   } deriving (Eq, Show, Generic)
 
 makeLenses ''PortMapping
@@ -47,6 +54,12 @@ instance FromJSON PortMapping where
     _pmContainerPort <- o .: "container-port"
     _pmHostPort      <- o .:? "host-port"
     _pmProtocol      <- maybe defaultProtocol id <$> o .:? "protocol"
+
+    -- Load balancer link
+    let nameLink        = NameLink        <$> (MaybeT $ o .:? "lb-name")
+    let targetGroupLink = TargetGroupLink <$> (MaybeT $ o .:? "target-group")
+    _pmElbLink       <- runMaybeT $ nameLink <|> targetGroupLink
+
     return PortMapping{..}
 
 data ContainerLogConfig = ContainerLogConfig
@@ -106,30 +119,16 @@ defaultDeploymentStrategy = DSBlueGreen
 
 instance FromJSON DeploymentStrategy where
   parseJSON = withText "deployment strategy" $ \txt ->
-    case txt of
+    case (T.toLower txt) of
       "blue-green" -> return DSBlueGreen
       "rolling"    -> return DSRolling
       _            -> fail $ "Invalid deployment strategy: " ++ (T.unpack txt)
-
-data ServiceLoadBalancer = ServiceLoadBalancer
-  { _slbTargetGroup   :: Text
-  , _slbContainerName :: Text
-  , _slbContainerPort :: Int
-  } deriving (Eq, Show, Generic)
-
-instance FromJSON ServiceLoadBalancer where
-  parseJSON = withObject "load balancer" $ \o -> do
-    _slbTargetGroup   <- o .: "target-group"
-    _slbContainerName <- o .: "container-name"
-    _slbContainerPort <- o .: "container-port"
-    return ServiceLoadBalancer{..}
 
 data ServiceDetails = ServiceDetails
   { _sdName               :: Text
   , _sdRole               :: Text
   , _sdDesiredCount       :: Int
   , _sdDeploymentStrategy :: DeploymentStrategy
-  , _sdLoadBalancers      :: [ServiceLoadBalancer]
   } deriving (Eq, Show, Generic)
 
 makeLenses ''ServiceDetails
@@ -140,7 +139,6 @@ instance FromJSON ServiceDetails where
     _sdRole               <- o .: "role"
     _sdDesiredCount       <- o .: "desired"
     _sdDeploymentStrategy <- maybe defaultDeploymentStrategy id <$> o .:? "deployment-strategy"
-    _sdLoadBalancers      <- maybe [] id <$> o .:? "load-balancers"
     return ServiceDetails{..}
 
 data Deployment = Deployment

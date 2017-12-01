@@ -8,8 +8,10 @@
         memory: 4048
         port-mappings:
           - container-port: 8080
+            target-group: pluto-target-group
           - container-port: 2551
             host-port: 9030
+            lb-name: cluster-elb
         logging:
           driver: awslogs
           options:
@@ -23,7 +25,3 @@
     role: "Bye"
     desired: 5
     deployment-strategy: rolling
-    load-balancers:
-      - target-group: pluto-target-group
-        container-name: pluto
-        container-port: 8080
