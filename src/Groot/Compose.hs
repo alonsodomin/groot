@@ -36,7 +36,7 @@ instance FromJSON Protocol where
       _     -> fail $ "Invalid protocol: " ++ (T.unpack str)
 
 data PortELBLink =
-    NameLink Text
+    ELBNameLink Text
   | TargetGroupLink Text
   deriving (Eq, Show)
 
@@ -56,7 +56,7 @@ instance FromJSON PortMapping where
     _pmProtocol      <- maybe defaultProtocol id <$> o .:? "protocol"
 
     -- Load balancer link
-    let nameLink        = NameLink        <$> (MaybeT $ o .:? "lb-name")
+    let nameLink        = ELBNameLink     <$> (MaybeT $ o .:? "lb-name")
     let targetGroupLink = TargetGroupLink <$> (MaybeT $ o .:? "target-group")
     _pmElbLink       <- runMaybeT $ nameLink <|> targetGroupLink
 
@@ -94,21 +94,6 @@ instance FromJSON Container where
     _cLogConfig    <- o .:? "logging"
     return Container{..}
 
-data TaskDetails = TaskDetails
-  { _tdName       :: Text
-  , _tdRole       :: Text
-  , _tdContainers :: [Container]
-  } deriving (Eq, Show, Generic)
-
-makeLenses ''TaskDetails
-
-instance FromJSON TaskDetails where
-  parseJSON = withObject "task definition" $ \o -> do
-    _tdName       <- T.pack <$> o .: "name"
-    _tdRole       <- T.pack <$> o .: "role"
-    _tdContainers <- o .: "containers"
-    return TaskDetails{..}
-
 data DeploymentStrategy =
     DSBlueGreen
   | DSRolling
@@ -124,37 +109,29 @@ instance FromJSON DeploymentStrategy where
       "rolling"    -> return DSRolling
       _            -> fail $ "Invalid deployment strategy: " ++ (T.unpack txt)
 
-data ServiceDetails = ServiceDetails
-  { _sdName               :: Text
-  , _sdRole               :: Text
-  , _sdDesiredCount       :: Int
+data ServiceDeployment = ServiceDeployment
+  { _sdName :: Text
+  , _sdTaskRole :: Text
+  , _sdServiceRole :: Text
+  , _sdDesiredCount :: Int
   , _sdDeploymentStrategy :: DeploymentStrategy
+  , _sdContainers :: [Container]
   } deriving (Eq, Show, Generic)
 
-makeLenses ''ServiceDetails
+makeLenses ''ServiceDeployment
 
-instance FromJSON ServiceDetails where
-  parseJSON = withObject "service definition" $ \o -> do
-    _sdName               <- o .: "name"
-    _sdRole               <- o .: "role"
-    _sdDesiredCount       <- o .: "desired"
+instance FromJSON ServiceDeployment where
+  parseJSON = withObject "service deployment" $ \o -> do
+    _sdName        <- o .: "name"
+    _sdTaskRole    <- o .: "task-role"
+    _sdServiceRole <- o .: "service-role"
+    _sdDesiredCount <- maybe 1 id <$> o .:? "desired-count"
     _sdDeploymentStrategy <- maybe defaultDeploymentStrategy id <$> o .:? "deployment-strategy"
-    return ServiceDetails{..}
+    _sdContainers <- o .: "containers"
+    return ServiceDeployment{..}
 
-data Deployment = Deployment
-  { _dTaskDetails    :: TaskDetails
-  , _dServiceDetails :: ServiceDetails
-  } deriving (Eq, Show, Generic)
-
-makeLenses ''Deployment
-
-instance FromJSON Deployment where
-  parseJSON = withObject "deployment" $ \o -> do
-    _dTaskDetails    <- o .: "task"
-    _dServiceDetails <- o .: "service"
-    return Deployment{..}
-
-data GrootCompose = GrootCompose [Deployment] deriving (Eq, Show, Generic)
+data GrootCompose = GrootCompose [ServiceDeployment]
+  deriving (Eq, Show, Generic)
 
 instance FromJSON GrootCompose where
   parseJSON = genericParseJSON defaultOptions {

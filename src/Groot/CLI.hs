@@ -26,7 +26,6 @@ import           System.Console.ANSI
 
 import           Groot.CLI.Cluster
 import           Groot.CLI.Common
-import           Groot.CLI.Compose
 import           Groot.CLI.List
 import           Groot.CLI.Service
 import           Groot.Config
@@ -85,7 +84,6 @@ data GrootCmd =
     ClusterCmd ClusterSubCmd
   | ListCmd ListSubCmd
   | ServiceCmd ServiceSubCmd
-  | ComposeCmd ComposeOpts
   deriving (Eq, Show)
 
 data GrootOpts = GrootOpts
@@ -101,10 +99,6 @@ commands = hsubparser
    ( command "ls"      (info (ListCmd    <$> listCmds)    (progDesc "List ECS resources"))
   <> command "cluster" (info (ClusterCmd <$> clusterCmds) (progDesc "Perform cluster related operations"))
   <> command "service" (info (ServiceCmd <$> serviceCmds) (progDesc "Perform service related operations"))
-<<<<<<< HEAD
-=======
-  <> command "compose" (info (ComposeCmd <$> composeOpts) (progDesc "Handle Groot compose files"))
->>>>>>> Improve the YAML parser for compose files
   -- <> command "task"    (info (TaskCmd    <$> grootTaskCli)    (progDesc "Manage ECS tasks"))
     )
 

@@ -1,27 +1,23 @@
-- task:
-    name: pluto
-    role: "Hi"
-    containers:
-      - name: pluto
-        image: 140821111621.dkr.ecr.eu-west-1.amazonaws.com/cf-rideways-qa/pluto
-        cpu: 1024
-        memory: 4048
-        port-mappings:
-          - container-port: 8080
-            target-group: pluto-target-group
-          - container-port: 2551
-            host-port: 9030
-            lb-name: cluster-elb
-        logging:
-          driver: awslogs
-          options:
-            awslogs-group: pluto-service
-      - name: mysql
-        image: library/mysql
-        environment:
-          MYSQL_PASSWORD: password
-  service:
-    name: pluto
-    role: "Bye"
-    desired: 5
-    deployment-strategy: rolling
+- name: pluto
+  task-role: "Hi"
+  service-role: "Bye"
+  containers:
+    - name: pluto
+      image: 140821111621.dkr.ecr.eu-west-1.amazonaws.com/cf-rideways-qa/pluto
+      cpu: 1024
+      memory: 4048
+      port-mappings:
+        - container-port: 8080
+          target-group: pluto-target-group
+        - container-port: 2551
+          host-port: 9030
+          lb-name: cluster-elb
+        - container-port: 1190
+      logging:
+        driver: awslogs
+        options:
+          awslogs-group: pluto-service
+    - name: mysql
+      image: library/mysql
+      environment:
+        MYSQL_PASSWORD: password

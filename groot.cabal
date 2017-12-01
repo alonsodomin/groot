@@ -21,8 +21,7 @@ library
                      , Groot.AWS.Task
                      , Groot.AWS.TaskDef
                      , Groot.AWS
-                     , Groot.CLI.Common
-                     , Groot.CLI.Compose
+                     , Groot.CLI.Common                     
                      , Groot.CLI.Cluster.Events
                      , Groot.CLI.Cluster
                      , Groot.CLI.List.Common
@@ -32,6 +31,7 @@ library
                      , Groot.CLI.List.Task
                      , Groot.CLI.List.TaskDef
                      , Groot.CLI.List
+                     , Groot.CLI.Service.Compose
                      , Groot.CLI.Service.Events
                      , Groot.CLI.Service
                      , Groot.CLI

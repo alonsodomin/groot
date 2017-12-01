@@ -1,7 +1,7 @@
-module Groot.CLI.Compose
-     ( ComposeOpts(..)
-     , composeOpts
-     , runCompose
+module Groot.CLI.Service.Compose
+     ( ServiceComposeOpts(..)
+     , serviceComposeOpts
+     , runServiceCompose
      ) where
 
 import           Data.Semigroup      ((<>))
@@ -12,20 +12,20 @@ import           Options.Applicative
 
 import           Groot.Compose
 
-data ComposeOpts = ComposeOpts
+data ServiceComposeOpts = ServiceComposeOpts
   { composeFile :: FilePath
   } deriving (Eq, Show)
 
-composeOpts :: Parser ComposeOpts
-composeOpts = ComposeOpts
-          <$> strOption
-            ( long "file"
-           <> short 'f'
-           <> metavar "COMPOSE_FILE"
-           <> help "Compose file" )
+serviceComposeOpts :: Parser ServiceComposeOpts
+serviceComposeOpts = ServiceComposeOpts
+                 <$> strOption
+                   ( long "file"
+                  <> short 'f'
+                  <> metavar "COMPOSE_FILE"
+                  <> help "Compose file" )
 
-runCompose :: ComposeOpts -> Env -> IO ()
-runCompose opts _ = do
+runServiceCompose :: ServiceComposeOpts -> Env -> IO ()
+runServiceCompose opts _ = do
   parsed <- decodeFileEither $ composeFile opts
   case parsed of
     Left err         -> putStrLn $ prettyPrintParseException err
