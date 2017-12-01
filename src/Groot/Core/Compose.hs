@@ -19,6 +19,7 @@ import qualified Data.HashMap.Strict          as Map
 import qualified Data.List.NonEmpty           as NEL
 import           Data.Text                    (Text)
 import qualified Data.Text                    as T
+import Data.Foldable
 import           GHC.Generics
 import           Network.AWS
 import qualified Network.AWS.ECS              as ECS
@@ -163,6 +164,21 @@ registerTaskDefinitions env = mapM registerSingle
   where registerSingle x = MaybeT $ do
           res <- runAWS env . send $ createTaskDefinitionReq x
           return $ res ^. ECS.rtdrsTaskDefinition
+
+deregisterTaskDefinitions :: (MonadResource m, MonadBaseControl IO m)
+                          => Env
+                          -> [TaskDefArn]
+                          -> m ()
+deregisterTaskDefinitions env arns = forM_ arns deregisterSingle
+  where deregisterSingle x = do
+          _ <- runAWS env . send $ ECS.deregisterTaskDefinition $ toText x
+          return ()
+
+registerTasks :: (MonadResource m, MonadBaseControl IO m)
+              => Env
+              -> [ServiceDeployment]
+              -> m [(ServiceDeployment, ECS.TaskDefinition)]
+registerTasks = undefined
 
 findActiveService :: ContainerServiceRef -> ClusterRef -> MaybeT AWS ECS.ContainerService
 findActiveService serviceRef clusterRef =
