@@ -47,6 +47,7 @@ empty = styled noStyle T.empty
 
 singleton :: Char -> StyledText
 singleton ch = styled noStyle (T.singleton ch)
+{-# INLINE singleton #-}
 
 styleless :: Text -> StyledText
 styleless = styled noStyle

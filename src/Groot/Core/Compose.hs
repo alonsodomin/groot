@@ -5,11 +5,14 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE LambdaCase       #-}
 
 module Groot.Core.Compose where
 
 import           Control.Applicative
 import           Control.Lens
+import Control.Monad.Free
+import Control.Monad.Free.TH
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Maybe
@@ -127,16 +130,9 @@ instance FromJSON GrootCompose where
   parseJSON = genericParseJSON defaultOptions {
                  fieldLabelModifier = drop 1 }
 
--- Operations
-
-data ServiceComposeOp a =
-    FindActiveCluster ClusterRef (ECS.Cluster -> a)
-  | RegisterTasks [ServiceDeployment] ([(ServiceDeployment, ECS.TaskDefinition)] -> a)
-  deriving Functor
-
 -- Validates that the given id points to an active cluster
-findActiveCluster :: ClusterRef -> AWS ECS.Cluster
-findActiveCluster clusterRef = do
+findActiveCluster' :: ClusterRef -> AWS ECS.Cluster
+findActiveCluster' clusterRef = do
   mcluster <- runMaybeT $ filterM isActiveCluster (findCluster clusterRef)
   case mcluster of
     Nothing -> fail $ "No active cluster found identified by: " ++ (T.unpack . toText $ clusterRef)
@@ -184,11 +180,11 @@ deregisterTaskDefinitions env arns = forM_ arns deregisterSingle
           _ <- runAWS env . send $ ECS.deregisterTaskDefinition $ toText x
           return ()
 
-registerTasks :: (MonadResource m, MonadBaseControl IO m)
-              => Env
-              -> [ServiceDeployment]
-              -> m [(ServiceDeployment, ECS.TaskDefinition)]
-registerTasks env = undefined
+registerTasks' :: (MonadResource m, MonadBaseControl IO m)
+               => Env
+               -> [ServiceDeployment]
+               -> m [(ServiceDeployment, ECS.TaskDefinition)]
+registerTasks' env = undefined
   where registerSingle :: (MonadResource m, MonadBaseControl IO m)
                        => ServiceDeployment
                        -> StateT [ECS.TaskDefinition] m (ServiceDeployment, ECS.TaskDefinition)
@@ -211,6 +207,22 @@ findActiveService serviceRef clusterRef =
 
 composeServices :: GrootCompose -> ClusterRef -> AWS ()
 composeServices (GrootCompose services) clusterRef = do
-  cluster <- findActiveCluster clusterRef
+  --cluster <- findActiveCluster clusterRef
   taskReq <- pure $ createTaskDefinitionReq (head services)
   liftIO $ print taskReq
+
+-- Operations
+
+data ServiceCompose a =
+    FindActiveCluster ClusterRef (ECS.Cluster -> a)
+  | RegisterTasks [ServiceDeployment] ([(ServiceDeployment, ECS.TaskDefinition)] -> a)
+  deriving Functor
+
+makeFree ''ServiceCompose
+
+type ServiceComposeM = Free ServiceCompose
+
+interpreter :: ServiceComposeM a -> AWS a
+interpreter = foldFree $ \case
+  FindActiveCluster clusterRef next ->
+    next <$> findActiveCluster' clusterRef
