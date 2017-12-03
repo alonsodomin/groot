@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module Groot.Data.Text.Display where
+module Groot.Data.Text.Display 
+     ( Display (..)
+     ) where
 
 import           Control.Monad.IO.Class
 import           Data.Foldable
@@ -13,12 +15,16 @@ class Display a where
 
 instance Display Char where
   display = liftIO . print
+  {-# INLINE display #-}
 
 instance Display Text where
   display = liftIO . T.putStr
+  {-# INLINE display #-}
 
 instance (Foldable f, Display a) => Display (f a) where
   display xs = forM_ xs display
+  {-# INLINE display #-}
 
 instance Display String where
   display = display . T.pack
+  {-# INLINE display #-}

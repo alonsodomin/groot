@@ -129,7 +129,7 @@ instance FromJSON GrootCompose where
 
 -- Operations
 
-data ComposeOp a =
+data ServiceComposeOp a =
     FindActiveCluster ClusterRef (ECS.Cluster -> a)
   | RegisterTasks [ServiceDeployment] ([(ServiceDeployment, ECS.TaskDefinition)] -> a)
   deriving Functor

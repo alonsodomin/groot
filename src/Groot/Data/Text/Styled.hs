@@ -1,6 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Groot.Data.Text.Styled where
+module Groot.Data.Text.Styled
+     ( Style
+     , noStyle
+     , blueStyle
+     , redStyle
+     , yellowStyle
+     , StyledText
+     , styled
+     , empty
+     , singleton
+     , styleless
+     , (<+>)
+     ) where
 
 import           Control.Monad.IO.Class
 import           Data.Semigroup
@@ -27,15 +39,18 @@ data StyledText =
 
 styled :: Style -> Text -> StyledText
 styled = TextSpan
+{-# INLINE styled #-}
 
 empty :: StyledText
 empty = styled noStyle T.empty
+{-# INLINE empty #-}
 
 singleton :: Char -> StyledText
 singleton ch = styled noStyle (T.singleton ch)
 
 styleless :: Text -> StyledText
 styleless = styled noStyle
+{-# INLINE styleless #-}
 
 instance IsString StyledText where
   fromString str = styled noStyle (T.pack str)
