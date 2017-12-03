@@ -2,8 +2,9 @@
 
 module Groot.Data.Text
      (
-       module Data.Attoparsec.Text
-     , module Network.AWS.Data.Text
+       module Network.AWS.Data.Text
+     , module Groot.Data.Text.Display
+     , module Groot.Data.Text.Styled
      , uuid
      , subparser
      ) where
@@ -14,6 +15,9 @@ import qualified Data.Text             as T
 import           Data.UUID             (UUID)
 import qualified Data.UUID             as UUID
 import           Network.AWS.Data.Text hiding (takeText)
+
+import Groot.Data.Text.Display
+import Groot.Data.Text.Styled
 
 uuid :: Parser UUID
 uuid = do

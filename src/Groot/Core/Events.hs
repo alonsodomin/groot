@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Groot.Core.Events
@@ -25,6 +26,7 @@ import           Control.Monad.Trans.State.Lazy
 import           Data.Conduit
 import qualified Data.Conduit.List              as CL
 import           Data.Maybe                     (listToMaybe)
+import Data.Text (Text)
 import qualified Data.Text                      as T
 import           Data.Time
 import           Network.AWS                    hiding (await)
@@ -35,13 +37,14 @@ import           Groot.Core.Common
 import           Groot.Core.Console
 import           Groot.Data.Conduit.STM
 import           Groot.Data.Filter
+import Groot.Data.Text
 import           Groot.Exception
 import           Groot.Types
 
-formatEventTime :: MonadIO m => UTCTime -> m String
+formatEventTime :: MonadIO m => UTCTime -> m Text
 formatEventTime time = do
   dt <- liftIO $ utcToLocalZonedTime time
-  return $ formatTime defaultTimeLocale "%d/%m/%Y %T" dt
+  return . T.pack $ formatTime defaultTimeLocale "%d/%m/%Y %T" dt
 
 pollServiceEvents :: (MonadReader e m, MonadBaseControl IO m, MonadIO m, HasEnv e)
                   => ContainerServiceCoords
@@ -141,9 +144,7 @@ clusterServiceEventLog clusterRefs inf = do
 printEvent :: MonadIO m => ECS.ServiceEvent -> m ()
 printEvent event = do
   eventTime <- maybe (return "") formatEventTime $ event ^. ECS.seCreatedAt
-  liftIO $ do
-    runResourceT $ withSGR yellowText $ putStr eventTime
-    putStrLn $ ' ':(maybe "" T.unpack $ event ^. ECS.seMessage)
+  display $ (styled yellowStyle eventTime) <+> (styleless $ maybe "" id $ event ^. ECS.seMessage)
 
 printEventSink :: MonadIO m => Sink ECS.ServiceEvent m ()
 printEventSink = do

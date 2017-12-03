@@ -66,6 +66,7 @@ module Groot.Types
 
 import           Control.Lens
 import           Control.Monad     (join)
+import Data.Attoparsec.Text
 import           Data.Data
 import           Data.Monoid
 import           Data.String

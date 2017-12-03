@@ -42,7 +42,9 @@ library
                      , Groot.Core.Console
                      , Groot.Core.Events                     
                      , Groot.Data.Conduit.STM
-                     , Groot.Data.Filter                     
+                     , Groot.Data.Filter
+                     , Groot.Data.Text.Display
+                     , Groot.Data.Text.Styled
                      , Groot.Data.Text
                      , Groot.Exception.Cluster
                      , Groot.Exception.Instance
@@ -64,6 +66,7 @@ library
                      , conduit-combinators
                      , directory
                      , exceptions
+                     , free
                      , http-conduit
                      , http-types
                      , ini

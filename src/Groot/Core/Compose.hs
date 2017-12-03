@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -10,19 +11,21 @@ module Groot.Core.Compose where
 import           Control.Applicative
 import           Control.Lens
 import           Control.Monad.IO.Class
+import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Maybe
 import           Control.Monad.Trans.Resource
+import           Control.Monad.Trans.State.Lazy
 import           Data.Aeson
 import           Data.Aeson.Types
-import           Data.HashMap.Strict          (HashMap)
-import qualified Data.HashMap.Strict          as Map
-import qualified Data.List.NonEmpty           as NEL
-import           Data.Text                    (Text)
-import qualified Data.Text                    as T
-import Data.Foldable
+import           Data.Foldable
+import           Data.HashMap.Strict            (HashMap)
+import qualified Data.HashMap.Strict            as Map
+import qualified Data.List.NonEmpty             as NEL
+import           Data.Text                      (Text)
+import qualified Data.Text                      as T
 import           GHC.Generics
 import           Network.AWS
-import qualified Network.AWS.ECS              as ECS
+import qualified Network.AWS.ECS                as ECS
 
 import           Groot.Core
 import           Groot.Data.Filter
@@ -124,6 +127,13 @@ instance FromJSON GrootCompose where
   parseJSON = genericParseJSON defaultOptions {
                  fieldLabelModifier = drop 1 }
 
+-- Operations
+
+data ComposeOp a =
+    FindActiveCluster ClusterRef (ECS.Cluster -> a)
+  | RegisterTasks [ServiceDeployment] ([(ServiceDeployment, ECS.TaskDefinition)] -> a)
+  deriving Functor
+
 -- Validates that the given id points to an active cluster
 findActiveCluster :: ClusterRef -> AWS ECS.Cluster
 findActiveCluster clusterRef = do
@@ -178,7 +188,22 @@ registerTasks :: (MonadResource m, MonadBaseControl IO m)
               => Env
               -> [ServiceDeployment]
               -> m [(ServiceDeployment, ECS.TaskDefinition)]
-registerTasks = undefined
+registerTasks env = undefined
+  where registerSingle :: (MonadResource m, MonadBaseControl IO m)
+                       => ServiceDeployment
+                       -> StateT [ECS.TaskDefinition] m (ServiceDeployment, ECS.TaskDefinition)
+        registerSingle dep = do
+          res   <- lift $ runAWS env . send $ createTaskDefinitionReq dep
+          mtask <- pure $ res ^. ECS.rtdrsTaskDefinition
+          case mtask of
+            Nothing   -> fail $ "Could not register task: " ++ (T.unpack $ dep ^. sdName)
+            Just task -> do
+              prev <- get
+              put (task:prev)
+              return (dep, task)
+
+        rollback :: [ECS.TaskDefinition] -> m ()
+        rollback = undefined
 
 findActiveService :: ContainerServiceRef -> ClusterRef -> MaybeT AWS ECS.ContainerService
 findActiveService serviceRef clusterRef =
