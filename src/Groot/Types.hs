@@ -65,19 +65,19 @@ module Groot.Types
      ) where
 
 import           Control.Lens
-import           Control.Monad     (join)
-import Data.Attoparsec.Text
+import           Control.Monad        (join)
+import           Data.Attoparsec.Text
 import           Data.Data
 import           Data.Monoid
 import           Data.String
-import           Data.Text         (Text)
-import qualified Data.Text         as T
-import           Data.UUID         (UUID)
-import qualified Data.UUID         as UUID
-import           GHC.Generics      hiding (to)
+import           Data.Text            (Text)
+import qualified Data.Text            as T
+import           Data.UUID            (UUID)
+import qualified Data.UUID            as UUID
+import           GHC.Generics         hiding (to)
 import           Network.AWS
-import qualified Network.AWS.ECS   as ECS
-import           Prelude           hiding (takeWhile)
+import qualified Network.AWS.ECS      as ECS
+import           Prelude              hiding (takeWhile)
 
 import           Groot.Data.Filter
 import           Groot.Data.Text

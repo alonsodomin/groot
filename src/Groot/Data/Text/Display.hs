@@ -5,7 +5,7 @@ module Groot.Data.Text.Display where
 import           Control.Monad.IO.Class
 import           Data.Foldable
 import           Data.Text              (Text)
-import qualified Data.Text           as T
+import qualified Data.Text              as T
 import qualified Data.Text.IO           as T
 
 class Display a where

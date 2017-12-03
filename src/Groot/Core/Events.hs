@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 module Groot.Core.Events
        ( serviceEventLog
@@ -26,7 +26,7 @@ import           Control.Monad.Trans.State.Lazy
 import           Data.Conduit
 import qualified Data.Conduit.List              as CL
 import           Data.Maybe                     (listToMaybe)
-import Data.Text (Text)
+import           Data.Text                      (Text)
 import qualified Data.Text                      as T
 import           Data.Time
 import           Network.AWS                    hiding (await)
@@ -37,7 +37,7 @@ import           Groot.Core.Common
 import           Groot.Core.Console
 import           Groot.Data.Conduit.STM
 import           Groot.Data.Filter
-import Groot.Data.Text
+import           Groot.Data.Text
 import           Groot.Exception
 import           Groot.Types
 

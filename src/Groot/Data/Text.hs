@@ -10,14 +10,14 @@ module Groot.Data.Text
      ) where
 
 import           Data.Attoparsec.Text
-import           Data.Text             (Text)
-import qualified Data.Text             as T
-import           Data.UUID             (UUID)
-import qualified Data.UUID             as UUID
-import           Network.AWS.Data.Text hiding (takeText)
+import           Data.Text               (Text)
+import qualified Data.Text               as T
+import           Data.UUID               (UUID)
+import qualified Data.UUID               as UUID
+import           Network.AWS.Data.Text   hiding (takeText)
 
-import Groot.Data.Text.Display
-import Groot.Data.Text.Styled
+import           Groot.Data.Text.Display
+import           Groot.Data.Text.Styled
 
 uuid :: Parser UUID
 uuid = do
