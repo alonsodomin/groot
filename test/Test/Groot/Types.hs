@@ -4,8 +4,9 @@ module Test.Groot.Types
      ( describeTypes
      ) where
 
+import           Data.Attoparsec.Text
 import           Data.Either
-import qualified Data.Text           as T
+import qualified Data.Text            as T
 import           Data.Text.Arbitrary
 import           Groot.Data.Text
 import           Groot.Types

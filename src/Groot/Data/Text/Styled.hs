@@ -15,11 +15,13 @@ module Groot.Data.Text.Styled
      ) where
 
 import           Control.Monad.IO.Class
+import           Data.Foldable
 import           Data.Semigroup
 import           Data.String
 import           Data.Text               (Text)
 import qualified Data.Text               as T
 import qualified Data.Text.IO            as T
+import           Network.AWS.Data.Text
 import           System.Console.ANSI
 
 import           Groot.Data.Text.Display
@@ -69,10 +71,14 @@ instance Monoid StyledText where
 (<+>) :: StyledText -> StyledText -> StyledText
 lhs <+> rhs = lhs <> (singleton ' ') <> rhs
 
+instance ToText StyledText where
+  toText (TextSpan _ txt) = txt
+  toText (TextBlock xs)   = T.concat $ toText <$> xs
+
 instance Display StyledText where
   display (TextSpan style txt) = liftIO $ do
     setSGR style
     T.putStr txt
   display (TextBlock xs) = do
-    display xs
+    forM_ xs display
     liftIO $ T.putStrLn ""

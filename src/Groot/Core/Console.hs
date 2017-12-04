@@ -5,27 +5,24 @@
 
 module Groot.Core.Console
      (
+       Severity (..)
+     , MonadConsole (..)
      -- User Prompts
-       askUser
      , askUserYN
      , askUserToContinue
      -- User messages
-     , putMessage
      , putInfo
      , putWarn
      , putError
-     , withSGR
      ) where
 
 import           Control.Monad.IO.Class
-import           Control.Monad.Trans.Resource
 import           Data.Semigroup
-import           Data.Text                    (Text)
-import qualified Data.Text                    as T
-import qualified Data.Text.IO                 as T
+import           Data.Text               (Text)
+import qualified Data.Text               as T
+import qualified Data.Text.IO            as T
 import           Groot.Data.Text.Display
-import           Groot.Data.Text.Styled       as ST
-import           System.Console.ANSI
+import           Groot.Data.Text.Styled  as ST
 import           System.IO
 
 errorText, warnText, infoText :: StyledText
@@ -76,13 +73,6 @@ askUserToContinue msg cont = do
   answer <- askUserYN False msg
   if answer then cont
   else return ()
-
-withSGR :: [SGR] -> IO a -> ResourceT IO a
-withSGR sgr action = do
-  (releaseKey, _) <- allocate (setSGR sgr) (\_ -> setSGR [Reset])
-  result <- liftIO action
-  release releaseKey
-  return result
 
 putInfo :: (MonadConsole m, Display a) => a -> m ()
 putInfo = putMessage Info

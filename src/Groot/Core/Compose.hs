@@ -1,18 +1,18 @@
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE TemplateHaskell       #-}
-{-# LANGUAGE LambdaCase       #-}
 
 module Groot.Core.Compose where
 
 import           Control.Applicative
 import           Control.Lens
-import Control.Monad.Free
-import Control.Monad.Free.TH
+import           Control.Monad.Free
+import           Control.Monad.Free.TH
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Maybe
