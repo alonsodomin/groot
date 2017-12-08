@@ -62,8 +62,10 @@ library
                      , http-types
                      , ini
                      , lens
-                     , lifted-base                     
-                     , mtl
+                     , lifted-base
+                     , mmorph
+                     , monad-control
+                     , mtl >= 2.2 && < 2.3
                      , optparse-applicative
                      , pptable
                      , resourcet

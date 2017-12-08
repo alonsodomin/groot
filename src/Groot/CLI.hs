@@ -204,7 +204,7 @@ handleExceptions act = catches act [
   ]
 
 -- | Runs a Groot command with the given AWS environment
-runCmd :: GrootCmd -> Env -> IO ()
+runCmd :: GrootCmd -> GrootM IO ()
 --runCmd (ComposeCmd opts) = runGrootCompose opts
 runCmd (ClusterCmd opts) = runClusterCmd opts
 runCmd (ListCmd opts)    = runListCmd opts
