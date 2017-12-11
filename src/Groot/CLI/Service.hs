@@ -34,5 +34,5 @@ serviceCmds = hsubparser
 -- run function
 
 runServiceCmd :: ServiceSubCmd -> GrootM IO ()
-runServiceCmd (ServiceEventsCmd eventsOpts) = runServiceEvents eventsOpts
+runServiceCmd (ServiceEventsCmd eventsOpts)   = runServiceEvents eventsOpts
 runServiceCmd (ServiceComposeCmd composeOpts) = runServiceCompose composeOpts

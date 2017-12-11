@@ -4,13 +4,16 @@ module Groot.CLI.Service.Compose
      , runServiceCompose
      ) where
 
-import           Data.Semigroup      ((<>))
-import           Data.Yaml           (decodeFileEither,
-                                      prettyPrintParseException)
+import           Control.Monad.IO.Class
+import           Control.Monad.Reader
+import           Data.Semigroup         ((<>))
+import           Data.Yaml              (decodeFileEither,
+                                         prettyPrintParseException)
 import           Network.AWS
 import           Options.Applicative
 
 import           Groot.CLI.Common
+import           Groot.Core
 import           Groot.Core.Compose
 import           Groot.Types
 
@@ -28,11 +31,12 @@ serviceComposeOpts = ServiceComposeOpts
                   <> help "Compose file" )
                  <*> clusterOpt
 
-runServiceCompose :: ServiceComposeOpts -> Env -> IO ()
-runServiceCompose opts env = do
-  parsed <- decodeFileEither $ composeFile opts
+runServiceCompose :: ServiceComposeOpts -> GrootM IO ()
+runServiceCompose opts = do
+  env    <- ask
+  parsed <- liftIO . decodeFileEither $ composeFile opts
   case parsed of
-    Left err         -> putStrLn $ prettyPrintParseException err
-    Right composeDef -> do
+    Left err         -> liftIO . putStrLn $ prettyPrintParseException err
+    Right composeDef -> liftIO $ do
       runResourceT . runAWS env $ composeServices composeDef (cluster opts)
       print (composeDef :: GrootCompose)
