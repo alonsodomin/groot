@@ -8,6 +8,7 @@ import           Network.AWS
 import           Options.Applicative
 
 import           Groot.CLI.Service.Events
+import           Groot.Core
 
 data ServiceSubCmd =
   ServiceEventsCmd ServiceEventOpts
@@ -25,5 +26,5 @@ serviceCmds = hsubparser
 
 -- run function
 
-runServiceCmd :: ServiceSubCmd -> Env -> IO ()
+runServiceCmd :: ServiceSubCmd -> GrootM IO ()
 runServiceCmd (ServiceEventsCmd eventsOpts) = runServiceEvents eventsOpts

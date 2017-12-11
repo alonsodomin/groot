@@ -6,7 +6,6 @@ module Groot.CLI.List
 
 import           Data.Maybe                       (maybeToList)
 import           Data.Semigroup                   ((<>))
-import           Network.AWS
 import           Options.Applicative
 
 import           Groot.CLI.Common
@@ -15,6 +14,7 @@ import           Groot.CLI.List.ContainerInstance
 import           Groot.CLI.List.ContainerService
 import           Groot.CLI.List.Task
 import           Groot.CLI.List.TaskDef
+import           Groot.Core
 import           Groot.Types
 
 data ListSubCmd =
@@ -54,7 +54,7 @@ listCmds = hsubparser
  <> command "services"  (info listServicesCmd  (progDesc "List services"))
   )
 
-runListCmd :: ListSubCmd -> Env -> IO ()
+runListCmd :: ListSubCmd -> GrootM IO ()
 runListCmd (ListClustersCmd clusterId)        = printClusterSummary clusterId
 runListCmd (ListInstancesCmd clusterId)       = printInstanceSummary clusterId
 runListCmd (ListTasksCmd clusterId)           = printTaskSummary clusterId

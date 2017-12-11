@@ -9,13 +9,15 @@ module Groot.CLI.List.TaskDef
      ) where
 
 import           Control.Lens
+import           Control.Monad.IO.Class
+import           Control.Monad.Trans.Reader
 import           Data.Conduit
-import qualified Data.Conduit.List         as CL
+import qualified Data.Conduit.List          as CL
 import           Data.Data
-import           Data.Text                 hiding (foldr)
+import           Data.Text                  hiding (foldr)
 import           GHC.Generics
 import           Network.AWS
-import qualified Network.AWS.ECS           as ECS
+import qualified Network.AWS.ECS            as ECS
 import           Text.PrettyPrint.Tabulate
 
 import           Groot.CLI.List.Common
@@ -44,7 +46,8 @@ summarizeTaskDefs filters =
      =$= CL.mapMaybe summarize
      =$ CL.consume
 
-printTaskDefsSummary :: [TaskDefFilter] -> Env -> IO ()
-printTaskDefsSummary filters env = do
+printTaskDefsSummary :: [TaskDefFilter] -> GrootM IO ()
+printTaskDefsSummary filters = do
+  env <- ask
   xs <- runResourceT . runAWS env $ summarizeTaskDefs filters
-  printTable' "No task definitions found" xs
+  liftIO $ printTable' "No task definitions found" xs

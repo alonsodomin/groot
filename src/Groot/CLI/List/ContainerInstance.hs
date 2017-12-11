@@ -8,14 +8,16 @@ module Groot.CLI.List.ContainerInstance
      ) where
 
 import           Control.Lens
+import           Control.Monad.IO.Class
+import           Control.Monad.Trans.Reader
 import           Data.Conduit
-import qualified Data.Conduit.List         as CL
+import qualified Data.Conduit.List          as CL
 import           Data.Data
 import           Data.List
-import qualified Data.Text                 as T
+import qualified Data.Text                  as T
 import           GHC.Generics
 import           Network.AWS
-import qualified Network.AWS.ECS           as ECS
+import qualified Network.AWS.ECS            as ECS
 import           Numeric
 import           Text.PrettyPrint.Tabulate
 
@@ -89,7 +91,8 @@ summarizeInstances cId =
   where instanceSource Nothing  = fetchAllInstances
         instanceSource (Just x) = fetchInstances x
 
-printInstanceSummary :: Maybe ClusterRef -> Env -> IO ()
-printInstanceSummary cId env = do
+printInstanceSummary :: Maybe ClusterRef -> GrootM IO ()
+printInstanceSummary cId = do
+  env <- ask
   xs <- runResourceT . runAWS env $ summarizeInstances cId
-  printTable' "No container instances found" xs
+  liftIO $ printTable' "No container instances found" xs

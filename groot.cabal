@@ -37,6 +37,7 @@ library
                      , Groot.Compose
                      , Groot.Config
                      , Groot.Core
+                     , Groot.Core.Common
                      , Groot.Core.Console
                      , Groot.Core.Events                     
                      , Groot.Data.Conduit.STM
@@ -62,8 +63,10 @@ library
                      , http-types
                      , ini
                      , lens
-                     , lifted-base                     
-                     , mtl
+                     , lifted-base
+                     , mmorph
+                     , monad-control
+                     , mtl >= 2.2 && < 2.3
                      , optparse-applicative
                      , pptable
                      , resourcet

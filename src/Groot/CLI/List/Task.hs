@@ -8,14 +8,16 @@ module Groot.CLI.List.Task
      ) where
 
 import           Control.Lens
+import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
+import           Control.Monad.Trans.Reader
 import           Data.Conduit
-import qualified Data.Conduit.List         as CL
+import qualified Data.Conduit.List          as CL
 import           Data.Data
-import qualified Data.Text                 as T
+import qualified Data.Text                  as T
 import           GHC.Generics
 import           Network.AWS
-import qualified Network.AWS.ECS           as ECS
+import qualified Network.AWS.ECS            as ECS
 import           Text.PrettyPrint.Tabulate
 
 import           Groot.CLI.List.Common
@@ -56,7 +58,8 @@ summarizeTasks mcid = sourceToList $ taskSource mcid =$= annotateTask =$= CL.map
   where taskSource Nothing    = fetchAllTasks
         taskSource (Just cid) = fetchTasks cid
 
-printTaskSummary :: Maybe ClusterRef -> Env -> IO ()
-printTaskSummary cId env = do
+printTaskSummary :: Maybe ClusterRef -> GrootM IO ()
+printTaskSummary cId = do
+  env <- ask
   xs <- runResourceT . runAWS env $ summarizeTasks cId
-  printTable' "No tasks found" xs
+  liftIO $ printTable' "No tasks found" xs

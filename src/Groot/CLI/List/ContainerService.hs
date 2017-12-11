@@ -8,14 +8,16 @@ module Groot.CLI.List.ContainerService
      ) where
 
 import           Control.Lens
+import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
+import           Control.Monad.Trans.Reader
 import           Data.Conduit
-import qualified Data.Conduit.List         as CL
+import qualified Data.Conduit.List          as CL
 import           Data.Data
-import           Data.Text                 (unpack)
+import           Data.Text                  (unpack)
 import           GHC.Generics
 import           Network.AWS
-import qualified Network.AWS.ECS           as ECS
+import qualified Network.AWS.ECS            as ECS
 import           Text.PrettyPrint.Tabulate
 
 import           Groot.CLI.List.Common
@@ -53,7 +55,8 @@ summarizeServices clusterId =
     where serviceSource Nothing    = fetchAllServices
           serviceSource (Just cid) = fetchServices cid
 
-printServiceSummary :: Maybe ClusterRef -> Env -> IO ()
-printServiceSummary clusterId env = do
+printServiceSummary :: Maybe ClusterRef -> GrootM IO ()
+printServiceSummary clusterId = do
+  env <- ask
   xs <- runResourceT . runAWS env $ summarizeServices clusterId
-  printTable' "No services found" xs
+  liftIO $ printTable' "No services found" xs

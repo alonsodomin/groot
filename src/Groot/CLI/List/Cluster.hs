@@ -8,15 +8,17 @@ module Groot.CLI.List.Cluster
      ) where
 
 import           Control.Lens
+import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
+import           Control.Monad.Trans.Reader
 import           Data.Conduit
-import qualified Data.Conduit.List         as CL
+import qualified Data.Conduit.List          as CL
 import           Data.Data
-import           Data.Maybe                (maybeToList)
+import           Data.Maybe                 (maybeToList)
 import           Data.Text
 import           GHC.Generics
 import           Network.AWS
-import qualified Network.AWS.ECS           as ECS
+import qualified Network.AWS.ECS            as ECS
 import           Text.PrettyPrint.Tabulate
 
 import           Groot.CLI.List.Common
@@ -47,7 +49,8 @@ summarizeClusters (Just c) = maybeToList <$> do
   cl <- runMaybeT (findCluster c)
   return $ cl >>= summarize
 
-printClusterSummary :: Maybe ClusterRef -> Env -> IO ()
-printClusterSummary x env = do
+printClusterSummary :: Maybe ClusterRef -> GrootM IO ()
+printClusterSummary x = do
+  env <- ask
   xs <- runResourceT . runAWS env $ summarizeClusters x
-  printTable' "No clusters found" xs
+  liftIO $ printTable' "No clusters found" xs

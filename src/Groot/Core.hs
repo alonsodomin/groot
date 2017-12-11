@@ -3,6 +3,7 @@
 module Groot.Core
      (
        module Groot.AWS
+     , module Groot.Core.Common
      -- Tasks
      , stopTask
      , startTask
@@ -19,6 +20,7 @@ import qualified Network.AWS.ECS       as ECS
 import           Network.AWS.Waiter
 
 import           Groot.AWS
+import           Groot.Core.Common
 import           Groot.Exception
 import           Groot.Types
 
