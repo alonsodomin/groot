@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell   #-}
 
 module Groot.CLI
-     ( runGroot
+     ( grootCli
      ) where
 
 import           Control.Exception.Lens
@@ -206,17 +206,16 @@ evalCmd (ListCmd opts)    = runListCmd opts
 evalCmd (ServiceCmd opts) = runServiceCmd opts
 --evalCmd (TaskCmd opts)    = runGrootTask opts
 
-runGroot :: IO ()
-runGroot =
+grootCli :: IO ()
+grootCli =
   prog =<< (execParser cli)
   where prog opts = do
           env <- loadEnv opts
-          handleExceptions $ mainBlock env (opts ^. grootCmd)
+          handleExceptions $ mainBlock (opts ^. grootCmd) env
 
         cli = info (grootOpts <**> helper)
           ( fullDesc
           <> progDesc "Utility to manage ECS Clusters"
           <> header "groot" )
 
-        mainBlock :: Env -> GrootCmd -> IO ()
-        mainBlock env cmd = runReaderT (evalCmd cmd) env
+        mainBlock cmd = runGroot (evalCmd cmd)
