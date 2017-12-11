@@ -33,10 +33,9 @@ serviceComposeOpts = ServiceComposeOpts
 
 runServiceCompose :: ServiceComposeOpts -> GrootM IO ()
 runServiceCompose opts = do
-  env    <- ask
   parsed <- liftIO . decodeFileEither $ composeFile opts
   case parsed of
     Left err         -> liftIO . putStrLn $ prettyPrintParseException err
-    Right composeDef -> liftIO $ do
-      runResourceT . runAWS env $ composeServices composeDef (cluster opts)
-      print (composeDef :: GrootCompose)
+    Right composeDef -> do
+      composeServices composeDef (cluster opts)
+      liftIO $ print (composeDef :: GrootCompose)

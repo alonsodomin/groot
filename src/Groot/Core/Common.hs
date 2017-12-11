@@ -1,17 +1,23 @@
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Groot.Core.Common where
 
+import           Control.Monad.Catch
 import           Control.Monad.Reader
+import           Control.Monad.Trans.Resource
 import           Network.AWS
 
-type GrootM  = ReaderT Env
-type GrootIO = GrootM IO
+type GrootM = ReaderT Env
 
--- | Simply a function alias for `runReaderT`
-runGroot :: Monad m => GrootM m a -> Env -> m a
-runGroot = runReaderT
+awsToGrootM :: (MonadResource m, MonadBaseControl IO m) => AWS a -> GrootM m a
+awsToGrootM act = do
+  env <- ask
+  runAWS env act
 
-class Monad m => MonadGroot m where
-  getEnv :: m Env
+class (Monad m, MonadIO m, MonadCatch m) => MonadGroot m where
+  runGroot :: m a -> Env -> IO a
+
+instance MonadGroot (GrootM IO) where
+  runGroot = runReaderT

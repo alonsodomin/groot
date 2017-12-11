@@ -205,7 +205,7 @@ findActiveService :: ContainerServiceRef -> ClusterRef -> MaybeT AWS ECS.Contain
 findActiveService serviceRef clusterRef =
   filterM isActiveContainerService (findService serviceRef (Just clusterRef))
 
-composeServices :: GrootCompose -> ClusterRef -> AWS ()
+composeServices :: GrootCompose -> ClusterRef -> GrootM IO ()
 composeServices (GrootCompose services) clusterRef = do
   --cluster <- findActiveCluster clusterRef
   taskReq <- pure $ createTaskDefinitionReq (head services)
