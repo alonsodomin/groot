@@ -7,9 +7,9 @@ module Groot.CLI
 import           Control.Exception.Lens
 import           Control.Lens
 import           Control.Monad.Catch
+import           Control.Monad.Reader
 import           Control.Monad.Trans.Except
 import           Control.Monad.Trans.Maybe
-import           Control.Monad.Trans.Reader
 import qualified Data.ByteString.Char8      as BS
 import           Data.List                  (intercalate)
 import           Data.Semigroup             ((<>))
@@ -99,7 +99,6 @@ commands = hsubparser
    ( command "ls"      (info (ListCmd    <$> listCmds)    (progDesc "List ECS resources"))
   <> command "cluster" (info (ClusterCmd <$> clusterCmds) (progDesc "Perform cluster related operations"))
   <> command "service" (info (ServiceCmd <$> serviceCmds) (progDesc "Perform service related operations"))
-  -- <> command "compose" (info (ComposeCmd <$> grootComposeCli) (progDesc "Handle Groot compose files"))
   -- <> command "task"    (info (TaskCmd    <$> grootTaskCli)    (progDesc "Manage ECS tasks"))
     )
 
@@ -217,12 +216,12 @@ runGroot =
   prog =<< (execParser cli)
   where prog opts = do
           env <- loadEnv opts
-          handleExceptions $ mainBlock env opts
+          handleExceptions $ mainBlock env (opts ^. grootCmd)
 
         cli = info (grootOpts <**> helper)
           ( fullDesc
           <> progDesc "Utility to manage ECS Clusters"
           <> header "groot" )
 
-        mainBlock :: Env -> GrootOpts -> IO ()
-        mainBlock env opts = runReaderT (evalCmd (opts ^. grootCmd)) env
+        mainBlock :: Env -> GrootCmd -> IO ()
+        mainBlock env cmd = runReaderT (evalCmd cmd) env
