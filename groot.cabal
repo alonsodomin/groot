@@ -37,6 +37,7 @@ library
                      , Groot.Compose
                      , Groot.Config
                      , Groot.Core
+                     , Groot.Core.Common
                      , Groot.Core.Console
                      , Groot.Core.Events                     
                      , Groot.Data.Conduit.STM

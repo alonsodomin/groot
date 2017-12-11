@@ -4,10 +4,10 @@ module Groot.CLI.Cluster
      , runClusterCmd
      ) where
 
-import           Network.AWS
 import           Options.Applicative
 
 import           Groot.CLI.Cluster.Events
+import           Groot.Core
 
 data ClusterSubCmd =
   ClusterEventsCmd ClusterEventOptions
@@ -25,5 +25,5 @@ clusterCmds = hsubparser
 
 -- run function
 
-runClusterCmd :: ClusterSubCmd -> Env -> IO ()
+runClusterCmd :: ClusterSubCmd -> GrootM IO ()
 runClusterCmd (ClusterEventsCmd eventsOpts) = runClusterEvents eventsOpts

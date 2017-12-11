@@ -17,10 +17,9 @@ import qualified Control.Exception.Lifted       as Lifted
 import           Control.Lens                   hiding (argument)
 import           Control.Monad
 import           Control.Monad.Catch
-import Control.Monad.Morph
-import Control.Monad.Reader
-import           Control.Monad.IO.Class
-import Control.Monad.Trans.Control
+import           Control.Monad.Morph
+import           Control.Monad.Reader
+import           Control.Monad.Trans.Control
 import           Control.Monad.Trans.Resource
 import           Control.Monad.Trans.State.Lazy
 import           Data.Conduit
@@ -32,8 +31,8 @@ import           Network.AWS                    hiding (await)
 import qualified Network.AWS.ECS                as ECS
 
 import           Groot.AWS.Service
-import           Groot.Core.Console
 import           Groot.Core.Common
+import           Groot.Core.Console
 import           Groot.Data.Conduit.STM
 import           Groot.Data.Filter
 import           Groot.Exception
@@ -44,12 +43,12 @@ formatEventTime time = do
   dt <- liftIO $ utcToLocalZonedTime time
   return $ formatTime defaultTimeLocale "%d/%m/%Y %T" dt
 
-pollServiceEvents :: (MonadBaseControl IO m, MonadIO m)
+pollServiceEvents :: (MonadReader e m, MonadBaseControl IO m, MonadIO m, HasEnv e)
                   => ContainerServiceCoords
                   -> Bool
                   -> TBMChan ECS.ServiceEvent
                   -> (TBMChan ECS.ServiceEvent -> STM ())
-                  -> GrootM m ()
+                  -> m ()
 pollServiceEvents (ContainerServiceCoords serviceRef clusterRef) inf chan onComplete =
   evalStateT loop Nothing
   where loop :: (MonadReader e m, MonadIO m, HasEnv e) => StateT (Maybe UTCTime) m ()
@@ -77,28 +76,26 @@ pollServiceEvents (ContainerServiceCoords serviceRef clusterRef) inf chan onComp
             Nothing -> take 25 events
             Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. ECS.seCreatedAt) events
 
-serviceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadIO mo)
+serviceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadCatch mi, MonadReader e mi, MonadIO mo, HasEnv e)
                 => [ContainerServiceCoords]
                 -> Bool
                 -> mi (Source mo ECS.ServiceEvent)
 serviceEventLog coords inf = do
   chan     <- liftIO . atomically $ newTBMChan 500
   refCount <- liftIO . atomically . newTVar $ length coords
-  regs     <- forM coords (Lifted.mask_ . forkEventStream chan refCount)
+  regs     <- forM coords (forkEventStream chan refCount)
   return $ chanSource chan readTBMChan (\ch -> do liftIO . atomically $ closeTBMChan ch
                                                   mapM_ release regs)
 
   where
-    forkEventStream :: TBMChan ECS.ServiceEvent
+    forkEventStream :: (MonadResource m, MonadBaseControl IO m, MonadIO m, MonadCatch m, MonadReader e m, HasEnv e)
+                    => TBMChan ECS.ServiceEvent
                     -> TVar Int
                     -> ContainerServiceCoords
-                    -> GrootM IO ReleaseKey
-    forkEventStream chan refCount serviceCoord = do
+                    -> m ReleaseKey
+    forkEventStream chan refCount serviceCoord = Lifted.mask_ $ do
       threadId <- runResourceT $ resourceForkIO $ lift $ publishInto chan serviceCoord $ decRefCount refCount
       register . killThread $ threadId
-
-    -- doItWithChan :: TBMChan ECS.ServiceEvent -> TVar Int -> ContainerServiceCoords -> ResourceT IO (GrootM IO ())
-    -- doItWithChan chan refCount serviceCoord = liftBase $ publishInto chan serviceCoord $ decRefCount refCount
 
     modifyTVar'' :: TVar a -> (a -> a) -> STM a
     modifyTVar'' tvar f = do
@@ -115,14 +112,15 @@ serviceEventLog coords inf = do
     ignoreServicesBecomingInactive action =
       catching _InactiveService action $ \_ -> return ()
 
-    publishInto :: TBMChan ECS.ServiceEvent
+    publishInto :: (MonadReader e m, MonadCatch m, MonadBaseControl IO m, MonadIO m, HasEnv e)
+                => TBMChan ECS.ServiceEvent
                 -> ContainerServiceCoords
                 -> (TBMChan ECS.ServiceEvent -> STM ())
-                -> GrootM IO ()
+                -> m ()
     publishInto chan crds onComplete =
       ignoreServicesBecomingInactive $ pollServiceEvents crds inf chan onComplete
 
-clusterServiceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadIO mo)
+clusterServiceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadCatch mi, MonadIO mo)
                        => [ClusterRef]
                        -> Bool
                        -> GrootM mi (Source mo ECS.ServiceEvent)

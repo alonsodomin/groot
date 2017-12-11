@@ -7,7 +7,9 @@ module Groot.CLI.Service.Events
      , runServiceEvents
      ) where
 
+import           Control.Monad.Catch
 import           Control.Monad.IO.Class
+import           Control.Monad.Reader
 import           Control.Monad.Trans.Resource
 import           Data.Conduit
 import           Data.Foldable
@@ -44,18 +46,18 @@ serviceEventsOpt = ServiceEventOpts
                  <> help "Follow the trail of events" )
                <*> serviceRefArgList
 
-fetchEvents :: (MonadResource mi, MonadBaseControl IO mi, MonadIO mo, Foldable f)
-            => Env
-            -> f ContainerServiceCoords
+fetchEvents :: (MonadResource mi, MonadBaseControl IO mi, MonadCatch mi, MonadIO mo, Foldable f)
+            => f ContainerServiceCoords
             -> Bool
-            -> mi (Source mo ECS.ServiceEvent)
-fetchEvents env coords inf = serviceEventLog env (toList coords) inf
+            -> GrootM mi (Source mo ECS.ServiceEvent)
+fetchEvents coords inf = serviceEventLog (toList coords) inf
 
-runServiceEvents :: ServiceEventOpts -> Env -> IO ()
-runServiceEvents (ServiceEventOpts (Just clusterRef) follow serviceRefs) env = runResourceT $ do
-  eventSource <- fetchEvents env (fmap (\x -> ContainerServiceCoords x clusterRef) serviceRefs) follow
+runServiceEvents :: ServiceEventOpts -> GrootM IO ()
+runServiceEvents (ServiceEventOpts (Just clusterRef) follow serviceRefs) = mapReaderT runResourceT $ do
+  eventSource <- fetchEvents (fmap (\x -> ContainerServiceCoords x clusterRef) serviceRefs) follow
   runConduit $ eventSource =$ printEventSink
-runServiceEvents (ServiceEventOpts Nothing follow serviceRefs) env = runResourceT $ do
+runServiceEvents (ServiceEventOpts Nothing follow serviceRefs) = mapReaderT runResourceT $ do
+  env         <- ask
   coords      <- runAWS env $ findServiceCoords serviceRefs
-  eventSource <- fetchEvents env coords follow
+  eventSource <- fetchEvents coords follow
   runConduit $ eventSource =$ printEventSink

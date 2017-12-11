@@ -6,7 +6,6 @@ module Groot.CLI.List
 
 import           Data.Maybe                       (maybeToList)
 import           Data.Semigroup                   ((<>))
-import           Network.AWS
 import           Options.Applicative
 
 import           Groot.CLI.Common
@@ -15,7 +14,7 @@ import           Groot.CLI.List.ContainerInstance
 import           Groot.CLI.List.ContainerService
 import           Groot.CLI.List.Task
 import           Groot.CLI.List.TaskDef
-import Groot.Core
+import           Groot.Core
 import           Groot.Types
 
 data ListSubCmd =

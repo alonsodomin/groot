@@ -9,15 +9,15 @@ module Groot.CLI.List.Task
 
 import           Control.Lens
 import           Control.Monad.IO.Class
-import           Control.Monad.Trans.Reader
 import           Control.Monad.Trans.Maybe
+import           Control.Monad.Trans.Reader
 import           Data.Conduit
-import qualified Data.Conduit.List         as CL
+import qualified Data.Conduit.List          as CL
 import           Data.Data
-import qualified Data.Text                 as T
+import qualified Data.Text                  as T
 import           GHC.Generics
 import           Network.AWS
-import qualified Network.AWS.ECS           as ECS
+import qualified Network.AWS.ECS            as ECS
 import           Text.PrettyPrint.Tabulate
 
 import           Groot.CLI.List.Common

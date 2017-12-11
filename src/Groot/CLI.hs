@@ -9,6 +9,7 @@ import           Control.Lens
 import           Control.Monad.Catch
 import           Control.Monad.Trans.Except
 import           Control.Monad.Trans.Maybe
+import           Control.Monad.Trans.Reader
 import qualified Data.ByteString.Char8      as BS
 import           Data.List                  (intercalate)
 import           Data.Semigroup             ((<>))
@@ -28,6 +29,7 @@ import           Groot.CLI.Common
 import           Groot.CLI.List
 import           Groot.CLI.Service
 import           Groot.Config
+import           Groot.Core
 import           Groot.Core.Console
 import           Groot.Data.Text            hiding (Parser, option)
 import           Groot.Exception
@@ -204,21 +206,23 @@ handleExceptions act = catches act [
   ]
 
 -- | Runs a Groot command with the given AWS environment
-runCmd :: GrootCmd -> GrootM IO ()
---runCmd (ComposeCmd opts) = runGrootCompose opts
-runCmd (ClusterCmd opts) = runClusterCmd opts
-runCmd (ListCmd opts)    = runListCmd opts
-runCmd (ServiceCmd opts) = runServiceCmd opts
---runCmd (TaskCmd opts)    = runGrootTask opts
+evalCmd :: GrootCmd -> GrootM IO ()
+evalCmd (ClusterCmd opts) = runClusterCmd opts
+evalCmd (ListCmd opts)    = runListCmd opts
+evalCmd (ServiceCmd opts) = runServiceCmd opts
+--evalCmd (TaskCmd opts)    = runGrootTask opts
 
 runGroot :: IO ()
 runGroot =
   prog =<< (execParser cli)
   where prog opts = do
           env <- loadEnv opts
-          handleExceptions $ runCmd (opts ^. grootCmd) env
+          handleExceptions $ mainBlock env opts
 
         cli = info (grootOpts <**> helper)
           ( fullDesc
           <> progDesc "Utility to manage ECS Clusters"
           <> header "groot" )
+
+        mainBlock :: Env -> GrootOpts -> IO ()
+        mainBlock env opts = runReaderT (evalCmd (opts ^. grootCmd)) env

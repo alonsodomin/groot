@@ -3,8 +3,8 @@
 
 module Groot.Core.Common where
 
-import Control.Monad.Reader
-import Network.AWS
+import           Control.Monad.Reader
+import           Network.AWS
 
 type GrootM = ReaderT Env
 

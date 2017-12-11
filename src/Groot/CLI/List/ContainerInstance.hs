@@ -7,23 +7,23 @@ module Groot.CLI.List.ContainerInstance
      ( printInstanceSummary
      ) where
 
+import           Control.Lens
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Reader
-import           Control.Lens
 import           Data.Conduit
-import qualified Data.Conduit.List         as CL
+import qualified Data.Conduit.List          as CL
 import           Data.Data
 import           Data.List
-import qualified Data.Text                 as T
+import qualified Data.Text                  as T
 import           GHC.Generics
 import           Network.AWS
-import qualified Network.AWS.ECS           as ECS
+import qualified Network.AWS.ECS            as ECS
 import           Numeric
 import           Text.PrettyPrint.Tabulate
 
 import           Groot.CLI.List.Common
 import           Groot.Core
-import Groot.Types
+import           Groot.Types
 
 data ResourceType =
     Memory
