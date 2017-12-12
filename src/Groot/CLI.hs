@@ -165,6 +165,9 @@ handleClusterNotFound :: ClusterNotFound -> IO ()
 handleClusterNotFound (ClusterNotFound' (ClusterRef ref)) =
   putError $ "Could not find cluster '" <> ref <> "'"
 
+-- handleInvalidClusterStatus :: InvalidClusterStatus -> IO ()
+-- handleInvalidClusterStatus (InvalidClusterStatus' (ClusterRef ref) clusterSt) =
+
 handleServiceNotFound :: ServiceNotFound -> IO ()
 handleServiceNotFound (ServiceNotFound' serviceRef clusterRef) =
   putError $ "Could not find service '" <> (toText serviceRef) <> "'" <>
