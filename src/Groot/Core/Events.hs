@@ -49,10 +49,11 @@ formatEventTime time = do
 pollServiceEvents :: (MonadReader e m, MonadBaseControl IO m, MonadIO m, HasEnv e)
                   => ContainerServiceCoords
                   -> Bool
+                  -> Int
                   -> TBMChan ECS.ServiceEvent
                   -> (TBMChan ECS.ServiceEvent -> STM ())
                   -> m ()
-pollServiceEvents (ContainerServiceCoords serviceRef clusterRef) inf chan onComplete =
+pollServiceEvents (ContainerServiceCoords serviceRef clusterRef) inf lastN chan onComplete =
   evalStateT loop Nothing
   where loop :: (MonadReader e m, MonadIO m, HasEnv e) => StateT (Maybe UTCTime) m ()
         loop = do
@@ -76,14 +77,15 @@ pollServiceEvents (ContainerServiceCoords serviceRef clusterRef) inf chan onComp
                       else throwM $ inactiveService serviceRef clusterRef
           events  <- return $ service' ^. ECS.csEvents
           return $ case lastEventTime of
-            Nothing -> take 25 events
+            Nothing -> take lastN events
             Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. ECS.seCreatedAt) events
 
 serviceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadCatch mi, MonadReader e mi, MonadIO mo, HasEnv e)
                 => [ContainerServiceCoords]
                 -> Bool
+                -> Int
                 -> mi (Source mo ECS.ServiceEvent)
-serviceEventLog coords inf = do
+serviceEventLog coords inf lastN = do
   chan     <- liftIO . atomically $ newTBMChan 500
   refCount <- liftIO . atomically . newTVar $ length coords
   regs     <- forM coords (forkEventStream chan refCount)
@@ -121,16 +123,17 @@ serviceEventLog coords inf = do
                 -> (TBMChan ECS.ServiceEvent -> STM ())
                 -> m ()
     publishInto chan crds onComplete =
-      ignoreServicesBecomingInactive $ pollServiceEvents crds inf chan onComplete
+      ignoreServicesBecomingInactive $ pollServiceEvents crds inf lastN chan onComplete
 
 clusterServiceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadCatch mi, MonadIO mo)
                        => [ClusterRef]
                        -> Bool
+                       -> Int
                        -> GrootM mi (Source mo ECS.ServiceEvent)
-clusterServiceEventLog clusterRefs inf = do
+clusterServiceEventLog clusterRefs inf lastN = do
   env    <- ask
   coords <- runResourceT . runAWS env $ allServiceCoords
-  serviceEventLog coords inf
+  serviceEventLog coords inf lastN
   where clusterServiceCoords :: MonadAWS m => ClusterRef -> m [ContainerServiceCoords]
         clusterServiceCoords cref = sourceToList $ fetchServices cref
           =$= filterC isActiveContainerService

@@ -22,3 +22,11 @@ taskFamilyOpt = fromString <$> strOption
               ( long "family"
               <> metavar "TASK_FAMILY"
               <> help "ECS Task Family" )
+
+eventCountOpt :: Parser Int
+eventCountOpt = option auto
+              ( long "number"
+             <> short 'n'
+             <> help "Number of events"
+             <> showDefault
+             <> value 25 )
