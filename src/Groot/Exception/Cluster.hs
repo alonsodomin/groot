@@ -26,14 +26,14 @@ clusterNotFound :: ClusterRef -> SomeException
 clusterNotFound = toException . ClusterNotFound . ClusterNotFound'
 
 data InvalidClusterStatus =
-  InvalidClusterStatus' ClusterRef ClusterStatus
+  InvalidClusterStatus' ClusterRef ClusterStatus (Maybe ClusterStatus)
   deriving (Eq, Show, Typeable)
 
 instance Exception InvalidClusterStatus
 
-invalidClusterStatus :: ClusterRef -> ClusterStatus -> SomeException
-invalidClusterStatus clusterRef status =
-  toException . InvalidClusterStatus $ InvalidClusterStatus' clusterRef status
+invalidClusterStatus :: ClusterRef -> ClusterStatus -> Maybe ClusterStatus -> SomeException
+invalidClusterStatus clusterRef currentSt desiredSt =
+  toException . InvalidClusterStatus $ InvalidClusterStatus' clusterRef currentSt desiredSt
 
 class AsClusterException t where
   _ClusterException :: Prism' t ClusterException

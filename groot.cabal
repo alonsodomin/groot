@@ -49,6 +49,7 @@ library
                      , Groot.Exception.Cluster
                      , Groot.Exception.Instance
                      , Groot.Exception.Task
+                     , Groot.Exception.TaskDef
                      , Groot.Exception.Service
                      , Groot.Exception
                      , Groot.Types

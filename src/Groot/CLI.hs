@@ -165,8 +165,10 @@ handleClusterNotFound :: ClusterNotFound -> IO ()
 handleClusterNotFound (ClusterNotFound' (ClusterRef ref)) =
   putError $ "Could not find cluster '" <> ref <> "'"
 
--- handleInvalidClusterStatus :: InvalidClusterStatus -> IO ()
--- handleInvalidClusterStatus (InvalidClusterStatus' (ClusterRef ref) clusterSt) =
+handleInvalidClusterStatus :: InvalidClusterStatus -> IO ()
+handleInvalidClusterStatus (InvalidClusterStatus' (ClusterRef ref) currentSt desiredSt) =
+  putError $ "Can't operate on cluster '" <> ref <> "' because it is " <> (toText currentSt)
+    <> maybe "." (\x -> ", it should be " <> (toText x) <> " to continue.") desiredSt
 
 handleServiceNotFound :: ServiceNotFound -> IO ()
 handleServiceNotFound (ServiceNotFound' serviceRef clusterRef) =
@@ -196,6 +198,7 @@ handleExceptions act = catches act [
     handler _TransportError       handleHttpException
   , handler _ServiceError         handleServiceError
   , handler _ClusterNotFound      handleClusterNotFound
+  , handler _InvalidClusterStatus handleInvalidClusterStatus
   , handler _ServiceNotFound      handleServiceNotFound
   , handler _AmbiguousServiceName handleAmbiguousServiceName
   , handler _InactiveService      handleInactiveService

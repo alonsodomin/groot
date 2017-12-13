@@ -226,6 +226,10 @@ data ClusterStatus =
   | CSInactive
   deriving (Eq, Show, Ord, Read, Enum, Bounded, Data, Generic)
 
+instance ToText ClusterStatus where
+  toText CSActive   = "ACTIVE"
+  toText CSInactive = "INACTIVE"
+
 data ClusterFilter =
     CFRef ClusterRef
   | CFStatus ClusterStatus

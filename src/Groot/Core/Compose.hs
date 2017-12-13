@@ -14,6 +14,7 @@ import           Control.Lens
 import           Control.Monad.Free
 import           Control.Monad.Free.TH
 import           Control.Monad.IO.Class
+import           Control.Monad.Reader           hiding (filterM)
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Maybe
 import           Control.Monad.Trans.Resource
@@ -33,6 +34,7 @@ import qualified Network.AWS.ECS                as ECS
 import           Groot.Core
 import           Groot.Data.Filter
 import           Groot.Data.Text
+import           Groot.Exception
 import           Groot.Types
 
 data PortELBLink =
@@ -135,7 +137,7 @@ findActiveCluster' :: ClusterRef -> AWS ECS.Cluster
 findActiveCluster' clusterRef = do
   mcluster <- runMaybeT $ filterM isActiveCluster (findCluster clusterRef)
   case mcluster of
-    Nothing -> fail $ "No active cluster found identified by: " ++ (T.unpack . toText $ clusterRef)
+    Nothing -> throwM $ invalidClusterStatus clusterRef CSInactive (Just CSActive)
     Just x  -> return x
 
 createTaskDefinitionReq :: ServiceDeployment -> ECS.RegisterTaskDefinition
@@ -181,18 +183,18 @@ deregisterTaskDefinitions env arns = forM_ arns deregisterSingle
           return ()
 
 registerTasks' :: (MonadResource m, MonadBaseControl IO m)
-               => Env
-               -> [ServiceDeployment]
+               => [ServiceDeployment]
                -> m [(ServiceDeployment, ECS.TaskDefinition)]
-registerTasks' env = undefined
-  where registerSingle :: (MonadResource m, MonadBaseControl IO m)
+registerTasks' = undefined
+  where registerSingle :: (MonadResource m, MonadBaseControl IO m, MonadReader e m, HasEnv e)
                        => ServiceDeployment
                        -> StateT [ECS.TaskDefinition] m (ServiceDeployment, ECS.TaskDefinition)
         registerSingle dep = do
+          env   <- lift $ ask
           res   <- lift $ runAWS env . send $ createTaskDefinitionReq dep
           mtask <- pure $ res ^. ECS.rtdrsTaskDefinition
           case mtask of
-            Nothing   -> fail $ "Could not register task: " ++ (T.unpack $ dep ^. sdName)
+            Nothing   -> throwM $ failedToRegisterTaskDef (TaskDefRef $ dep ^. sdName)
             Just task -> do
               prev <- get
               put (task:prev)
