@@ -150,6 +150,15 @@ findActiveCluster clusterRef = do
       Nothing -> throwM $ invalidClusterStatus clusterRef CSInactive (Just CSActive)
       Just x  -> return x
 
+findActiveService :: ContainerServiceRef -> ClusterRef -> GrootM IO ECS.ContainerService
+findActiveService serviceRef clusterRef = do
+  env <- ask
+  runResourceT . runAWS env $ do
+    mservice <- runMaybeT $ filterM isActiveContainerService (findService serviceRef (Just clusterRef))
+    case mservice of
+      Nothing -> throwM $ inactiveService serviceRef clusterRef
+      Just x  -> return x
+
 createTaskDefinitionReq :: ServiceDeployment -> ECS.RegisterTaskDefinition
 createTaskDefinitionReq deployment =
   ECS.rtdNetworkMode .~ (deployment ^. sdNetworkMode) $
@@ -210,10 +219,6 @@ registerTasks services = go
 
         rollback :: [ECS.TaskDefinition] -> m ()
         rollback = undefined
-
-findActiveService :: ContainerServiceRef -> ClusterRef -> MaybeT AWS ECS.ContainerService
-findActiveService serviceRef clusterRef =
-  filterM isActiveContainerService (findService serviceRef (Just clusterRef))
 
 composeServices :: GrootCompose -> ClusterRef -> GrootM IO ()
 composeServices (GrootCompose services) clusterRef = do
