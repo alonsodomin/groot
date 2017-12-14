@@ -21,6 +21,7 @@ import           Control.Monad.Trans.Resource
 import           Control.Monad.Trans.State.Lazy
 import           Data.Aeson
 import           Data.Aeson.Types
+import Data.Semigroup ((<>))
 import           Data.Foldable
 import           Data.HashMap.Strict            (HashMap)
 import qualified Data.HashMap.Strict            as Map
@@ -32,6 +33,7 @@ import           Network.AWS
 import qualified Network.AWS.ECS                as ECS
 
 import           Groot.Core
+import Groot.Core.Console
 import           Groot.Data.Filter
 import           Groot.Data.Text
 import           Groot.Exception
@@ -133,12 +135,14 @@ instance FromJSON GrootCompose where
                  fieldLabelModifier = drop 1 }
 
 -- Validates that the given id points to an active cluster
-findActiveCluster' :: ClusterRef -> AWS ECS.Cluster
-findActiveCluster' clusterRef = do
-  mcluster <- runMaybeT $ filterM isActiveCluster (findCluster clusterRef)
-  case mcluster of
-    Nothing -> throwM $ invalidClusterStatus clusterRef CSInactive (Just CSActive)
-    Just x  -> return x
+findActiveCluster :: ClusterRef -> GrootM IO ECS.Cluster
+findActiveCluster clusterRef = do
+  env <- ask
+  runResourceT . runAWS env $ do
+    mcluster <- runMaybeT $ filterM isActiveCluster (findCluster clusterRef)
+    case mcluster of
+      Nothing -> throwM $ invalidClusterStatus clusterRef CSInactive (Just CSActive)
+      Just x  -> return x
 
 createTaskDefinitionReq :: ServiceDeployment -> ECS.RegisterTaskDefinition
 createTaskDefinitionReq deployment =
@@ -182,13 +186,13 @@ deregisterTaskDefinitions env arns = forM_ arns deregisterSingle
           _ <- runAWS env . send $ ECS.deregisterTaskDefinition $ toText x
           return ()
 
-registerTasks' :: (MonadResource m, MonadBaseControl IO m)
-               => [ServiceDeployment]
-               -> m [(ServiceDeployment, ECS.TaskDefinition)]
-registerTasks' = undefined
+registerTasks :: (MonadBaseControl IO m, MonadIO m, MonadThrow m, MonadReader e m, HasEnv e)
+              => [ServiceDeployment]
+              -> m [(ServiceDeployment, ECS.TaskDefinition)]
+registerTasks services = go
   where registerSingle :: (MonadResource m, MonadBaseControl IO m, MonadReader e m, HasEnv e)
                        => ServiceDeployment
-                       -> StateT [ECS.TaskDefinition] m (ServiceDeployment, ECS.TaskDefinition)
+                       -> StateT [(ServiceDeployment, ECS.TaskDefinition)] m ()
         registerSingle dep = do
           env   <- lift $ ask
           res   <- lift $ runAWS env . send $ createTaskDefinitionReq dep
@@ -197,8 +201,14 @@ registerTasks' = undefined
             Nothing   -> throwM $ failedToRegisterTaskDef (TaskDefRef $ dep ^. sdName)
             Just task -> do
               prev <- get
-              put (task:prev)
-              return (dep, task)
+              put ((dep,task):prev)
+
+        go :: (MonadBaseControl IO m, MonadIO m, MonadThrow m, MonadReader e m, HasEnv e)
+           => m [(ServiceDeployment, ECS.TaskDefinition)]
+        go = runResourceT $ execStateT (traverse aroundRegisterSingle services) []
+          where aroundRegisterSingle service = do
+                  liftIO . putInfo $ "Registering task definition: " <> (service ^. sdName)
+                  registerSingle service
 
         rollback :: [ECS.TaskDefinition] -> m ()
         rollback = undefined
@@ -209,22 +219,6 @@ findActiveService serviceRef clusterRef =
 
 composeServices :: GrootCompose -> ClusterRef -> GrootM IO ()
 composeServices (GrootCompose services) clusterRef = do
-  --cluster <- findActiveCluster clusterRef
-  taskReq <- pure $ createTaskDefinitionReq (head services)
-  liftIO $ print taskReq
-
--- Operations
-
-data ServiceCompose a =
-    FindActiveCluster ClusterRef (ECS.Cluster -> a)
-  | RegisterTasks [ServiceDeployment] ([(ServiceDeployment, ECS.TaskDefinition)] -> a)
-  deriving Functor
-
-makeFree ''ServiceCompose
-
-type ServiceComposeM = Free ServiceCompose
-
-interpreter :: ServiceComposeM a -> AWS a
-interpreter = foldFree $ \case
-  FindActiveCluster clusterRef next ->
-    next <$> findActiveCluster' clusterRef
+  cluster <- findActiveCluster clusterRef
+  registered <- registerTasks services
+  liftIO . print $ snd <$> registered

@@ -1,4 +1,4 @@
-- name: pluto
+- name: pluto2
   task-role: "Hi"
   service-role: "Bye"
   containers:
