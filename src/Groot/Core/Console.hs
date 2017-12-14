@@ -40,7 +40,7 @@ class Monad m => MonadConsole m where
 instance MonadConsole IO where
   putMessage sev txt = do
     display $ levelStr <> (ST.singleton ' ')
-    display txt
+    displayLn txt
       where levelStr = case sev of
               Error -> errorText
               Warn  -> warnText

@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Groot.Data.Text.Display
      ( Display (..)
@@ -12,6 +13,11 @@ import           Network.AWS.Data.Text
 
 class ToText a => Display a where
   display :: MonadIO m => a -> m ()
+
+  displayLn :: MonadIO m => a -> m ()
+  displayLn d = do
+    display d
+    liftIO $ T.putStrLn ""
 
 instance Display Char where
   display = liftIO . print

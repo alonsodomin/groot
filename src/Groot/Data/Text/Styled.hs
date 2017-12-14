@@ -79,6 +79,5 @@ instance Display StyledText where
   display (TextSpan style txt) = liftIO $ do
     setSGR style
     T.putStr txt
-  display (TextBlock xs) = do
+  display (TextBlock xs) =
     forM_ xs display
-    liftIO $ T.putStrLn ""
