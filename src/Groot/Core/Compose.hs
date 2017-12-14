@@ -166,6 +166,7 @@ createTaskDefinitionReq deployment =
           ECS.cdMemory .~ (c ^. cMemory) $
           ECS.cdCpu .~ (c ^. cCpu) $
           ECS.cdLogConfiguration .~ (c ^. cLogConfig) $
+          ECS.cdName ?~ (c ^. cName) $
           ECS.containerDefinition
 
 registerTaskDefinitions :: (MonadResource m, MonadBaseControl IO m)
