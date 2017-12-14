@@ -17,7 +17,9 @@
         logDriver: awslogs
         options:
           awslogs-group: pluto-service
+          awslogs-region: eu-west-1
     - name: mysql
       image: library/mysql
+      memory: 1024
       environment:
         MYSQL_PASSWORD: password

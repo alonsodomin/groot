@@ -21,11 +21,11 @@ import           Control.Monad.Trans.Resource
 import           Control.Monad.Trans.State.Lazy
 import           Data.Aeson
 import           Data.Aeson.Types
-import Data.Semigroup ((<>))
 import           Data.Foldable
 import           Data.HashMap.Strict            (HashMap)
 import qualified Data.HashMap.Strict            as Map
 import qualified Data.List.NonEmpty             as NEL
+import           Data.Semigroup                 ((<>))
 import           Data.Text                      (Text)
 import qualified Data.Text                      as T
 import           GHC.Generics
@@ -33,7 +33,7 @@ import           Network.AWS
 import qualified Network.AWS.ECS                as ECS
 
 import           Groot.Core
-import Groot.Core.Console
+import           Groot.Core.Console
 import           Groot.Data.Filter
 import           Groot.Data.Text
 import           Groot.Exception
@@ -65,6 +65,12 @@ instance FromJSON PortMapping where
     _pmElbLink       <- runMaybeT $ nameLink <|> targetGroupLink
 
     return PortMapping{..}
+
+newtype SharedMemory = SharedMemory Int
+  deriving (Eq, Show, Generic)
+
+newtype ReservedMemory = ReservedMemory Int
+  deriving (Eq, Show, Generic)
 
 data Container = Container
   { _cName         :: Text
@@ -168,15 +174,6 @@ createTaskDefinitionReq deployment =
           ECS.cdLogConfiguration .~ (c ^. cLogConfig) $
           ECS.cdName ?~ (c ^. cName) $
           ECS.containerDefinition
-
-registerTaskDefinitions :: (MonadResource m, MonadBaseControl IO m)
-                        => Env
-                        -> [ServiceDeployment]
-                        -> MaybeT m [ECS.TaskDefinition]
-registerTaskDefinitions env = mapM registerSingle
-  where registerSingle x = MaybeT $ do
-          res <- runAWS env . send $ createTaskDefinitionReq x
-          return $ res ^. ECS.rtdrsTaskDefinition
 
 deregisterTaskDefinitions :: (MonadResource m, MonadBaseControl IO m)
                           => Env
