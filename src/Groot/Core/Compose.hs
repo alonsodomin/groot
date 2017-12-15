@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -19,6 +20,7 @@ import           Control.Monad.Reader           hiding (filterM)
 import           Control.Monad.Trans.Maybe
 import           Control.Monad.Trans.Resource
 import           Control.Monad.Trans.State.Lazy
+import Control.Monad.Morph
 import           Data.Aeson
 import           Data.Aeson.Types
 import           Data.Foldable
@@ -151,14 +153,9 @@ findActiveCluster clusterRef = do
       Nothing -> throwM $ invalidClusterStatus clusterRef CSInactive (Just CSActive)
       Just x  -> return x
 
-findActiveService :: ContainerServiceRef -> ClusterRef -> GrootM IO ECS.ContainerService
-findActiveService serviceRef clusterRef = do
-  env <- ask
-  runResourceT . runAWS env $ do
-    mservice <- runMaybeT $ filterM isActiveContainerService (findService serviceRef (Just clusterRef))
-    case mservice of
-      Nothing -> throwM $ inactiveService serviceRef clusterRef
-      Just x  -> return x
+findActiveService :: ClusterRef -> ContainerServiceRef -> GrootAWS (Maybe ECS.ContainerService)
+findActiveService clusterRef serviceRef =
+  awsToGrootM . runMaybeT $ filterM isActiveContainerService (findService serviceRef (Just clusterRef))
 
 createTaskDefinitionReq :: ServiceDeployment -> ECS.RegisterTaskDefinition
 createTaskDefinitionReq deployment =
@@ -238,12 +235,13 @@ deregisterTaskDefinitions env arns = forM_ arns deregisterSingle
 registerTasks :: (MonadBaseControl IO m, MonadIO m, MonadThrow m, MonadReader e m, HasEnv e)
               => [ServiceDeployment]
               -> m [(ServiceDeployment, ECS.TaskDefinition)]
-registerTasks services = go
+registerTasks services = runResourceT $ execStateT (traverse registerSingle services) []
   where registerSingle :: (MonadResource m, MonadBaseControl IO m, MonadReader e m, HasEnv e)
                        => ServiceDeployment
                        -> StateT [(ServiceDeployment, ECS.TaskDefinition)] m ()
         registerSingle dep = do
           env   <- lift $ ask
+          liftIO . putInfo $ "Registering task definition: " <> (dep ^. sdName)
           res   <- lift $ runAWS env . send $ createTaskDefinitionReq dep
           mtask <- pure $ res ^. ECS.rtdrsTaskDefinition
           case mtask of
@@ -252,12 +250,23 @@ registerTasks services = go
               prev <- get
               put ((dep,task):prev)
 
-        go :: (MonadBaseControl IO m, MonadIO m, MonadThrow m, MonadReader e m, HasEnv e)
-           => m [(ServiceDeployment, ECS.TaskDefinition)]
-        go = runResourceT $ execStateT (traverse aroundRegisterSingle services) []
-          where aroundRegisterSingle service = do
-                  liftIO . putInfo $ "Registering task definition: " <> (service ^. sdName)
-                  registerSingle service
+deployServices :: (MonadBaseControl IO m, MonadIO m, MonadThrow m, MonadReader e m, HasEnv e)
+               => ClusterRef
+               -> [(ServiceDeployment, ECS.TaskDefinition)]
+               -> m ()
+deployServices clusterRef deps = undefined
+  where deploySingle :: ServiceDeployment
+                     -> TaskDefId
+                     -> GrootAWS ()
+        deploySingle deployment taskDefId = do
+          serv <- findActiveService clusterRef $ ContainerServiceRef (deployment ^. sdName)
+          case serv of
+            Nothing -> do
+              liftIO . putInfo $ "Creating service: " <> (deployment ^. sdName)
+              void . send $ createServiceReq clusterRef deployment taskDefId
+            Just  _ -> do
+              liftIO . putInfo $ "Updating service: " <> (deployment ^. sdName)
+              void . send $ updateServiceReq clusterRef deployment taskDefId
 
 composeServices :: GrootCompose -> ClusterRef -> GrootM IO ()
 composeServices (GrootCompose services) clusterRef = do

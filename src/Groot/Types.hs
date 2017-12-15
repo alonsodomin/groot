@@ -28,6 +28,7 @@ module Groot.Types
      , ClusterFilter
      , isActiveCluster
      , isInactiveCluster
+     , clusterHasNameOrArn
      -- Container Instance
      , ContainerInstanceId (..)
      , ContainerInstanceArn
