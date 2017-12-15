@@ -7,15 +7,15 @@
 {-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE TemplateHaskell       #-}
 
-module Groot.Core.Compose where
+module Groot.Core.Compose
+     ( GrootCompose
+     , composeServices
+     ) where
 
 import           Control.Applicative
 import           Control.Lens
-import           Control.Monad.Free
-import           Control.Monad.Free.TH
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader           hiding (filterM)
-import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Maybe
 import           Control.Monad.Trans.Resource
 import           Control.Monad.Trans.State.Lazy
@@ -25,6 +25,7 @@ import           Data.Foldable
 import           Data.HashMap.Strict            (HashMap)
 import qualified Data.HashMap.Strict            as Map
 import qualified Data.List.NonEmpty             as NEL
+import           Data.Maybe
 import           Data.Semigroup                 ((<>))
 import           Data.Text                      (Text)
 import qualified Data.Text                      as T
@@ -184,6 +185,47 @@ createTaskDefinitionReq deployment =
           ECS.cdName ?~ (c ^. cName) $
           ECS.containerDefinition
 
+serviceDeploymentConf :: DeploymentStrategy -> ECS.DeploymentConfiguration
+serviceDeploymentConf DSBlueGreen =
+  ECS.dcMinimumHealthyPercent ?~ 100 $
+  ECS.dcMaximumPercent ?~ 200 $
+  ECS.deploymentConfiguration
+serviceDeploymentConf DSRolling =
+  ECS.dcMinimumHealthyPercent ?~ 50 $
+  ECS.dcMaximumPercent ?~ 200 $
+  ECS.deploymentConfiguration
+
+createServiceReq :: ClusterRef -> ServiceDeployment -> TaskDefId -> ECS.CreateService
+createServiceReq clusterRef deployment taskDefId =
+  ECS.cCluster ?~ (toText clusterRef) $
+  ECS.cRole .~ (deployment ^. sdServiceRole) $
+  ECS.cLoadBalancers .~ containerLoadBalancers $
+  ECS.cDeploymentConfiguration ?~ (serviceDeploymentConf $ deployment ^. sdDeploymentStrategy) $
+  ECS.createService (deployment ^. sdName) (toText taskDefId) (deployment ^. sdDesiredCount)
+  where loadBalancerConf container pm =
+          let linkElb lnk =
+                ECS.lbContainerName ?~ (container ^. cName) $
+                ECS.lbContainerPort ?~ (pm ^. pmContainerPort) $
+                assignLink $
+                ECS.loadBalancer
+                where assignLink = case lnk of
+                        ELBNameLink     x -> ECS.lbLoadBalancerName ?~ x
+                        TargetGroupLink x -> ECS.lbTargetGroupARN   ?~ x
+          in linkElb <$> (pm ^. pmElbLink)
+
+        containerLoadBalancers = catMaybes $ do
+          cont <- deployment ^. sdContainers
+          pm   <- cont ^. cPortMappings
+          return $ loadBalancerConf cont pm
+
+updateServiceReq :: ClusterRef -> ServiceDeployment -> TaskDefId -> ECS.UpdateService
+updateServiceReq clusterRef deployment taskDefId =
+  ECS.usCluster ?~ (toText clusterRef) $
+  ECS.usTaskDefinition ?~ (toText taskDefId) $
+  ECS.usDesiredCount ?~ (deployment ^. sdDesiredCount) $
+  ECS.usDeploymentConfiguration ?~ (serviceDeploymentConf $ deployment ^. sdDeploymentStrategy) $
+  ECS.updateService (deployment ^. sdName)
+
 deregisterTaskDefinitions :: (MonadResource m, MonadBaseControl IO m)
                           => Env
                           -> [TaskDefArn]
@@ -216,9 +258,6 @@ registerTasks services = go
           where aroundRegisterSingle service = do
                   liftIO . putInfo $ "Registering task definition: " <> (service ^. sdName)
                   registerSingle service
-
-        rollback :: [ECS.TaskDefinition] -> m ()
-        rollback = undefined
 
 composeServices :: GrootCompose -> ClusterRef -> GrootM IO ()
 composeServices (GrootCompose services) clusterRef = do

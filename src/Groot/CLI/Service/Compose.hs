@@ -5,11 +5,9 @@ module Groot.CLI.Service.Compose
      ) where
 
 import           Control.Monad.IO.Class
-import           Control.Monad.Reader
 import           Data.Semigroup         ((<>))
 import           Data.Yaml              (decodeFileEither,
                                          prettyPrintParseException)
-import           Network.AWS
 import           Options.Applicative
 
 import           Groot.CLI.Common
