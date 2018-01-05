@@ -258,12 +258,12 @@ registerTasks services = runResourceT $ execStateT (traverse registerSingle serv
 deployServices :: (MonadResource m, MonadBaseControl IO m)
                => ClusterRef
                -> [(ServiceDeployment, TaskDefId)]
-               -> GrootM m ()
-deployServices clusterRef = void . traverse (\(dep, tskId) -> deploySingle dep tskId)
+               -> GrootM m [ECS.ContainerService]
+deployServices clusterRef = traverse (\(dep, tskId) -> deploySingle dep tskId)
   where deploySingle :: (MonadResource m, MonadBaseControl IO m)
                      => ServiceDeployment
                      -> TaskDefId
-                     -> GrootM m ()
+                     -> GrootM m ECS.ContainerService
         deploySingle deployment tdId = do
           env      <- ask
           exists   <- serviceExists clusterRef $ ContainerServiceRef (deployment ^. sdName)
@@ -275,8 +275,8 @@ deployServices clusterRef = void . traverse (\(dep, tskId) -> deploySingle dep t
               liftIO . putInfo $ "Creating service: " <> (deployment ^. sdName)
               fmap (\x -> x ^. ECS.csrsService) . send $ createServiceReq clusterRef deployment tdId
           case mservice of
-            Nothing -> throwM $ failedServiceDeployment (ContainerServiceRef (deployment ^. sdName)) clusterRef
-            Just  _ -> return ()
+            Nothing   -> throwM $ failedServiceDeployment (ContainerServiceRef (deployment ^. sdName)) clusterRef
+            Just serv -> return serv
 
 composeServices :: GrootCompose -> ClusterRef -> GrootM IO ()
 composeServices (GrootCompose services) clusterRef = hoist runResourceT $ do

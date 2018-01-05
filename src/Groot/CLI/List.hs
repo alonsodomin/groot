@@ -20,7 +20,7 @@ import           Groot.Types
 data ListSubCmd =
     ListClustersCmd (Maybe ClusterRef)
   | ListInstancesCmd (Maybe ClusterRef)
-  | ListTasksCmd (Maybe ClusterRef)
+  | ListTasksCmd ListTaskOpts
   | ListTaskDefsCmd Bool (Maybe TaskFamily)
   | ListServicesCmd (Maybe ClusterRef)
   deriving (Eq, Show)
@@ -32,7 +32,7 @@ listInstancesCmd :: Parser ListSubCmd
 listInstancesCmd = ListInstancesCmd <$> optional clusterOpt
 
 listTasksCmd :: Parser ListSubCmd
-listTasksCmd = ListTasksCmd <$> optional clusterOpt
+listTasksCmd = ListTasksCmd <$> listTaskOpts
 
 listTaskDefsCmd :: Parser ListSubCmd
 listTaskDefsCmd = ListTaskDefsCmd
@@ -57,7 +57,7 @@ listCmds = hsubparser
 runListCmd :: ListSubCmd -> GrootM IO ()
 runListCmd (ListClustersCmd clusterId)        = printClusterSummary clusterId
 runListCmd (ListInstancesCmd clusterId)       = printInstanceSummary clusterId
-runListCmd (ListTasksCmd clusterId)           = printTaskSummary clusterId
+runListCmd (ListTasksCmd opts)                = printTaskSummary opts
 runListCmd (ListServicesCmd clusterId)        = printServiceSummary clusterId
 runListCmd (ListTaskDefsCmd showInactive fam) =
   let statusFilter = if showInactive then [TDFStatus TDSInactive] else []

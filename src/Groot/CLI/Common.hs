@@ -5,7 +5,9 @@ import           Data.Semigroup       ((<>))
 import           Data.String
 import           Options.Applicative
 
-import           Groot.Types          (ClusterRef (..), TaskFamily (..))
+import           Groot.Types          (ClusterRef (..),
+                                       ContainerServiceRef (..),
+                                       TaskFamily (..))
 
 attoReadM :: A.Parser a -> ReadM a
 attoReadM p = eitherReader (A.parseOnly p . fromString)
@@ -16,6 +18,13 @@ clusterOpt = fromString <$> strOption
           <> short 'c'
           <> metavar "CLUSTER_REF"
           <> help "ECS Cluster reference (name or ARN)" )
+
+containerServiceOpt :: Parser ContainerServiceRef
+containerServiceOpt = fromString <$> strOption
+                    ( long "service"
+                   <> short 's'
+                   <> metavar "SERVICE_REF"
+                   <> help "ECS Service reference (name or ARN)" )
 
 taskFamilyOpt :: Parser TaskFamily
 taskFamilyOpt = fromString <$> strOption

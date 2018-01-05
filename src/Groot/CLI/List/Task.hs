@@ -4,7 +4,9 @@
 {-# LANGUAGE OverloadedStrings     #-}
 
 module Groot.CLI.List.Task
-     ( printTaskSummary
+     ( ListTaskOpts
+     , listTaskOpts
+     , printTaskSummary
      ) where
 
 import           Control.Lens
@@ -18,11 +20,21 @@ import qualified Data.Text                  as T
 import           GHC.Generics
 import           Network.AWS
 import qualified Network.AWS.ECS            as ECS
+import           Options.Applicative
 import           Text.PrettyPrint.Tabulate
 
+import           Groot.CLI.Common
 import           Groot.CLI.List.Common
 import           Groot.Core
 import           Groot.Types
+
+data ListTaskOpts = ListTaskOpts (Maybe ClusterRef) (Maybe ContainerServiceRef)
+  deriving (Eq, Show)
+
+listTaskOpts :: Parser ListTaskOpts
+listTaskOpts = ListTaskOpts
+           <$> optional clusterOpt
+           <*> optional containerServiceOpt
 
 data TaskSummary = TaskSummary
   { taskId     :: String
@@ -53,13 +65,14 @@ annotateTask = CL.mapMaybeM (\t -> runMaybeT $
     (TR t) <$> taskInstance t
   )
 
-summarizeTasks :: Maybe ClusterRef -> AWS [TaskSummary]
-summarizeTasks mcid = sourceToList $ taskSource mcid =$= annotateTask =$= CL.mapMaybe summarize
-  where taskSource Nothing    = fetchAllTasks
-        taskSource (Just cid) = fetchTasks cid
+summarizeTasks :: ListTaskOpts -> AWS [TaskSummary]
+summarizeTasks opts = sourceToList $ taskSource opts =$= annotateTask =$= CL.mapMaybe summarize
+  where taskSource (ListTaskOpts Nothing    Nothing)           = fetchAllTasks
+        taskSource (ListTaskOpts (Just cid) Nothing)           = fetchTasks cid
+        taskSource (ListTaskOpts cref       (Just serviceRef)) = fetchServiceTasks cref serviceRef
 
-printTaskSummary :: Maybe ClusterRef -> GrootM IO ()
-printTaskSummary cId = do
+printTaskSummary :: ListTaskOpts -> GrootM IO ()
+printTaskSummary opts = do
   env <- ask
-  xs <- runResourceT . runAWS env $ summarizeTasks cId
+  xs <- runResourceT . runAWS env $ summarizeTasks opts
   liftIO $ printTable' "No tasks found" xs

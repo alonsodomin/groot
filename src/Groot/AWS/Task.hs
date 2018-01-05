@@ -2,6 +2,7 @@ module Groot.AWS.Task
      (
        fetchTasks
      , fetchAllTasks
+     , fetchServiceTasks
      , findTasks
      , findTask
      , getTask
@@ -40,7 +41,7 @@ fetchTasks cref@(ClusterRef ref) =
 
 fetchAllTasks :: MonadAWS m => Source m ECS.Task
 fetchAllTasks =
-  let fetchAllTasksC = awaitForever (\cref -> yieldM . sourceToList $ fetchTasks cref) =$= CL.concat
+  let fetchAllTasksC = awaitForever (\cref -> toProducer $ fetchTasks cref)
   in fetchClusters
      =$= CL.mapMaybe clusterName
      =$= fetchAllTasksC
@@ -60,3 +61,14 @@ getTask tref cref = do
   case t of
     Just x  -> return x
     Nothing -> throwM $ taskNotFound tref cref
+
+fetchServiceTasks :: MonadAWS m => Maybe ClusterRef -> ContainerServiceRef -> Source m ECS.Task
+fetchServiceTasks Nothing sref =
+  fetchClusters
+    =$= CL.mapMaybe clusterName
+    =$= awaitForever (\c -> toProducer $ fetchServiceTasks (Just c) sref)
+fetchServiceTasks (Just cref@(ClusterRef cluster)) (ContainerServiceRef service) =
+  catching ECS._ServiceNotFoundException tasks $ \_ -> CL.sourceNull
+  where tasks = paginate (ECS.ltCluster ?~ cluster $ ECS.ltServiceName ?~ service $ ECS.listTasks)
+                =$= CL.map (\x -> TaskRef <$> x ^. ECS.ltrsTaskARNs)
+                =$= awaitForever (\ts -> toProducer $ findTasks ts (Just cref))
