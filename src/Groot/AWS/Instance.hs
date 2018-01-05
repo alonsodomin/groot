@@ -48,7 +48,7 @@ fetchInstancesC instances =
 
 fetchAllInstances :: MonadAWS m => Source m ECS.ContainerInstance
 fetchAllInstances =
-  let fetchAllInstancesC = awaitForever (\cref -> toProducer $ fetchInstances cref) =$= CL.concat
+  let fetchAllInstancesC = awaitForever (\cref -> toProducer $ fetchInstances cref)
   in fetchClusters
      =$= CL.mapMaybe clusterName
      =$= fetchAllInstancesC
