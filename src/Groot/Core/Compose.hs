@@ -258,15 +258,16 @@ registerTasks services = runResourceT $ execStateT (traverse registerSingle serv
 deployServices :: (MonadResource m, MonadBaseControl IO m)
                => ClusterRef
                -> [(ServiceDeployment, TaskDefId)]
-               -> GrootM m [ECS.ContainerService]
+               -> GrootM m [ECS.Deployment]
 deployServices clusterRef = traverse (\(dep, tskId) -> deploySingle dep tskId)
   where deploySingle :: (MonadResource m, MonadBaseControl IO m)
                      => ServiceDeployment
                      -> TaskDefId
-                     -> GrootM m ECS.ContainerService
+                     -> GrootM m ECS.Deployment
         deploySingle deployment tdId = do
           env      <- ask
-          exists   <- serviceExists clusterRef $ ContainerServiceRef (deployment ^. sdName)
+          let csref = ContainerServiceRef $ deployment ^. sdName
+          exists   <- serviceExists clusterRef csref
           mservice <- runAWS env $
             if exists then do
               liftIO . putInfo $ "Updating service: " <> (deployment ^. sdName)
@@ -274,9 +275,13 @@ deployServices clusterRef = traverse (\(dep, tskId) -> deploySingle dep tskId)
             else do
               liftIO . putInfo $ "Creating service: " <> (deployment ^. sdName)
               fmap (\x -> x ^. ECS.csrsService) . send $ createServiceReq clusterRef deployment tdId
-          case mservice of
-            Nothing   -> throwM $ failedServiceDeployment (ContainerServiceRef (deployment ^. sdName)) clusterRef
-            Just serv -> return serv
+          case (mservice >>= (findServiceDeploymentStatus tdId)) of
+            Nothing -> throwM $ failedServiceDeployment csref clusterRef
+            Just  d -> return d
+
+        findServiceDeploymentStatus :: TaskDefId -> ECS.ContainerService -> Maybe ECS.Deployment
+        findServiceDeploymentStatus tdi service =
+          listToMaybe $ filter (\x -> maybe False ((==) (toText tdi)) (x ^. ECS.dTaskDefinition)) $ service ^. ECS.csDeployments
 
 composeServices :: GrootCompose -> ClusterRef -> GrootM IO ()
 composeServices (GrootCompose services) clusterRef = hoist runResourceT $ do
