@@ -34,7 +34,6 @@ import qualified Network.AWS.ECS                as ECS
 
 import           Groot.AWS.Service
 import           Groot.Core.Common
-import           Groot.Core.Console
 import           Groot.Data.Conduit.STM
 import           Groot.Data.Filter
 import           Groot.Data.Text
@@ -147,7 +146,7 @@ clusterServiceEventLog clusterRefs inf lastN = do
 printEvent :: MonadIO m => ECS.ServiceEvent -> m ()
 printEvent event = do
   eventTime <- maybe (return "") formatEventTime $ event ^. ECS.seCreatedAt
-  display $ (styled yellowStyle eventTime) <+> (styleless $ maybe "" id $ event ^. ECS.seMessage)
+  displayLn $ (styled yellowStyle eventTime) <+> (styleless $ maybe "" id $ event ^. ECS.seMessage)
 
 printEventSink :: MonadIO m => Sink ECS.ServiceEvent m ()
 printEventSink = do
