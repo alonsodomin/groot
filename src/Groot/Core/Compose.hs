@@ -261,9 +261,8 @@ deployServices :: (MonadResource m, MonadBaseControl IO m)
                => ClusterRef
                -> [(ServiceDeployment, TaskDefId)]
                -> GrootM m ()
-deployServices clusterRef serviceDetails = do
-  deployments <- traverse (\(dep, tskId) -> deploySingle dep tskId) serviceDetails
-  forM_ deployments awaitSingle
+deployServices clusterRef =
+  void . traverse (\(dep, tskId) -> deploySingle dep tskId >>= awaitSingle)
     where deploySingle :: (MonadResource m, MonadBaseControl IO m)
                       => ServiceDeployment
                       -> TaskDefId
@@ -288,7 +287,12 @@ deployServices clusterRef serviceDetails = do
                       -> GrootM m Accept
           awaitSingle (service, waiter) = do
             env <- ask
-            runAWS env $ await waiter (describeIt service)
+            runAWS env $ do
+              liftIO . putInfo $
+                   "Waiting for service "
+                <> (maybe "<unknown>" id $ service ^. ECS.csServiceName)
+                <> " to complete deployment..."
+              await waiter (describeIt service)
 
           deploymentComplete :: TaskDefId -> Getter ECS.ContainerService Bool
           deploymentComplete tdi = to $ isComplete . taskDeployment
@@ -302,7 +306,7 @@ deployServices clusterRef serviceDetails = do
                     deployment <- mdeployment
                     running    <- deployment ^. ECS.dRunningCount
                     desired    <- deployment ^. ECS.dDesiredCount
-                    return (running == desired)
+                    return (running == desired)                  
 
           describeIt :: ECS.ContainerService -> ECS.DescribeServices
           describeIt service =
