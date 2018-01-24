@@ -8,10 +8,8 @@ module Groot.CLI
 import           Control.Exception.Lens
 import           Control.Lens
 import           Control.Monad.Catch
-import           Control.Monad.Reader
 import           Control.Monad.Trans.Except
 import           Control.Monad.Trans.Maybe
-import qualified Data.ByteString.Char8      as BS
 import           Data.Semigroup             ((<>))
 import           Data.String
 import           Data.Text                  (Text)
@@ -22,7 +20,6 @@ import           Network.HTTP.Conduit
 import           Network.HTTP.Types.Status
 import           Options.Applicative
 import           Paths_groot                (version)
-import           System.Console.ANSI
 
 import           Groot.CLI.Cluster
 import           Groot.CLI.Common
@@ -142,22 +139,6 @@ loadEnv opts = do
           assignRegion r env = do
             maybeRegion <- runMaybeT r
             return $ maybe id (\x -> envRegion .~ x) maybeRegion env
-
--- AWS Error handlers
-
-handleHttpException :: HttpException -> IO ()
-handleHttpException (InvalidUrlException url reason) =
-  putError $ "Url " <> (toText url) <> " is invalid due to: " <> (toText reason)
-handleHttpException (HttpExceptionRequest req _) =
-  putError $ "Could not communicate with '" <> (toText . host $ req) <> "'."
-
-handleServiceError :: ServiceError -> IO ()
-handleServiceError err =
-  let servName  = toText $ err ^. serviceAbbrev
-      statusMsg = toText . statusMessage $ err ^. serviceStatus
-      message   = maybe "" toText $ err ^. serviceMessage
-      styledSt  = styled yellowStyle (T.concat [servName, " ", statusMsg])
-  in putError $ styledSt <+> (styleless message)
 
 -- Groot Error handlers
 

@@ -306,7 +306,7 @@ deployServices clusterRef =
                     deployment <- mdeployment
                     running    <- deployment ^. ECS.dRunningCount
                     desired    <- deployment ^. ECS.dDesiredCount
-                    return (running == desired)                  
+                    return (running == desired)
 
           describeIt :: ECS.ContainerService -> ECS.DescribeServices
           describeIt service =
