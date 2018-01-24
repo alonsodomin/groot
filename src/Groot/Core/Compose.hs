@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE TemplateHaskell       #-}
 
@@ -29,9 +30,10 @@ import           Data.Maybe
 import           Data.Semigroup                 ((<>))
 import           Data.Text                      (Text)
 import qualified Data.Text                      as T
-import           GHC.Generics
+import           GHC.Generics                   hiding (to)
 import           Network.AWS
 import qualified Network.AWS.ECS                as ECS
+import           Network.AWS.Waiter
 
 import           Groot.Core
 import           Groot.Core.Console
@@ -258,30 +260,72 @@ registerTasks services = runResourceT $ execStateT (traverse registerSingle serv
 deployServices :: (MonadResource m, MonadBaseControl IO m)
                => ClusterRef
                -> [(ServiceDeployment, TaskDefId)]
-               -> GrootM m [ECS.Deployment]
-deployServices clusterRef = traverse (\(dep, tskId) -> deploySingle dep tskId)
-  where deploySingle :: (MonadResource m, MonadBaseControl IO m)
-                     => ServiceDeployment
-                     -> TaskDefId
-                     -> GrootM m ECS.Deployment
-        deploySingle deployment tdId = do
-          env      <- ask
-          let csref = ContainerServiceRef $ deployment ^. sdName
-          exists   <- serviceExists clusterRef csref
-          mservice <- runAWS env $
-            if exists then do
-              liftIO . putInfo $ "Updating service: " <> (deployment ^. sdName)
-              fmap (\x -> x ^. ECS.usrsService) . send $ updateServiceReq clusterRef deployment tdId
-            else do
-              liftIO . putInfo $ "Creating service: " <> (deployment ^. sdName)
-              fmap (\x -> x ^. ECS.csrsService) . send $ createServiceReq clusterRef deployment tdId
-          case (mservice >>= (findServiceDeploymentStatus tdId)) of
-            Nothing -> throwM $ failedServiceDeployment csref clusterRef
-            Just  d -> return d
+               -> GrootM m ()
+deployServices clusterRef serviceDetails = do
+  deployments <- traverse (\(dep, tskId) -> deploySingle dep tskId) serviceDetails
+  forM_ deployments awaitSingle
+    where deploySingle :: (MonadResource m, MonadBaseControl IO m)
+                      => ServiceDeployment
+                      -> TaskDefId
+                      -> GrootM m (ECS.ContainerService, Wait ECS.DescribeServices)
+          deploySingle deployment tdId = do
+            env      <- ask
+            let csref = ContainerServiceRef $ deployment ^. sdName
+            exists   <- serviceExists clusterRef csref
+            mservice <- runAWS env $
+              if exists then do
+                liftIO . putInfo $ "Updating service: " <> (deployment ^. sdName)
+                fmap (\x -> x ^. ECS.usrsService) . send $ updateServiceReq clusterRef deployment tdId
+              else do
+                liftIO . putInfo $ "Creating service: " <> (deployment ^. sdName)
+                fmap (\x -> x ^. ECS.csrsService) . send $ createServiceReq clusterRef deployment tdId
+            case mservice of
+              Nothing  -> throwM $ failedServiceDeployment csref clusterRef
+              Just srv -> return (srv, serviceDeployed tdId)
 
-        findServiceDeploymentStatus :: TaskDefId -> ECS.ContainerService -> Maybe ECS.Deployment
-        findServiceDeploymentStatus tdi service =
-          listToMaybe $ filter (\x -> maybe False ((==) (toText tdi)) (x ^. ECS.dTaskDefinition)) $ service ^. ECS.csDeployments
+          awaitSingle :: (MonadResource m, MonadBaseControl IO m)
+                      => (ECS.ContainerService, Wait ECS.DescribeServices)
+                      -> GrootM m Accept
+          awaitSingle (service, waiter) = do
+            env <- ask
+            runAWS env $ await waiter (describeIt service)
+
+          deploymentComplete :: TaskDefId -> Getter ECS.ContainerService Bool
+          deploymentComplete tdi = to $ isComplete . taskDeployment
+            where taskDeployment :: ECS.ContainerService -> Maybe ECS.Deployment
+                  taskDeployment service = listToMaybe
+                    $ filter (\x -> maybe False ((==) (toText tdi)) (x ^. ECS.dTaskDefinition))
+                    $ service ^. ECS.csDeployments
+
+                  isComplete :: Maybe ECS.Deployment -> Bool
+                  isComplete mdeployment = maybe False id $ do
+                    deployment <- mdeployment
+                    running    <- deployment ^. ECS.dRunningCount
+                    desired    <- deployment ^. ECS.dDesiredCount
+                    return (running == desired)
+
+          describeIt :: ECS.ContainerService -> ECS.DescribeServices
+          describeIt service =
+              ECS.dCluster .~ (service ^. ECS.csClusterARN)
+            $ ECS.dServices .~ (maybeToList $ service ^. ECS.csServiceARN)
+            $ ECS.describeServices
+
+          serviceDeployed :: TaskDefId -> Wait ECS.DescribeServices
+          serviceDeployed tdi = Wait
+            { _waitName = ""
+            , _waitAttempts = 100
+            , _waitDelay = 6
+            , _waitAcceptors =
+              [ matchAny
+                  "MISSING"
+                  AcceptFailure
+                  (folding (concatOf ECS.dssrsFailures) . ECS.fReason . _Just . to toTextCI)
+              , matchAll
+                  True
+                  AcceptSuccess
+                  (folding (concatOf ECS.dssrsServices) . (deploymentComplete tdi))
+              ]
+            }
 
 composeServices :: GrootCompose -> ClusterRef -> GrootM IO ()
 composeServices (GrootCompose services) clusterRef = hoist runResourceT $ do
