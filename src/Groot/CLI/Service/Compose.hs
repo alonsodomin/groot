@@ -34,6 +34,4 @@ runServiceCompose opts = do
   parsed <- liftIO . decodeFileEither $ composeFile opts
   case parsed of
     Left err         -> liftIO . putStrLn $ prettyPrintParseException err
-    Right composeDef -> do
-      composeServices composeDef (cluster opts)
-      liftIO $ print (composeDef :: GrootCompose)
+    Right composeDef -> composeServices composeDef (cluster opts)      

@@ -83,6 +83,8 @@ data Container = Container
   , _cPortMappings :: [PortMapping]
   , _cEnvironment  :: HashMap Text Text
   , _cLogConfig    :: Maybe ECS.LogConfiguration
+  , _cEntryPoint   :: [Text]
+  , _cCommand      :: [Text]
   } deriving (Eq, Show, Generic)
 
 makeLenses ''Container
@@ -96,6 +98,8 @@ instance FromJSON Container where
     _cPortMappings <- maybe [] id <$> o .:? "port-mappings"
     _cEnvironment  <- maybe Map.empty id <$> o .:? "environment"
     _cLogConfig    <- o .:? "logging"
+    _cEntryPoint   <- maybe [] id <$> o .:? "entry-point"
+    _cCommand      <- maybe [] id <$> o .:? "command"
     return Container{..}
 
 data DeploymentStrategy =
@@ -187,6 +191,8 @@ createTaskDefinitionReq deployment =
           $ ECS.cdCpu .~ (c ^. cCpu)
           $ ECS.cdLogConfiguration .~ (c ^. cLogConfig)
           $ ECS.cdName ?~ (c ^. cName)
+          $ ECS.cdEntryPoint .~ (c ^. cEntryPoint)
+          $ ECS.cdCommand .~ (c ^. cCommand)
           $ ECS.containerDefinition
 
 serviceDeploymentConf :: DeploymentStrategy -> ECS.DeploymentConfiguration
@@ -239,7 +245,7 @@ registerTasks services = runResourceT $ execStateT (traverse registerSingle serv
                        -> StateT [(ServiceDeployment, TaskDefId)] m ()
         registerSingle dep = do
           env   <- lift $ ask
-          liftIO . putInfo $ "Registering task definition: " <> (dep ^. sdName)
+          liftIO . putInfo $ "Registering task definition for service " <> styled yellowStyle (dep ^. sdName)
           res   <- lift $ runAWS env . send $ createTaskDefinitionReq dep
           mtask <- pure $ res ^. ECS.rtdrsTaskDefinition >>= taskDefId
           case mtask of
