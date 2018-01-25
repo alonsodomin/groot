@@ -105,6 +105,7 @@ instance FromJSON Container where
 data DeploymentStrategy =
     DSBlueGreen
   | DSRolling
+  | DSTearDown
   deriving (Eq, Show, Ord, Enum, Bounded, Generic)
 
 defaultDeploymentStrategy :: DeploymentStrategy
@@ -113,8 +114,9 @@ defaultDeploymentStrategy = DSBlueGreen
 instance FromJSON DeploymentStrategy where
   parseJSON = withText "deployment strategy" $ \txt ->
     case (T.toLower txt) of
-      "blue-green" -> return DSBlueGreen
-      "rolling"    -> return DSRolling
+      "blue-green" -> pure DSBlueGreen
+      "rolling"    -> pure DSRolling
+      "tear-down"  -> pure DSTearDown
       _            -> fail $ "Invalid deployment strategy: " ++ (T.unpack txt)
 
 data ServiceDeployment = ServiceDeployment
@@ -203,6 +205,10 @@ serviceDeploymentConf DSBlueGreen =
 serviceDeploymentConf DSRolling =
     ECS.dcMinimumHealthyPercent ?~ 50
   $ ECS.dcMaximumPercent ?~ 200
+  $ ECS.deploymentConfiguration
+serviceDeploymentConf DSTearDown =
+    ECS.dcMinimumHealthyPercent ?~ 0
+  $ ECS.dcMaximumPercent ?~ 100
   $ ECS.deploymentConfiguration
 
 createServiceReq :: ClusterRef -> ServiceDeployment -> TaskDefId -> ECS.CreateService
