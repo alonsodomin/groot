@@ -127,6 +127,7 @@ data ServiceDeployment = ServiceDeployment
   , _sdDeploymentStrategy :: DeploymentStrategy
   , _sdContainers         :: [Container]
   , _sdNetworkMode        :: Maybe ECS.NetworkMode
+  , _sdPlacementStrategy  :: [ECS.PlacementStrategy]
   } deriving (Eq, Show, Generic)
 
 makeLenses ''ServiceDeployment
@@ -140,6 +141,7 @@ instance FromJSON ServiceDeployment where
     _sdDeploymentStrategy <- maybe defaultDeploymentStrategy id <$> o .:? "deployment-strategy"
     _sdContainers         <- o .: "containers"
     _sdNetworkMode        <- o .:? "network"
+    _sdPlacementStrategy  <- maybe [] id <$> o .:? "placement-strategy"
     return ServiceDeployment{..}
 
 data GrootCompose = GrootCompose [ServiceDeployment]
@@ -217,6 +219,7 @@ createServiceReq clusterRef deployment tdId =
   $ ECS.cRole .~ (deployment ^. sdServiceRole)
   $ ECS.cLoadBalancers .~ containerLoadBalancers
   $ ECS.cDeploymentConfiguration ?~ (serviceDeploymentConf $ deployment ^. sdDeploymentStrategy)
+  $ ECS.cPlacementStrategy .~ (deployment ^. sdPlacementStrategy)
   $ ECS.createService (deployment ^. sdName) (toText tdId) (deployment ^. sdDesiredCount)
   where loadBalancerConf container pm =
           let linkElb lnk =
@@ -293,7 +296,7 @@ deployServices clusterRef =
 
           awaitSingle :: (MonadResource m, MonadBaseControl IO m)
                       => (ECS.ContainerService, Wait ECS.DescribeServices)
-                      -> GrootM m Accept
+                      -> GrootM m ()
           awaitSingle (service, waiter) = do
             env         <- ask
             serviceName <- pure $ maybe "<unknown>" id $ service ^. ECS.csServiceName
@@ -301,13 +304,19 @@ deployServices clusterRef =
                  "Waiting for service "
               <> styled yellowStyle serviceName
               <> " to complete deployment..."
-            runAWS env $ await waiter (describeIt service)
+            deployStatus <- runAWS env $ await waiter (describeIt service)
+            case deployStatus of
+              AcceptSuccess -> liftIO . putSuccess $ 
+                                  "Service "
+                               <> styled yellowStyle serviceName
+                               <> " successfully deployed."
+              _             -> throwM $ failedServiceDeployment (ContainerServiceRef serviceName) clusterRef
 
           deploymentComplete :: TaskDefId -> Getter ECS.ContainerService Bool
           deploymentComplete tdi = to $ isComplete . taskDeployment
             where taskDeployment :: ECS.ContainerService -> Maybe ECS.Deployment
                   taskDeployment service = listToMaybe
-                    $ filter (\x -> maybe False ((==) (toText tdi)) (x ^. ECS.dTaskDefinition))
+                    $ filter (\x -> maybe False (T.isSuffixOf (toText tdi)) (x ^. ECS.dTaskDefinition))
                     $ service ^. ECS.csDeployments
 
                   isComplete :: Maybe ECS.Deployment -> Bool
@@ -333,7 +342,7 @@ deployServices clusterRef =
                   "MISSING"
                   AcceptFailure
                   (folding (concatOf ECS.dssrsFailures) . ECS.fReason . _Just . to toTextCI)
-              , matchAll
+              , matchAny
                   True
                   AcceptSuccess
                   (folding (concatOf ECS.dssrsServices) . (deploymentComplete tdi))

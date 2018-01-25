@@ -4,6 +4,7 @@
 module Groot.AWS.Service
      (
        serviceCoords
+     , serviceTaskDefArn
      , findServices
      , findService
      , findServiceCoords
@@ -13,6 +14,7 @@ module Groot.AWS.Service
      ) where
 
 import           Control.Lens
+import Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.Trans.Maybe
 import           Data.Conduit
@@ -32,13 +34,16 @@ serviceCoords service = ContainerServiceCoords <$> serviceRef <*> clusterRef
   where serviceRef = ContainerServiceRef <$> service ^. ECS.csServiceARN
         clusterRef = ClusterRef          <$> service ^. ECS.csClusterARN
 
+serviceTaskDefArn :: ECS.ContainerService -> Maybe TaskDefArn
+serviceTaskDefArn service = join $ (either (\_ -> Nothing) Just . fromText) <$> service ^. ECS.csTaskDefinition
+
 findServiceCoords :: (MonadAWS m, Traversable t)
                   => t ContainerServiceRef
                   -> m (t ContainerServiceCoords)
 findServiceCoords = traverse singleServiceCoords
   where singleServiceCoords :: MonadAWS m => ContainerServiceRef -> m ContainerServiceCoords
         singleServiceCoords serviceRef = do
-          mcoords <- (serviceCoords <$> getService serviceRef Nothing)
+          mcoords <- serviceCoords <$> getService serviceRef Nothing
           case mcoords of
             Just c  -> return c
             Nothing -> throwM $ serviceNotFound serviceRef Nothing

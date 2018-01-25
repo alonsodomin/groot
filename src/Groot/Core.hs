@@ -24,13 +24,13 @@ import           Groot.Data.Text
 
 -- AWS Error handlers
 
-handleHttpException :: HttpException -> IO ()
+handleHttpException :: MonadConsole m => HttpException -> m ()
 handleHttpException (InvalidUrlException url reason) =
-  putError $ "Url " <> (toText url) <> " is invalid due to: " <> (toText reason)
+  putError $ "Url " <> (styled yellowStyle $ toText url) <> " is invalid due to: " <> (styled redStyle $ toText reason)
 handleHttpException (HttpExceptionRequest req _) =
-  putError $ "Could not communicate with '" <> (toText . host $ req) <> "'."
+  putError $ "Could not communicate with " <> (styled yellowStyle $ toText . host $ req) <> "."
 
-handleServiceError :: ServiceError -> IO ()
+handleServiceError :: MonadConsole m => ServiceError -> m ()
 handleServiceError err =
   let servName  = toText $ err ^. serviceAbbrev
       statusMsg = toText . statusMessage $ err ^. serviceStatus

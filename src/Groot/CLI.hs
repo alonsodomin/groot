@@ -16,8 +16,6 @@ import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import           Data.Version               (showVersion)
 import           Network.AWS
-import           Network.HTTP.Conduit
-import           Network.HTTP.Types.Status
 import           Options.Applicative
 import           Paths_groot                (version)
 
@@ -30,7 +28,6 @@ import           Groot.Core
 import           Groot.Core.Console
 import           Groot.Data.Text
 import           Groot.Exception
-import           Groot.Types                (ClusterRef (..))
 
 data CredentialsOpt =
     ProfileOpt (Maybe Text) (Maybe FilePath)
@@ -143,47 +140,56 @@ loadEnv opts = do
 -- Groot Error handlers
 
 handleClusterNotFound :: ClusterNotFound -> IO ()
-handleClusterNotFound (ClusterNotFound' (ClusterRef ref)) =
-  putError $ "Could not find cluster '" <> ref <> "'"
+handleClusterNotFound (ClusterNotFound' clusterRef) =
+  putError $ "Could not find cluster " <> (styled yellowStyle $ toText clusterRef)
 
 handleInvalidClusterStatus :: InvalidClusterStatus -> IO ()
-handleInvalidClusterStatus (InvalidClusterStatus' (ClusterRef ref) currentSt desiredSt) =
-  putError $ "Can't operate on cluster '" <> ref <> "' because it is " <> (toText currentSt)
-    <> maybe "." (\x -> ", it should be " <> (toText x) <> " to continue.") desiredSt
+handleInvalidClusterStatus (InvalidClusterStatus' clusterRef currentSt desiredSt) =
+  putError $ "Can't operate on cluster " <> (styled yellowStyle $ toText clusterRef)
+    <> " because it is " <> (styled redStyle $ toText currentSt)
+    <> maybe "." (\x -> ", it should be " <> (styled blueStyle $ toText x) <> " to continue.") desiredSt
 
 handleServiceNotFound :: ServiceNotFound -> IO ()
 handleServiceNotFound (ServiceNotFound' serviceRef clusterRef) =
-  putError $ "Could not find service '" <> (toText serviceRef) <> "'" <>
-    maybe "" (\x -> " in cluster " <> (toText x)) clusterRef
+  putError $ "Could not find service " <> (styled yellowStyle $ toText serviceRef) <>
+    maybe "" (\x -> " in cluster " <> (styled yellowStyle $ toText x)) clusterRef
 
 handleAmbiguousServiceName :: AmbiguousServiceName -> IO ()
 handleAmbiguousServiceName (AmbiguousServiceName' serviceRef clusters) =
-  let stringifyClusters = "\n - " <> (T.intercalate "\n - " $ toText <$> clusters)
-  in putError $ "Service name '" <> (toText serviceRef)
-       <> "' is ambiguous. It was found in the following clusters:" <> stringifyClusters
+  let stringifyClusters = styleless $ "\n - " <> (T.intercalate "\n - " $ toText <$> clusters)
+  in putError $ "Service name " <> (styled yellowStyle $ toText serviceRef)
+       <> " is ambiguous. It was found in the following clusters:" <> stringifyClusters
 
 handleInactiveService :: InactiveService -> IO ()
 handleInactiveService (InactiveService' serviceRef clusterRef) =
-  putError $ "Service '" <> (toText serviceRef) <> "' in cluster '"
-    <> (toText $ clusterRef) <> "' is not active."
+  putError $ "Service " <> (styled yellowStyle $ toText serviceRef) <> " in cluster "
+    <> (styled yellowStyle $ toText $ clusterRef)
+    <> " is not active."
+
+handleFailedServiceDeployment :: FailedServiceDeployment -> IO ()
+handleFailedServiceDeployment (FailedServiceDeployment' serviceRef clusterRef) =
+  putError $ "Service " <> (styled yellowStyle $ toText serviceRef) <> " in cluster "
+    <> (styled yellowStyle $ toText clusterRef)
+    <> " failed to stabilize during deployment."
 
 handleTaskNotFound :: TaskNotFound -> IO ()
 handleTaskNotFound (TaskNotFound' taskRef clusterRef) =
-  putError $ "Could not find task '" <> (toText taskRef) <> "'" <>
-    maybe "" (\x -> " in cluster " <> (toText x)) clusterRef
+  putError $ "Could not find task " <> (styled yellowStyle $ toText taskRef) <>
+    maybe "" (\x -> " in cluster " <> (styled yellowStyle $ toText x)) clusterRef
 
 -- Main Program execution
 
 handleExceptions :: IO () -> IO ()
 handleExceptions act = catches act [
-    handler _TransportError       handleHttpException
-  , handler _ServiceError         handleServiceError
-  , handler _ClusterNotFound      handleClusterNotFound
-  , handler _InvalidClusterStatus handleInvalidClusterStatus
-  , handler _ServiceNotFound      handleServiceNotFound
-  , handler _AmbiguousServiceName handleAmbiguousServiceName
-  , handler _InactiveService      handleInactiveService
-  , handler _TaskNotFound         handleTaskNotFound
+    handler _TransportError          handleHttpException
+  , handler _ServiceError            handleServiceError
+  , handler _ClusterNotFound         handleClusterNotFound
+  , handler _InvalidClusterStatus    handleInvalidClusterStatus
+  , handler _ServiceNotFound         handleServiceNotFound
+  , handler _AmbiguousServiceName    handleAmbiguousServiceName
+  , handler _InactiveService         handleInactiveService
+  , handler _TaskNotFound            handleTaskNotFound
+  , handler _FailedServiceDeployment handleFailedServiceDeployment
   ]
 
 -- | Runs a Groot command with the given AWS environment

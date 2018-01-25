@@ -6,6 +6,7 @@ module Groot.Data.Text.Styled
      , blueStyle
      , redStyle
      , yellowStyle
+     , greenStyle
      , StyledText
      , styled
      , empty
@@ -28,11 +29,12 @@ import           Groot.Data.Text.Display
 
 type Style = [SGR]
 
-noStyle, blueStyle, redStyle, yellowStyle :: Style
+noStyle, blueStyle, redStyle, yellowStyle, greenStyle :: Style
 noStyle     = [Reset]
 blueStyle   = [SetColor Foreground Dull Blue]
 redStyle    = [SetColor Foreground Vivid Red]
 yellowStyle = [SetColor Foreground Dull Yellow]
+greenStyle  = [SetColor Foreground Dull Green]
 
 data StyledText =
     TextSpan Style Text

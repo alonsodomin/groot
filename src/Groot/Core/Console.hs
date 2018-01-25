@@ -14,6 +14,7 @@ module Groot.Core.Console
      , putInfo
      , putWarn
      , putError
+     , putSuccess
      ) where
 
 import           Control.Monad.IO.Class
@@ -25,12 +26,13 @@ import           Groot.Data.Text.Display
 import           Groot.Data.Text.Styled  as ST
 import           System.IO
 
-errorText, warnText, infoText :: StyledText
-errorText = styled redStyle    "ERROR"
-warnText  = styled yellowStyle "WARN"
-infoText  = styled blueStyle   "INFO"
+errorText, warnText, infoText, successText :: StyledText
+errorText   = styled redStyle    "ERROR"
+warnText    = styled yellowStyle "WARN"
+infoText    = styled blueStyle   "INFO"
+successText = styled greenStyle  "DONE"
 
-data Severity = Error | Warn | Info
+data Severity = Error | Warn | Info | Success
   deriving (Eq, Show, Enum, Bounded, Ord)
 
 class Monad m => MonadConsole m where
@@ -42,9 +44,10 @@ instance MonadConsole IO where
     display $ levelStr <> (ST.singleton ' ')
     displayLn txt
       where levelStr = case sev of
-              Error -> errorText
-              Warn  -> warnText
-              Info  -> infoText
+              Error   -> errorText
+              Warn    -> warnText
+              Info    -> infoText
+              Success -> successText
 
   askUser prompt = do
     answer <- liftIO $ do
@@ -82,3 +85,6 @@ putWarn = putMessage Warn
 
 putError :: (MonadConsole m, Display a) => a -> m ()
 putError = putMessage Error
+
+putSuccess :: (MonadConsole m, Display a) => a -> m ()
+putSuccess = putMessage Success
