@@ -166,52 +166,52 @@ serviceExists clusterRef serviceRef = do
 
 createTaskDefinitionReq :: ServiceDeployment -> ECS.RegisterTaskDefinition
 createTaskDefinitionReq deployment =
-  ECS.rtdNetworkMode .~ (deployment ^. sdNetworkMode) $
-  ECS.rtdTaskRoleARN .~ (deployment ^. sdTaskRole) $
-  ECS.rtdContainerDefinitions .~ (containerDef <$> deployment ^. sdContainers) $
-  ECS.registerTaskDefinition (toText $ deployment ^. sdName)
+    ECS.rtdNetworkMode .~ (deployment ^. sdNetworkMode)
+  $ ECS.rtdTaskRoleARN .~ (deployment ^. sdTaskRole)
+  $ ECS.rtdContainerDefinitions .~ (containerDef <$> deployment ^. sdContainers)
+  $ ECS.registerTaskDefinition (toText $ deployment ^. sdName)
   where containerEnv env =
           Map.foldrWithKey (\k v acc -> (ECS.kvpName ?~ k $ ECS.kvpValue ?~ v $ ECS.keyValuePair):acc) [] env
 
         containerPort port =
-          ECS.pmProtocol .~ (port ^. pmProtocol) $
-          ECS.pmHostPort .~ (port ^. pmHostPort) $
-          ECS.pmContainerPort ?~ (port ^. pmContainerPort) $
-          ECS.portMapping
+            ECS.pmProtocol .~ (port ^. pmProtocol)
+          $ ECS.pmHostPort .~ (port ^. pmHostPort)
+          $ ECS.pmContainerPort ?~ (port ^. pmContainerPort)
+          $ ECS.portMapping
 
         containerDef c =
-          ECS.cdImage ?~ (c ^. cImage) $
-          ECS.cdEnvironment .~ (containerEnv $ c ^. cEnvironment) $
-          ECS.cdPortMappings .~ (containerPort <$> c ^. cPortMappings) $
-          ECS.cdMemory .~ (c ^. cMemory) $
-          ECS.cdCpu .~ (c ^. cCpu) $
-          ECS.cdLogConfiguration .~ (c ^. cLogConfig) $
-          ECS.cdName ?~ (c ^. cName) $
-          ECS.containerDefinition
+            ECS.cdImage ?~ (c ^. cImage)
+          $ ECS.cdEnvironment .~ (containerEnv $ c ^. cEnvironment)
+          $ ECS.cdPortMappings .~ (containerPort <$> c ^. cPortMappings)
+          $ ECS.cdMemory .~ (c ^. cMemory)
+          $ ECS.cdCpu .~ (c ^. cCpu)
+          $ ECS.cdLogConfiguration .~ (c ^. cLogConfig)
+          $ ECS.cdName ?~ (c ^. cName)
+          $ ECS.containerDefinition
 
 serviceDeploymentConf :: DeploymentStrategy -> ECS.DeploymentConfiguration
 serviceDeploymentConf DSBlueGreen =
-  ECS.dcMinimumHealthyPercent ?~ 100 $
-  ECS.dcMaximumPercent ?~ 200 $
-  ECS.deploymentConfiguration
+    ECS.dcMinimumHealthyPercent ?~ 100
+  $ ECS.dcMaximumPercent ?~ 200
+  $ ECS.deploymentConfiguration
 serviceDeploymentConf DSRolling =
-  ECS.dcMinimumHealthyPercent ?~ 50 $
-  ECS.dcMaximumPercent ?~ 200 $
-  ECS.deploymentConfiguration
+    ECS.dcMinimumHealthyPercent ?~ 50
+  $ ECS.dcMaximumPercent ?~ 200
+  $ ECS.deploymentConfiguration
 
 createServiceReq :: ClusterRef -> ServiceDeployment -> TaskDefId -> ECS.CreateService
 createServiceReq clusterRef deployment tdId =
-  ECS.cCluster ?~ (toText clusterRef) $
-  ECS.cRole .~ (deployment ^. sdServiceRole) $
-  ECS.cLoadBalancers .~ containerLoadBalancers $
-  ECS.cDeploymentConfiguration ?~ (serviceDeploymentConf $ deployment ^. sdDeploymentStrategy) $
-  ECS.createService (deployment ^. sdName) (toText tdId) (deployment ^. sdDesiredCount)
+    ECS.cCluster ?~ (toText clusterRef)
+  $ ECS.cRole .~ (deployment ^. sdServiceRole)
+  $ ECS.cLoadBalancers .~ containerLoadBalancers
+  $ ECS.cDeploymentConfiguration ?~ (serviceDeploymentConf $ deployment ^. sdDeploymentStrategy)
+  $ ECS.createService (deployment ^. sdName) (toText tdId) (deployment ^. sdDesiredCount)
   where loadBalancerConf container pm =
           let linkElb lnk =
-                ECS.lbContainerName ?~ (container ^. cName) $
-                ECS.lbContainerPort ?~ (pm ^. pmContainerPort) $
-                assignLink $
-                ECS.loadBalancer
+                  ECS.lbContainerName ?~ (container ^. cName)
+                $ ECS.lbContainerPort ?~ (pm ^. pmContainerPort)
+                $ assignLink
+                $ ECS.loadBalancer
                 where assignLink = case lnk of
                         ELBNameLink     x -> ECS.lbLoadBalancerName ?~ x
                         TargetGroupLink x -> ECS.lbTargetGroupARN   ?~ x
