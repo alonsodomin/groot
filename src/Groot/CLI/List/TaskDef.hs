@@ -4,7 +4,9 @@
 {-# LANGUAGE OverloadedStrings     #-}
 
 module Groot.CLI.List.TaskDef
-     ( printTaskDefsSummary
+     ( ListTaskDefsOpts
+     , listTaskDefsOpts
+     , printTaskDefsSummary
      , TaskDefFilter(..)
      ) where
 
@@ -14,15 +16,31 @@ import           Control.Monad.Trans.Reader
 import           Data.Conduit
 import qualified Data.Conduit.List          as CL
 import           Data.Data
-import           Data.Text                  hiding (foldr)
+import           Data.Maybe                 (maybeToList)
+import           Data.Semigroup             ((<>))
+import qualified Data.Text                  as T
 import           GHC.Generics
 import           Network.AWS
 import qualified Network.AWS.ECS            as ECS
+import           Options.Applicative
 import           Text.PrettyPrint.Tabulate
 
+import           Groot.CLI.Common
 import           Groot.CLI.List.Common
 import           Groot.Core
 import           Groot.Types
+
+data ListTaskDefsOpts =
+  ListTaskDefsOpts Bool (Maybe TaskFamily)
+  deriving (Eq, Show)
+
+listTaskDefsOpts :: Parser ListTaskDefsOpts
+listTaskDefsOpts = ListTaskDefsOpts
+              <$> switch
+                ( long "inactive"
+                <> short 'i'
+                <> help "Show inactive task definitions" )
+              <*> optional taskFamilyOpt
 
 data TaskDefSummary = TaskDefSummary
   { family   :: String
@@ -34,7 +52,7 @@ instance Tabulate TaskDefSummary
 
 instance HasSummary ECS.TaskDefinition TaskDefSummary where
   summarize taskDef = TaskDefSummary <$> tFamily <*> tRev <*> tStatus
-    where tFamily = unpack <$> taskDef ^. ECS.tdFamily
+    where tFamily = T.unpack <$> taskDef ^. ECS.tdFamily
           tRev    = taskDef ^. ECS.tdRevision
           tStatus = statusAsText <$> taskDef ^. ECS.tdStatus
             where statusAsText ECS.TDSActive   = "Active"
@@ -46,8 +64,12 @@ summarizeTaskDefs filters =
      =$= CL.mapMaybe summarize
      =$ CL.consume
 
-printTaskDefsSummary :: [TaskDefFilter] -> GrootM IO ()
-printTaskDefsSummary filters = do
-  env <- ask
-  xs <- runResourceT . runAWS env $ summarizeTaskDefs filters
-  liftIO $ printTable' "No task definitions found" xs
+printTaskDefsSummary :: ListTaskDefsOpts -> GrootM IO ()
+printTaskDefsSummary (ListTaskDefsOpts showInactive fam) =
+  let statusFilter = if showInactive then [TDFStatus TDSInactive] else []
+      familyFilter = maybeToList $ TDFFamily <$> fam
+      filters      = statusFilter ++ familyFilter
+  in do
+    env <- ask
+    xs <- runResourceT . runAWS env $ summarizeTaskDefs filters
+    liftIO $ printTable' "No task definitions found" xs

@@ -1,17 +1,15 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Groot.CLI
-     ( runGroot
+     ( grootCli
      ) where
 
 import           Control.Exception.Lens
 import           Control.Lens
 import           Control.Monad.Catch
-import           Control.Monad.Reader
 import           Control.Monad.Trans.Except
 import           Control.Monad.Trans.Maybe
-import qualified Data.ByteString.Char8      as BS
-import           Data.List                  (intercalate)
 import           Data.Semigroup             ((<>))
 import           Data.String
 import           Data.Text                  (Text)
@@ -22,7 +20,6 @@ import           Network.HTTP.Conduit
 import           Network.HTTP.Types.Status
 import           Options.Applicative
 import           Paths_groot                (version)
-import           System.Console.ANSI
 
 import           Groot.CLI.Cluster
 import           Groot.CLI.Common
@@ -31,7 +28,7 @@ import           Groot.CLI.Service
 import           Groot.Config
 import           Groot.Core
 import           Groot.Core.Console
-import           Groot.Data.Text            hiding (Parser, option)
+import           Groot.Data.Text
 import           Groot.Exception
 import           Groot.Types                (ClusterRef (..))
 
@@ -134,7 +131,7 @@ loadEnv opts = do
                     reg <- runExceptT $ regionFromConfig confFile profile
                     case reg of
                       Left err -> do
-                        printWarn err
+                        putWarn $ T.pack err
                         return Nothing
                       Right r -> return (Just r)
 
@@ -143,53 +140,37 @@ loadEnv opts = do
             maybeRegion <- runMaybeT r
             return $ maybe id (\x -> envRegion .~ x) maybeRegion env
 
--- AWS Error handlers
-
-handleHttpException :: HttpException -> IO ()
-handleHttpException (InvalidUrlException url reason) =
-  printError $ "Url " <> url <> " is invalid due to: " <> reason
-handleHttpException (HttpExceptionRequest req _) =
-  printError $ "Could not communicate with '" <> (BS.unpack . host $ req) <> "'."
-
-handleServiceError :: ServiceError -> IO ()
-handleServiceError err =
-  let servName  = T.unpack . toText $ err ^. serviceAbbrev
-      statusMsg = BS.unpack . statusMessage $ err ^. serviceStatus
-      message   = maybe "" (T.unpack . toText) $ err ^. serviceMessage
-  in do
-    putError
-    putStr " "
-    setSGR [SetColor Foreground Dull Yellow]
-    putStr $ concat [servName, " ", statusMsg]
-    setSGR [Reset]
-    putStrLn $ ' ':message
-
 -- Groot Error handlers
 
 handleClusterNotFound :: ClusterNotFound -> IO ()
 handleClusterNotFound (ClusterNotFound' (ClusterRef ref)) =
-  printError $ "Could not find cluster '" <> (T.unpack ref) <> "'"
+  putError $ "Could not find cluster '" <> ref <> "'"
+
+handleInvalidClusterStatus :: InvalidClusterStatus -> IO ()
+handleInvalidClusterStatus (InvalidClusterStatus' (ClusterRef ref) currentSt desiredSt) =
+  putError $ "Can't operate on cluster '" <> ref <> "' because it is " <> (toText currentSt)
+    <> maybe "." (\x -> ", it should be " <> (toText x) <> " to continue.") desiredSt
 
 handleServiceNotFound :: ServiceNotFound -> IO ()
 handleServiceNotFound (ServiceNotFound' serviceRef clusterRef) =
-  printError $ "Could not find service '" <> (T.unpack . toText $ serviceRef) <> "'" <>
-    maybe "" (\x -> " in cluster " <> (T.unpack . toText $ x)) clusterRef
+  putError $ "Could not find service '" <> (toText serviceRef) <> "'" <>
+    maybe "" (\x -> " in cluster " <> (toText x)) clusterRef
 
 handleAmbiguousServiceName :: AmbiguousServiceName -> IO ()
 handleAmbiguousServiceName (AmbiguousServiceName' serviceRef clusters) =
-  let stringifyClusters = "\n - " <> (intercalate "\n - " $ map (T.unpack . toText) clusters)
-  in printError $ "Service name '" <> (T.unpack . toText $ serviceRef)
-     <> "' is ambiguous. It was found in the following clusters:" <> stringifyClusters
+  let stringifyClusters = "\n - " <> (T.intercalate "\n - " $ toText <$> clusters)
+  in putError $ "Service name '" <> (toText serviceRef)
+       <> "' is ambiguous. It was found in the following clusters:" <> stringifyClusters
 
 handleInactiveService :: InactiveService -> IO ()
 handleInactiveService (InactiveService' serviceRef clusterRef) =
-  printError $ "Service '" <> (T.unpack . toText $ serviceRef) <> "' in cluster '"
-    <> (T.unpack . toText $ clusterRef) <> "' is not active."
+  putError $ "Service '" <> (toText serviceRef) <> "' in cluster '"
+    <> (toText $ clusterRef) <> "' is not active."
 
 handleTaskNotFound :: TaskNotFound -> IO ()
 handleTaskNotFound (TaskNotFound' taskRef clusterRef) =
-  printError $ "Could not find task '" <> (T.unpack . toText $ taskRef) <> "'" <>
-    maybe "" (\x -> " in cluster " <> (T.unpack . toText $ x)) clusterRef
+  putError $ "Could not find task '" <> (toText taskRef) <> "'" <>
+    maybe "" (\x -> " in cluster " <> (toText x)) clusterRef
 
 -- Main Program execution
 
@@ -198,6 +179,7 @@ handleExceptions act = catches act [
     handler _TransportError       handleHttpException
   , handler _ServiceError         handleServiceError
   , handler _ClusterNotFound      handleClusterNotFound
+  , handler _InvalidClusterStatus handleInvalidClusterStatus
   , handler _ServiceNotFound      handleServiceNotFound
   , handler _AmbiguousServiceName handleAmbiguousServiceName
   , handler _InactiveService      handleInactiveService
@@ -211,17 +193,16 @@ evalCmd (ListCmd opts)    = runListCmd opts
 evalCmd (ServiceCmd opts) = runServiceCmd opts
 --evalCmd (TaskCmd opts)    = runGrootTask opts
 
-runGroot :: IO ()
-runGroot =
+grootCli :: IO ()
+grootCli =
   prog =<< (execParser cli)
   where prog opts = do
           env <- loadEnv opts
-          handleExceptions $ mainBlock env (opts ^. grootCmd)
+          handleExceptions $ mainBlock (opts ^. grootCmd) env
 
         cli = info (grootOpts <**> helper)
           ( fullDesc
           <> progDesc "Utility to manage ECS Clusters"
           <> header "groot" )
 
-        mainBlock :: Env -> GrootCmd -> IO ()
-        mainBlock env cmd = runReaderT (evalCmd cmd) env
+        mainBlock cmd = runGroot (evalCmd cmd)

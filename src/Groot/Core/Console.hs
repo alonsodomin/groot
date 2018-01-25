@@ -1,66 +1,84 @@
-module Groot.Core.Console where
+{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
+
+module Groot.Core.Console
+     (
+       Severity (..)
+     , MonadConsole (..)
+     -- User Prompts
+     , askUserYN
+     , askUserToContinue
+     -- User messages
+     , putInfo
+     , putWarn
+     , putError
+     ) where
 
 import           Control.Monad.IO.Class
-import           Control.Monad.Trans.Resource
-import           Data.Char
-import           System.Console.ANSI
+import           Data.Semigroup
+import           Data.Text               (Text)
+import qualified Data.Text               as T
+import qualified Data.Text.IO            as T
+import           Groot.Data.Text.Display
+import           Groot.Data.Text.Styled  as ST
 import           System.IO
 
-blueText :: [SGR]
-blueText = [SetColor Foreground Dull Blue]
+errorText, warnText, infoText :: StyledText
+errorText = styled redStyle    "ERROR"
+warnText  = styled yellowStyle "WARN"
+infoText  = styled blueStyle   "INFO"
 
-redText :: [SGR]
-redText = [SetColor Foreground Vivid Red]
+data Severity = Error | Warn | Info
+  deriving (Eq, Show, Enum, Bounded, Ord)
 
-yellowText :: [SGR]
-yellowText = [SetColor Foreground Dull Yellow]
+class Monad m => MonadConsole m where
+  putMessage :: Display a => Severity -> a -> m ()
+  askUser :: Display a => a -> m (Maybe Text)
 
-withSGR :: [SGR] -> IO a -> ResourceT IO a
-withSGR sgr action = do
-  (releaseKey, _) <- allocate (setSGR sgr) (\_ -> setSGR [Reset])
-  result <- liftIO action
-  release releaseKey
-  return result
+instance MonadConsole IO where
+  putMessage sev txt = do
+    display $ levelStr <> (ST.singleton ' ')
+    displayLn txt
+      where levelStr = case sev of
+              Error -> errorText
+              Warn  -> warnText
+              Info  -> infoText
 
-promptUser :: MonadIO m => String -> m (Maybe String)
-promptUser msg = do
-  answer <- liftIO $ do
-    putStr msg
-    hFlush stdout
-    getLine
-  return $ if answer == "" then Nothing else Just answer
+  askUser prompt = do
+    answer <- liftIO $ do
+      display prompt
+      hFlush stdout
+      T.getLine
+    return $ if answer == ""
+      then Nothing
+      else Just answer
 
-promptUserYN :: MonadIO m => Bool -> String -> m Bool
-promptUserYN def msg = do
-  answer <- promptUser $ msg ++ defStr
+askUserYN :: MonadConsole m => Bool -> Text -> m Bool
+askUserYN def msg = do
+  answer <- askUser $ T.append msg defStr
   return $ handleAnswer answer
-  where defStr = " [" ++ (if def then "Yn" else "yN") ++ "] "
+  where defStr = T.concat [ " [", (if def then "Yn" else "yN"), "] "]
 
         parseAnswer s =
-          let s' = map toLower s
+          let s' = T.toLower s
           in (s' == "y") || (s' == "yes")
 
         handleAnswer Nothing  = def
         handleAnswer (Just s) = parseAnswer s
 
-promptUserToContinue :: MonadIO m => String -> m () -> m ()
-promptUserToContinue msg cont = do
-  answer <- promptUserYN False msg
+askUserToContinue :: MonadConsole m => Text -> m () -> m ()
+askUserToContinue msg cont = do
+  answer <- askUserYN False msg
   if answer then cont
   else return ()
 
-putWarn :: MonadIO m => m ()
-putWarn = liftIO . runResourceT $ withSGR yellowText $ putStr " WARN"
+putInfo :: (MonadConsole m, Display a) => a -> m ()
+putInfo = putMessage Info
 
-printWarn :: MonadIO m => String -> m ()
-printWarn msg = liftIO $ do
-  putWarn
-  putStrLn $ ' ' : msg
+putWarn :: (MonadConsole m, Display a) => a -> m ()
+putWarn = putMessage Warn
 
-putError :: MonadIO m => m ()
-putError = liftIO . runResourceT $ withSGR redText $ putStr "ERROR"
-
-printError :: MonadIO m => String -> m ()
-printError msg = liftIO $ do
-  putError
-  putStrLn $ ' ' : msg
+putError :: (MonadConsole m, Display a) => a -> m ()
+putError = putMessage Error

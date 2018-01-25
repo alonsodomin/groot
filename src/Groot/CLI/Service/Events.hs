@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TemplateHaskell       #-}
 
 module Groot.CLI.Service.Events
      ( ServiceEventOpts
@@ -20,7 +21,7 @@ import           Network.AWS
 import qualified Network.AWS.ECS              as ECS
 import           Options.Applicative
 
-import           Groot.CLI.Common             (clusterOpt)
+import           Groot.CLI.Common
 import           Groot.Core
 import           Groot.Core.Events
 import           Groot.Types
@@ -28,6 +29,7 @@ import           Groot.Types
 data ServiceEventOpts = ServiceEventOpts
   { _clusterId    :: Maybe ClusterRef
   , _follow       :: Bool
+  , _eventCount   :: Int
   , _serviceNames :: NonEmpty ContainerServiceRef
   } deriving (Eq, Show)
 
@@ -44,20 +46,22 @@ serviceEventsOpt = ServiceEventOpts
                  ( long "follow"
                  <> short 'f'
                  <> help "Follow the trail of events" )
+               <*> eventCountOpt
                <*> serviceRefArgList
 
 fetchEvents :: (MonadResource mi, MonadBaseControl IO mi, MonadCatch mi, MonadIO mo, Foldable f)
             => f ContainerServiceCoords
             -> Bool
+            -> Int
             -> GrootM mi (Source mo ECS.ServiceEvent)
 fetchEvents coords inf = serviceEventLog (toList coords) inf
 
 runServiceEvents :: ServiceEventOpts -> GrootM IO ()
-runServiceEvents (ServiceEventOpts (Just clusterRef) follow serviceRefs) = mapReaderT runResourceT $ do
-  eventSource <- fetchEvents (fmap (\x -> ContainerServiceCoords x clusterRef) serviceRefs) follow
+runServiceEvents (ServiceEventOpts (Just clusterRef) follow lastN serviceRefs) = mapReaderT runResourceT $ do
+  eventSource <- fetchEvents (fmap (\x -> ContainerServiceCoords x clusterRef) serviceRefs) follow lastN
   runConduit $ eventSource =$ printEventSink
-runServiceEvents (ServiceEventOpts Nothing follow serviceRefs) = mapReaderT runResourceT $ do
+runServiceEvents (ServiceEventOpts Nothing follow lastN serviceRefs) = mapReaderT runResourceT $ do
   env         <- ask
   coords      <- runAWS env $ findServiceCoords serviceRefs
-  eventSource <- fetchEvents coords follow
+  eventSource <- fetchEvents coords follow lastN
   runConduit $ eventSource =$ printEventSink

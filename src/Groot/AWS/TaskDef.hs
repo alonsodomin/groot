@@ -9,6 +9,9 @@ import qualified Network.AWS.ECS           as ECS
 
 import           Groot.Types
 
+taskDefId :: ECS.TaskDefinition -> Maybe TaskDefId
+taskDefId taskDef = TaskDefId <$> (TaskFamily <$> taskDef ^. ECS.tdFamily) <*> (taskDef ^. ECS.tdRevision)
+
 getTaskDef :: MonadAWS m => TaskDefRef -> MaybeT m ECS.TaskDefinition
 getTaskDef (TaskDefRef arn) = MaybeT $ do
   res <- send $ ECS.describeTaskDefinition arn

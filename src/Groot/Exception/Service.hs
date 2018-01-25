@@ -12,6 +12,7 @@ data ServiceException =
     ServiceNotFound ServiceNotFound
   | AmbiguousServiceName AmbiguousServiceName
   | InactiveService InactiveService
+  | FailedServiceDeployment FailedServiceDeployment
   deriving (Eq, Show, Typeable)
 
 instance Exception ServiceException
@@ -46,6 +47,16 @@ inactiveService :: ContainerServiceRef -> ClusterRef -> SomeException
 inactiveService serviceRef clusterRef =
   toException . InactiveService $ InactiveService' serviceRef clusterRef
 
+data FailedServiceDeployment =
+  FailedServiceDeployment' ContainerServiceRef ClusterRef
+  deriving (Eq, Typeable, Show)
+
+instance Exception FailedServiceDeployment
+
+failedServiceDeployment :: ContainerServiceRef -> ClusterRef -> SomeException
+failedServiceDeployment serviceRef clusterRef =
+  toException . FailedServiceDeployment $ FailedServiceDeployment' serviceRef clusterRef
+
 class AsServiceException t where
   _ServiceException :: Prism' t ServiceException
   {-# MINIMAL _ServiceException #-}
@@ -58,6 +69,9 @@ class AsServiceException t where
 
   _InactiveService :: Prism' t InactiveService
   _InactiveService = _ServiceException . _InactiveService
+
+  _FailedServiceDeployment :: Prism' t FailedServiceDeployment
+  _FailedServiceDeployment = _ServiceException . _FailedServiceDeployment
 
 instance AsServiceException SomeException where
   _ServiceException = exception
@@ -76,3 +90,7 @@ instance AsServiceException ServiceException where
   _InactiveService = prism InactiveService $ \case
     InactiveService e -> Right e
     x                 -> Left x
+
+  _FailedServiceDeployment = prism FailedServiceDeployment $ \case
+    FailedServiceDeployment e -> Right e
+    x                         -> Left x

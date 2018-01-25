@@ -16,7 +16,7 @@ import           Control.Monad.Trans.Except
 import           Data.Ini
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
-import           Network.AWS                (Region (..))
+import           Network.AWS                (Region)
 import           Network.AWS.Data.Text
 import           System.Directory
 

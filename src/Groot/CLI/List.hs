@@ -4,7 +4,6 @@ module Groot.CLI.List
      , runListCmd
      ) where
 
-import           Data.Maybe                       (maybeToList)
 import           Data.Semigroup                   ((<>))
 import           Options.Applicative
 
@@ -20,8 +19,8 @@ import           Groot.Types
 data ListSubCmd =
     ListClustersCmd (Maybe ClusterRef)
   | ListInstancesCmd (Maybe ClusterRef)
-  | ListTasksCmd (Maybe ClusterRef)
-  | ListTaskDefsCmd Bool (Maybe TaskFamily)
+  | ListTasksCmd ListTaskOpts
+  | ListTaskDefsCmd ListTaskDefsOpts
   | ListServicesCmd (Maybe ClusterRef)
   deriving (Eq, Show)
 
@@ -32,15 +31,10 @@ listInstancesCmd :: Parser ListSubCmd
 listInstancesCmd = ListInstancesCmd <$> optional clusterOpt
 
 listTasksCmd :: Parser ListSubCmd
-listTasksCmd = ListTasksCmd <$> optional clusterOpt
+listTasksCmd = ListTasksCmd <$> listTaskOpts
 
 listTaskDefsCmd :: Parser ListSubCmd
-listTaskDefsCmd = ListTaskDefsCmd
-              <$> switch
-                ( long "inactive"
-                <> short 'i'
-                <> help "Show inactive task definitions" )
-              <*> optional taskFamilyOpt
+listTaskDefsCmd = ListTaskDefsCmd <$> listTaskDefsOpts
 
 listServicesCmd :: Parser ListSubCmd
 listServicesCmd = ListServicesCmd <$> optional clusterOpt
@@ -55,11 +49,8 @@ listCmds = hsubparser
   )
 
 runListCmd :: ListSubCmd -> GrootM IO ()
-runListCmd (ListClustersCmd clusterId)        = printClusterSummary clusterId
-runListCmd (ListInstancesCmd clusterId)       = printInstanceSummary clusterId
-runListCmd (ListTasksCmd clusterId)           = printTaskSummary clusterId
-runListCmd (ListServicesCmd clusterId)        = printServiceSummary clusterId
-runListCmd (ListTaskDefsCmd showInactive fam) =
-  let statusFilter = if showInactive then [TDFStatus TDSInactive] else []
-      familyFilter = maybeToList $ TDFFamily <$> fam
-  in printTaskDefsSummary $ statusFilter ++ familyFilter
+runListCmd (ListClustersCmd clusterId)  = printClusterSummary clusterId
+runListCmd (ListInstancesCmd clusterId) = printInstanceSummary clusterId
+runListCmd (ListTasksCmd opts)          = printTaskSummary opts
+runListCmd (ListServicesCmd clusterId)  = printServiceSummary clusterId
+runListCmd (ListTaskDefsCmd opts)       = printTaskDefsSummary opts

@@ -1,10 +1,10 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 module Groot.Core.Events
        ( serviceEventLog
        , clusterServiceEventLog
-       , printEvent
        , printEventSink
        ) where
 
@@ -25,6 +25,7 @@ import           Control.Monad.Trans.State.Lazy
 import           Data.Conduit
 import qualified Data.Conduit.List              as CL
 import           Data.Maybe                     (listToMaybe)
+import           Data.Text                      (Text)
 import qualified Data.Text                      as T
 import           Data.Time
 import           Network.AWS                    hiding (await)
@@ -32,24 +33,25 @@ import qualified Network.AWS.ECS                as ECS
 
 import           Groot.AWS.Service
 import           Groot.Core.Common
-import           Groot.Core.Console
 import           Groot.Data.Conduit.STM
 import           Groot.Data.Filter
+import           Groot.Data.Text
 import           Groot.Exception
 import           Groot.Types
 
-formatEventTime :: MonadIO m => UTCTime -> m String
+formatEventTime :: MonadIO m => UTCTime -> m Text
 formatEventTime time = do
   dt <- liftIO $ utcToLocalZonedTime time
-  return $ formatTime defaultTimeLocale "%d/%m/%Y %T" dt
+  return . T.pack $ formatTime defaultTimeLocale "%d/%m/%Y %T" dt
 
 pollServiceEvents :: (MonadReader e m, MonadBaseControl IO m, MonadIO m, HasEnv e)
                   => ContainerServiceCoords
                   -> Bool
+                  -> Int
                   -> TBMChan ECS.ServiceEvent
                   -> (TBMChan ECS.ServiceEvent -> STM ())
                   -> m ()
-pollServiceEvents (ContainerServiceCoords serviceRef clusterRef) inf chan onComplete =
+pollServiceEvents (ContainerServiceCoords serviceRef clusterRef) inf lastN chan onComplete =
   evalStateT loop Nothing
   where loop :: (MonadReader e m, MonadIO m, HasEnv e) => StateT (Maybe UTCTime) m ()
         loop = do
@@ -73,14 +75,15 @@ pollServiceEvents (ContainerServiceCoords serviceRef clusterRef) inf chan onComp
                       else throwM $ inactiveService serviceRef clusterRef
           events  <- return $ service' ^. ECS.csEvents
           return $ case lastEventTime of
-            Nothing -> take 25 events
+            Nothing -> take lastN events
             Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. ECS.seCreatedAt) events
 
 serviceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadCatch mi, MonadReader e mi, MonadIO mo, HasEnv e)
                 => [ContainerServiceCoords]
                 -> Bool
+                -> Int
                 -> mi (Source mo ECS.ServiceEvent)
-serviceEventLog coords inf = do
+serviceEventLog coords inf lastN = do
   chan     <- liftIO . atomically $ newTBMChan 500
   refCount <- liftIO . atomically . newTVar $ length coords
   regs     <- forM coords (forkEventStream chan refCount)
@@ -118,16 +121,17 @@ serviceEventLog coords inf = do
                 -> (TBMChan ECS.ServiceEvent -> STM ())
                 -> m ()
     publishInto chan crds onComplete =
-      ignoreServicesBecomingInactive $ pollServiceEvents crds inf chan onComplete
+      ignoreServicesBecomingInactive $ pollServiceEvents crds inf lastN chan onComplete
 
 clusterServiceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadCatch mi, MonadIO mo)
                        => [ClusterRef]
                        -> Bool
+                       -> Int
                        -> GrootM mi (Source mo ECS.ServiceEvent)
-clusterServiceEventLog clusterRefs inf = do
+clusterServiceEventLog clusterRefs inf lastN = do
   env    <- ask
   coords <- runResourceT . runAWS env $ allServiceCoords
-  serviceEventLog coords inf
+  serviceEventLog coords inf lastN
   where clusterServiceCoords :: MonadAWS m => ClusterRef -> m [ContainerServiceCoords]
         clusterServiceCoords cref = sourceToList $ fetchServices cref
           =$= filterC isActiveContainerService
@@ -141,9 +145,7 @@ clusterServiceEventLog clusterRefs inf = do
 printEvent :: MonadIO m => ECS.ServiceEvent -> m ()
 printEvent event = do
   eventTime <- maybe (return "") formatEventTime $ event ^. ECS.seCreatedAt
-  liftIO $ do
-    runResourceT $ withSGR yellowText $ putStr eventTime
-    putStrLn $ ' ':(maybe "" T.unpack $ event ^. ECS.seMessage)
+  displayLn $ (styled yellowStyle eventTime) <+> (styleless $ maybe "" id $ event ^. ECS.seMessage)
 
 printEventSink :: MonadIO m => Sink ECS.ServiceEvent m ()
 printEventSink = do

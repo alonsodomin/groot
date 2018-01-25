@@ -73,7 +73,7 @@ fetchServicesC' services =
   ) =$= CL.concat
 
 fetchAllServicesC :: MonadAWS m => Conduit ClusterRef m ECS.ContainerService
-fetchAllServicesC = awaitForever (\cref -> yieldM . sourceToList $ fetchServices cref) =$= CL.concat
+fetchAllServicesC = awaitForever (\cref -> toProducer $ fetchServices cref)
 
 findServices' :: MonadAWS m
               => [ContainerServiceRef]
