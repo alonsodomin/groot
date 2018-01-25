@@ -1,25 +1,23 @@
-- name: pluto2
-  task-role: "Hi"
-  service-role: "Bye"
+- name: elsa
+  #task-role: "Hi"
+  service-role: arn:aws:iam::340721489904:role/cip-masterstack-dqs-GrootStack-CIPGrootServiceRole-1KJ733NZ9IL95
   containers:
-    - name: pluto
-      image: 140821111621.dkr.ecr.eu-west-1.amazonaws.com/cf-rideways-qa/pluto
+    - name: elsa-app
+      image: docker-registry.server.traveljigsaw.com/customer_insight/cip-elsa-dqs:latest
       cpu: 1024
-      memory: 4048
+      memory: 2048
       port-mappings:
         - container-port: 8080
-          target-group: pluto-target-group
-        - container-port: 2551
-          host-port: 9030
-          lb-name: cluster-elb
-        - container-port: 1190
-      logging:
-        logDriver: awslogs
-        options:
-          awslogs-group: pluto-service
-          awslogs-region: eu-west-1
-    - name: mysql
-      image: library/mysql
-      memory: 1024
-      environment:
-        MYSQL_PASSWORD: password
+          target-group: arn:aws:elasticloadbalancing:eu-west-1:340721489904:targetgroup/CIPElsaTargetGroup/e2eb0a911a0dcb81
+      desired-count: 1
+      deployment-strategy: rolling
+      # logging:
+      #   logDriver: awslogs
+      #   options:
+      #     awslogs-group: pluto-service
+      #     awslogs-region: eu-west-1
+    # - name: mysql
+    #   image: library/mysql
+    #   memory: 1024
+    #   environment:
+    #     MYSQL_PASSWORD: password

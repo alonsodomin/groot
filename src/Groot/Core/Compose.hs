@@ -224,20 +224,11 @@ createServiceReq clusterRef deployment tdId =
 
 updateServiceReq :: ClusterRef -> ServiceDeployment -> TaskDefId -> ECS.UpdateService
 updateServiceReq clusterRef deployment tdId =
-  ECS.usCluster ?~ (toText clusterRef) $
-  ECS.usTaskDefinition ?~ (toText tdId) $
-  ECS.usDesiredCount ?~ (deployment ^. sdDesiredCount) $
-  ECS.usDeploymentConfiguration ?~ (serviceDeploymentConf $ deployment ^. sdDeploymentStrategy) $
-  ECS.updateService (deployment ^. sdName)
-
-deregisterTaskDefinitions :: (MonadResource m, MonadBaseControl IO m)
-                          => Env
-                          -> [TaskDefArn]
-                          -> m ()
-deregisterTaskDefinitions env arns = forM_ arns deregisterSingle
-  where deregisterSingle x = do
-          _ <- runAWS env . send $ ECS.deregisterTaskDefinition $ toText x
-          return ()
+    ECS.usCluster ?~ (toText clusterRef)
+  $ ECS.usTaskDefinition ?~ (toText tdId)
+  $ ECS.usDesiredCount ?~ (deployment ^. sdDesiredCount)
+  $ ECS.usDeploymentConfiguration ?~ (serviceDeploymentConf $ deployment ^. sdDeploymentStrategy)
+  $ ECS.updateService (deployment ^. sdName)
 
 registerTasks :: (MonadBaseControl IO m, MonadIO m, MonadThrow m, MonadReader e m, HasEnv e)
               => [ServiceDeployment]
@@ -273,11 +264,17 @@ deployServices clusterRef =
             exists   <- serviceExists clusterRef csref
             mservice <- runAWS env $
               if exists then do
-                liftIO . putInfo $ "Updating service: " <> (deployment ^. sdName)
-                fmap (\x -> x ^. ECS.usrsService) . send $ updateServiceReq clusterRef deployment tdId
+                liftIO . putInfo $ "Updating service "
+                  <> styled yellowStyle (deployment ^. sdName)
+                updateReq <- pure $ updateServiceReq clusterRef deployment tdId
+                -- liftIO . print $ updateReq
+                fmap (\x -> x ^. ECS.usrsService) . send $ updateReq
               else do
-                liftIO . putInfo $ "Creating service: " <> (deployment ^. sdName)
-                fmap (\x -> x ^. ECS.csrsService) . send $ createServiceReq clusterRef deployment tdId
+                liftIO . putInfo $ "Creating service "
+                  <> styled yellowStyle (deployment ^. sdName)
+                createReq <- pure $ createServiceReq clusterRef deployment tdId
+                -- liftIO . print $ createReq
+                fmap (\x -> x ^. ECS.csrsService) . send $ createReq
             case mservice of
               Nothing  -> throwM $ failedServiceDeployment csref clusterRef
               Just srv -> return (srv, serviceDeployed tdId)
@@ -286,13 +283,13 @@ deployServices clusterRef =
                       => (ECS.ContainerService, Wait ECS.DescribeServices)
                       -> GrootM m Accept
           awaitSingle (service, waiter) = do
-            env <- ask
-            runAWS env $ do
-              liftIO . putInfo $
-                   "Waiting for service "
-                <> (maybe "<unknown>" id $ service ^. ECS.csServiceName)
-                <> " to complete deployment..."
-              await waiter (describeIt service)
+            env         <- ask
+            serviceName <- pure $ maybe "<unknown>" id $ service ^. ECS.csServiceName
+            liftIO . putInfo $
+                 "Waiting for service "
+              <> styled yellowStyle serviceName
+              <> " to complete deployment..."
+            runAWS env $ await waiter (describeIt service)
 
           deploymentComplete :: TaskDefId -> Getter ECS.ContainerService Bool
           deploymentComplete tdi = to $ isComplete . taskDeployment
@@ -336,4 +333,3 @@ composeServices (GrootCompose services) clusterRef = hoist runResourceT $ do
   verifyClusterIsActive clusterRef
   registered <- registerTasks services
   deployServices clusterRef registered
-  liftIO . print $ snd <$> registered

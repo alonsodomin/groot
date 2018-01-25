@@ -5,7 +5,6 @@
 module Groot.Core.Events
        ( serviceEventLog
        , clusterServiceEventLog
-       , printEvent
        , printEventSink
        ) where
 
