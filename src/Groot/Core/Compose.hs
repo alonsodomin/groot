@@ -261,6 +261,10 @@ registerTasks services = runResourceT $ execStateT (traverse registerSingle serv
             Nothing   -> throwM $ failedToRegisterTaskDef (TaskDefRef $ dep ^. sdName)
             Just task -> do
               prev <- get
+              liftIO . putSuccess $ "Service"
+                <+> styled yellowStyle (dep ^. sdName)
+                <+> "has upgraded task to"
+                <+> styled yellowStyle (toText task)
               put ((dep,task):prev)
 
 deployServices :: (MonadResource m, MonadBaseControl IO m)
