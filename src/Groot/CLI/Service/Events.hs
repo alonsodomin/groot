@@ -17,12 +17,14 @@ import           Data.Foldable
 import           Data.List.NonEmpty           (NonEmpty ((:|)))
 import           Data.Semigroup               ((<>))
 import           Data.String
+import           Data.Typeable
 import           Network.AWS
 import qualified Network.AWS.ECS              as ECS
 import           Options.Applicative
 
 import           Groot.CLI.Common
 import           Groot.Core
+import           Groot.Core.Console
 import           Groot.Core.Events
 import           Groot.Types
 
@@ -49,7 +51,7 @@ serviceEventsOpt = ServiceEventOpts
                <*> eventCountOpt
                <*> serviceRefArgList
 
-fetchEvents :: (MonadResource mi, MonadBaseControl IO mi, MonadCatch mi, MonadIO mo, Foldable f)
+fetchEvents :: (Typeable mi, MonadResource mi, MonadBaseControl IO mi, MonadCatch mi, MonadConsole mi, MonadIO mo, Foldable f)
             => f ContainerServiceCoords
             -> Bool
             -> Int

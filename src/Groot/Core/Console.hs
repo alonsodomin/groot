@@ -1,7 +1,7 @@
-{-# LANGUAGE DeriveFunctor     #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE TemplateHaskell      #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Groot.Core.Console
      (
@@ -39,7 +39,7 @@ class Monad m => MonadConsole m where
   putMessage :: Display a => Severity -> a -> m ()
   askUser :: Display a => a -> m (Maybe Text)
 
-instance MonadConsole IO where
+instance (Monad m, MonadIO m) => MonadConsole m where
   putMessage sev txt = do
     display $ levelStr <> (ST.singleton ' ')
     displayLn txt

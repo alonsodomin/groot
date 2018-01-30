@@ -14,7 +14,7 @@ module Groot.AWS.Service
      ) where
 
 import           Control.Lens
-import Control.Monad
+import           Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.Trans.Maybe
 import           Data.Conduit

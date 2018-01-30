@@ -310,7 +310,7 @@ deployServices clusterRef =
               <> " to complete deployment..."
             deployStatus <- runAWS env $ await waiter (describeIt service)
             case deployStatus of
-              AcceptSuccess -> liftIO . putSuccess $ 
+              AcceptSuccess -> liftIO . putSuccess $
                                   "Service "
                                <> styled yellowStyle serviceName
                                <> " successfully deployed."

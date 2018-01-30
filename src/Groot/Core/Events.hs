@@ -1,3 +1,4 @@
+{-# LANGUAGE ExplicitForAll        #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
@@ -13,6 +14,7 @@ import           Control.Concurrent             (killThread)
 import           Control.Concurrent.STM
 import           Control.Concurrent.STM.Delay
 import           Control.Concurrent.STM.TBMChan
+import           Control.Exception.Lens
 import qualified Control.Exception.Lifted       as Lifted
 import           Control.Lens                   hiding (argument)
 import           Control.Monad
@@ -28,11 +30,12 @@ import           Data.Maybe                     (listToMaybe)
 import           Data.Text                      (Text)
 import qualified Data.Text                      as T
 import           Data.Time
+import           Data.Typeable
 import           Network.AWS                    hiding (await)
 import qualified Network.AWS.ECS                as ECS
 
 import           Groot.AWS.Service
-import           Groot.Core.Common
+import           Groot.Core.Console
 import           Groot.Data.Conduit.STM
 import           Groot.Data.Filter
 import           Groot.Data.Text
@@ -78,7 +81,14 @@ pollServiceEvents (ContainerServiceCoords serviceRef clusterRef) inf lastN chan 
             Nothing -> take lastN events
             Just t  -> takeWhile (\ev -> maybe False (> t) $ ev ^. ECS.seCreatedAt) events
 
-serviceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadCatch mi, MonadReader e mi, MonadIO mo, HasEnv e)
+serviceEventLog :: Typeable mi
+                => MonadResource mi
+                => MonadBaseControl IO mi
+                => MonadCatch mi
+                => MonadReader e mi
+                => MonadConsole mi
+                => MonadIO mo
+                => HasEnv e
                 => [ContainerServiceCoords]
                 -> Bool
                 -> Int
@@ -91,11 +101,6 @@ serviceEventLog coords inf lastN = do
                                                   mapM_ release regs)
 
   where
-    forkEventStream :: (MonadResource m, MonadBaseControl IO m, MonadIO m, MonadCatch m, MonadReader e m, HasEnv e)
-                    => TBMChan ECS.ServiceEvent
-                    -> TVar Int
-                    -> ContainerServiceCoords
-                    -> m ReleaseKey
     forkEventStream chan refCount serviceCoord = Lifted.mask_ $ do
       threadId <- runResourceT $ resourceForkIO $ lift $ publishInto chan serviceCoord $ decRefCount refCount
       register . killThread $ threadId
@@ -111,23 +116,31 @@ serviceEventLog coords inf lastN = do
       n <- modifyTVar'' tvar (subtract 1)
       when (n == 0) $ closeTBMChan chan
 
-    ignoreServicesBecomingInactive :: MonadCatch m => m () -> m ()
-    ignoreServicesBecomingInactive action =
-      catching _InactiveService action $ \_ -> return ()
+    handleStreamErrors :: (Typeable m, MonadCatch m, MonadConsole m) => m () -> m ()
+    handleStreamErrors action = catches action [
+        handler _InactiveService (\_ -> pure ())
+      ]
 
-    publishInto :: (MonadReader e m, MonadCatch m, MonadBaseControl IO m, MonadIO m, HasEnv e)
+    publishInto :: (Typeable m, MonadReader e m, MonadCatch m, MonadBaseControl IO m, MonadIO m, MonadConsole m, HasEnv e)
                 => TBMChan ECS.ServiceEvent
                 -> ContainerServiceCoords
                 -> (TBMChan ECS.ServiceEvent -> STM ())
                 -> m ()
     publishInto chan crds onComplete =
-      ignoreServicesBecomingInactive $ pollServiceEvents crds inf lastN chan onComplete
+      handleStreamErrors $ pollServiceEvents crds inf lastN chan onComplete
 
-clusterServiceEventLog :: (MonadResource mi, MonadBaseControl IO mi, MonadCatch mi, MonadIO mo)
+clusterServiceEventLog :: Typeable mi
+                       => MonadResource mi
+                       => MonadBaseControl IO mi
+                       => MonadCatch mi
+                       => MonadIO mo
+                       => MonadConsole mi
+                       => MonadReader e mi
+                       => HasEnv e
                        => [ClusterRef]
                        -> Bool
                        -> Int
-                       -> GrootM mi (Source mo ECS.ServiceEvent)
+                       -> mi (Source mo ECS.ServiceEvent)
 clusterServiceEventLog clusterRefs inf lastN = do
   env    <- ask
   coords <- runResourceT . runAWS env $ allServiceCoords
