@@ -23,8 +23,8 @@ import qualified Network.AWS.ECS              as ECS
 import           Options.Applicative
 
 import           Groot.CLI.Common
+import           Groot.Console
 import           Groot.Core
-import           Groot.Core.Console
 import           Groot.Core.Events
 import           Groot.Types
 

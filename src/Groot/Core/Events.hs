@@ -35,7 +35,7 @@ import           Network.AWS                    hiding (await)
 import qualified Network.AWS.ECS                as ECS
 
 import           Groot.AWS.Service
-import           Groot.Core.Console
+import           Groot.Console
 import           Groot.Data.Conduit.STM
 import           Groot.Data.Filter
 import           Groot.Data.Text

@@ -3,7 +3,7 @@
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Groot.Core.Console
+module Groot.Console
      (
        Severity (..)
      , MonadConsole (..)

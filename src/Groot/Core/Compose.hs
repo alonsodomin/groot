@@ -35,8 +35,8 @@ import           Network.AWS
 import qualified Network.AWS.ECS                as ECS
 import           Network.AWS.Waiter
 
+import           Groot.Console
 import           Groot.Core
-import           Groot.Core.Console
 import           Groot.Data.Filter
 import           Groot.Data.Text
 import           Groot.Exception

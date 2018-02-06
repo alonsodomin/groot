@@ -36,10 +36,10 @@ library
                      , Groot.CLI.Service
                      , Groot.CLI                     
                      , Groot.Config
+                     , Groot.Console
                      , Groot.Core
                      , Groot.Core.Common
-                     , Groot.Core.Compose
-                     , Groot.Core.Console
+                     , Groot.Core.Compose                     
                      , Groot.Core.Events                     
                      , Groot.Data.Conduit.STM
                      , Groot.Data.Filter

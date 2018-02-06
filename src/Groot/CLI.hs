@@ -24,8 +24,8 @@ import           Groot.CLI.Common
 import           Groot.CLI.List
 import           Groot.CLI.Service
 import           Groot.Config
+import           Groot.Console
 import           Groot.Core
-import           Groot.Core.Console
 import           Groot.Data.Text
 import           Groot.Exception
 

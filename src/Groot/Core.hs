@@ -18,8 +18,8 @@ import           Network.HTTP.Conduit
 import           Network.HTTP.Types.Status
 
 import           Groot.AWS
+import           Groot.Console
 import           Groot.Core.Common
-import           Groot.Core.Console
 import           Groot.Data.Text
 
 -- AWS Error handlers
