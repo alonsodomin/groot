@@ -7,6 +7,7 @@ module Groot.CLI.Service.Compose
 import           Control.Monad.IO.Class
 import           Data.Semigroup         ((<>))
 import           Data.String
+import Data.Text (Text)
 import           Data.Yaml              (decodeFileEither,
                                          prettyPrintParseException)
 import           Options.Applicative
@@ -20,10 +21,10 @@ data ServiceComposeOpts = ServiceComposeOpts
   { composeFile :: FilePath
   , cluster     :: ClusterRef
   , dryRun      :: Bool
-  , services    :: [ContainerServiceRef]
+  , services    :: [Text]
   } deriving (Eq, Show)
 
-serviceNameArg :: Parser ContainerServiceRef
+serviceNameArg :: Parser Text
 serviceNameArg = fromString <$> argument str (metavar "SERVICES")
 
 serviceComposeOpts :: Parser ServiceComposeOpts
@@ -46,5 +47,5 @@ runServiceCompose opts = do
   case parsed of
     Left err         -> liftIO . putStrLn $ prettyPrintParseException err
     Right composeDef -> if (not $ dryRun opts)
-                        then composeServices composeDef (cluster opts)
+                        then composeServices composeDef (services opts) (cluster opts)
                         else liftIO $ print composeDef

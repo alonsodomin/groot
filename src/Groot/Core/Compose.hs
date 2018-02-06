@@ -143,12 +143,15 @@ instance FromJSON ServiceDeployment where
     return ServiceDeployment{..}
 
 data GrootCompose = GrootCompose
-  { _services :: HashMap Text ServiceDeployment
+  { _gcServices :: HashMap Text ServiceDeployment
   } deriving (Eq, Show, Generic)
 
+makeLenses ''GrootCompose
+
 instance FromJSON GrootCompose where
-  parseJSON = genericParseJSON defaultOptions {
-                 fieldLabelModifier = drop 1 }
+  parseJSON = withObject "service compose" $ \o -> do
+    _gcServices <- maybe Map.empty id <$> o .:? "services"
+    return GrootCompose{..}
 
 -- Validates that the given id points to an active cluster
 verifyClusterIsActive :: (MonadResource m, MonadBaseControl IO m)
@@ -351,8 +354,10 @@ deployServices clusterRef =
               ]
             }
 
-composeServices :: GrootCompose -> ClusterRef -> GrootM IO ()
-composeServices (GrootCompose services) clusterRef = hoist runResourceT $ do
+composeServices :: GrootCompose -> [Text] -> ClusterRef -> GrootM IO ()
+composeServices compose servs clusterRef = hoist runResourceT $ do
   verifyClusterIsActive clusterRef
-  registered <- registerTasks (Map.toList services)
+  registered <- registerTasks $ selectedServices servs $ compose ^. gcServices
   deployServices clusterRef registered
+  where selectedServices [] m = Map.toList m
+        selectedServices xs m = catMaybes $ (\x -> (\y -> (x,y)) <$> Map.lookup x m) <$> xs
