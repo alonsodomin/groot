@@ -120,8 +120,7 @@ instance FromJSON DeploymentStrategy where
       _            -> fail $ "Invalid deployment strategy: " ++ (T.unpack txt)
 
 data ServiceDeployment = ServiceDeployment
-  { _sdName               :: Text
-  , _sdTaskRole           :: Maybe Text
+  { _sdTaskRole           :: Maybe Text
   , _sdServiceRole        :: Maybe Text
   , _sdDesiredCount       :: Int
   , _sdDeploymentStrategy :: DeploymentStrategy
@@ -134,7 +133,6 @@ makeLenses ''ServiceDeployment
 
 instance FromJSON ServiceDeployment where
   parseJSON = withObject "service deployment" $ \o -> do
-    _sdName               <- o .: "name"
     _sdTaskRole           <- o .:? "task-role"
     _sdServiceRole        <- o .:? "service-role"
     _sdDesiredCount       <- maybe 1 id <$> o .:? "desired-count"
@@ -144,8 +142,9 @@ instance FromJSON ServiceDeployment where
     _sdPlacementStrategy  <- maybe [] id <$> o .:? "placement-strategy"
     return ServiceDeployment{..}
 
-data GrootCompose = GrootCompose [ServiceDeployment]
-  deriving (Eq, Show, Generic)
+data GrootCompose = GrootCompose
+  { _services :: HashMap Text ServiceDeployment
+  } deriving (Eq, Show, Generic)
 
 instance FromJSON GrootCompose where
   parseJSON = genericParseJSON defaultOptions {
@@ -172,12 +171,12 @@ serviceExists clusterRef serviceRef = do
   hoist (runAWS env) $ awsToGrootM $ (maybe False (const True) <$> check)
   where check = runMaybeT $ filterM isActiveContainerService (findService serviceRef (Just clusterRef))
 
-createTaskDefinitionReq :: ServiceDeployment -> ECS.RegisterTaskDefinition
-createTaskDefinitionReq deployment =
+createTaskDefinitionReq :: Text -> ServiceDeployment -> ECS.RegisterTaskDefinition
+createTaskDefinitionReq serviceName deployment =
     ECS.rtdNetworkMode .~ (deployment ^. sdNetworkMode)
   $ ECS.rtdTaskRoleARN .~ (deployment ^. sdTaskRole)
   $ ECS.rtdContainerDefinitions .~ (containerDef <$> deployment ^. sdContainers)
-  $ ECS.registerTaskDefinition (toText $ deployment ^. sdName)
+  $ ECS.registerTaskDefinition serviceName
   where containerEnv env =
           Map.foldrWithKey (\k v acc -> (ECS.kvpName ?~ k $ ECS.kvpValue ?~ v $ ECS.keyValuePair):acc) [] env
 
@@ -213,14 +212,14 @@ serviceDeploymentConf DSTearDown =
   $ ECS.dcMaximumPercent ?~ 100
   $ ECS.deploymentConfiguration
 
-createServiceReq :: ClusterRef -> ServiceDeployment -> TaskDefId -> ECS.CreateService
-createServiceReq clusterRef deployment tdId =
+createServiceReq :: ClusterRef -> Text -> ServiceDeployment -> TaskDefId -> ECS.CreateService
+createServiceReq clusterRef serviceName deployment tdId =
     ECS.cCluster ?~ (toText clusterRef)
   $ ECS.cRole .~ (deployment ^. sdServiceRole)
   $ ECS.cLoadBalancers .~ containerLoadBalancers
   $ ECS.cDeploymentConfiguration ?~ (serviceDeploymentConf $ deployment ^. sdDeploymentStrategy)
   $ ECS.cPlacementStrategy .~ (deployment ^. sdPlacementStrategy)
-  $ ECS.createService (deployment ^. sdName) (toText tdId) (deployment ^. sdDesiredCount)
+  $ ECS.createService serviceName (toText tdId) (deployment ^. sdDesiredCount)
   where loadBalancerConf container pm =
           let linkElb lnk =
                   ECS.lbContainerName ?~ (container ^. cName)
@@ -237,61 +236,60 @@ createServiceReq clusterRef deployment tdId =
           pm   <- cont ^. cPortMappings
           return $ loadBalancerConf cont pm
 
-updateServiceReq :: ClusterRef -> ServiceDeployment -> TaskDefId -> ECS.UpdateService
-updateServiceReq clusterRef deployment tdId =
+updateServiceReq :: ClusterRef -> Text -> ServiceDeployment -> TaskDefId -> ECS.UpdateService
+updateServiceReq clusterRef serviceName deployment tdId =
     ECS.usCluster ?~ (toText clusterRef)
   $ ECS.usTaskDefinition ?~ (toText tdId)
   $ ECS.usDesiredCount ?~ (deployment ^. sdDesiredCount)
   $ ECS.usDeploymentConfiguration ?~ (serviceDeploymentConf $ deployment ^. sdDeploymentStrategy)
-  $ ECS.updateService (deployment ^. sdName)
+  $ ECS.updateService serviceName
 
 registerTasks :: (MonadBaseControl IO m, MonadIO m, MonadThrow m, MonadReader e m, HasEnv e)
-              => [ServiceDeployment]
-              -> m [(ServiceDeployment, TaskDefId)]
+              => [(Text, ServiceDeployment)]
+              -> m [(Text, ServiceDeployment, TaskDefId)]
 registerTasks services = runResourceT $ execStateT (traverse registerSingle services) []
   where registerSingle :: (MonadResource m, MonadBaseControl IO m, MonadReader e m, HasEnv e)
-                       => ServiceDeployment
-                       -> StateT [(ServiceDeployment, TaskDefId)] m ()
-        registerSingle dep = do
+                       => (Text, ServiceDeployment)
+                       -> StateT [(Text, ServiceDeployment, TaskDefId)] m ()
+        registerSingle (serviceName, dep) = do
           env   <- lift $ ask
-          liftIO . putInfo $ "Registering task definition for service " <> styled yellowStyle (dep ^. sdName)
-          res   <- lift $ runAWS env . send $ createTaskDefinitionReq dep
+          liftIO . putInfo $ "Registering task definition for service " <> styled yellowStyle serviceName
+          res   <- lift $ runAWS env . send $ createTaskDefinitionReq serviceName dep
           mtask <- pure $ res ^. ECS.rtdrsTaskDefinition >>= taskDefId
           case mtask of
-            Nothing   -> throwM $ failedToRegisterTaskDef (TaskDefRef $ dep ^. sdName)
+            Nothing   -> throwM $ failedToRegisterTaskDef (TaskDefRef serviceName)
             Just task -> do
               prev <- get
               liftIO . putSuccess $ "Service"
-                <+> styled yellowStyle (dep ^. sdName)
+                <+> styled yellowStyle serviceName
                 <+> "has upgraded task to"
                 <+> styled yellowStyle (toText task)
-              put ((dep,task):prev)
+              put ((serviceName, dep, task):prev)
 
 deployServices :: (MonadResource m, MonadBaseControl IO m)
                => ClusterRef
-               -> [(ServiceDeployment, TaskDefId)]
+               -> [(Text, ServiceDeployment, TaskDefId)]
                -> GrootM m ()
 deployServices clusterRef =
-  void . traverse (\(dep, tskId) -> deploySingle dep tskId >>= awaitSingle)
+  void . traverse (\service -> deploySingle service >>= awaitSingle)
     where deploySingle :: (MonadResource m, MonadBaseControl IO m)
-                      => ServiceDeployment
-                      -> TaskDefId
+                      => (Text, ServiceDeployment, TaskDefId)
                       -> GrootM m (ECS.ContainerService, Wait ECS.DescribeServices)
-          deploySingle deployment tdId = do
+          deploySingle (serviceName, deployment, tdId) = do
             env      <- ask
-            let csref = ContainerServiceRef $ deployment ^. sdName
+            let csref = ContainerServiceRef serviceName
             exists   <- serviceExists clusterRef csref
             mservice <- runAWS env $
               if exists then do
                 liftIO . putInfo $ "Updating service "
-                  <> styled yellowStyle (deployment ^. sdName)
-                updateReq <- pure $ updateServiceReq clusterRef deployment tdId
+                  <> styled yellowStyle serviceName
+                updateReq <- pure $ updateServiceReq clusterRef serviceName deployment tdId
                 -- liftIO . print $ updateReq
                 fmap (\x -> x ^. ECS.usrsService) . send $ updateReq
               else do
                 liftIO . putInfo $ "Creating service "
-                  <> styled yellowStyle (deployment ^. sdName)
-                createReq <- pure $ createServiceReq clusterRef deployment tdId
+                  <> styled yellowStyle serviceName
+                createReq <- pure $ createServiceReq clusterRef serviceName deployment tdId
                 -- liftIO . print $ createReq
                 fmap (\x -> x ^. ECS.csrsService) . send $ createReq
             case mservice of
@@ -356,5 +354,5 @@ deployServices clusterRef =
 composeServices :: GrootCompose -> ClusterRef -> GrootM IO ()
 composeServices (GrootCompose services) clusterRef = hoist runResourceT $ do
   verifyClusterIsActive clusterRef
-  registered <- registerTasks services
+  registered <- registerTasks (Map.toList services)
   deployServices clusterRef registered

@@ -19,6 +19,7 @@ import           Groot.Types
 data ServiceComposeOpts = ServiceComposeOpts
   { composeFile :: FilePath
   , cluster     :: ClusterRef
+  , dryRun      :: Bool
   , services    :: [ContainerServiceRef]
   } deriving (Eq, Show)
 
@@ -33,6 +34,10 @@ serviceComposeOpts = ServiceComposeOpts
                   <> metavar "COMPOSE_FILE"
                   <> help "Compose file" )
                  <*> clusterOpt
+                 <*> switch
+                   ( long "dryRun"
+                  <> short 'r'
+                  <> help "Just emulate but do not perform any changes" )
                  <*> many serviceNameArg
 
 runServiceCompose :: ServiceComposeOpts -> GrootM IO ()
@@ -40,4 +45,6 @@ runServiceCompose opts = do
   parsed <- liftIO . decodeFileEither $ composeFile opts
   case parsed of
     Left err         -> liftIO . putStrLn $ prettyPrintParseException err
-    Right composeDef -> composeServices composeDef (cluster opts)
+    Right composeDef -> if (not $ dryRun opts)
+                        then composeServices composeDef (cluster opts)
+                        else liftIO $ print composeDef
