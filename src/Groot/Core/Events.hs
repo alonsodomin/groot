@@ -34,7 +34,7 @@ import           Data.Typeable
 import           Network.AWS                    hiding (await)
 import qualified Network.AWS.ECS                as ECS
 
-import           Groot.AWS.Service
+import           Groot.AWS
 import           Groot.Console
 import           Groot.Data.Conduit.STM
 import           Groot.Data.Filter
@@ -119,6 +119,8 @@ serviceEventLog coords inf lastN = do
     handleStreamErrors :: (Typeable m, MonadCatch m, MonadConsole m) => m () -> m ()
     handleStreamErrors action = catches action [
         handler _InactiveService (\_ -> pure ())
+      , handler _TransportError  handleHttpException
+      , handler _ServiceError    handleServiceError
       ]
 
     publishInto :: (Typeable m, MonadReader e m, MonadCatch m, MonadBaseControl IO m, MonadIO m, MonadConsole m, HasEnv e)
