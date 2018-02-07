@@ -89,7 +89,7 @@ library
                      , unordered-containers               
                      , uuid
                      , vector
-                     , yaml
+                     , yaml >= 0.8.20 && < 0.9
   default-language:    Haskell2010
 
 executable groot

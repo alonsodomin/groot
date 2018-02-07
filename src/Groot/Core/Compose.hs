@@ -357,7 +357,14 @@ deployServices clusterRef =
 composeServices :: GrootCompose -> [Text] -> ClusterRef -> GrootM IO ()
 composeServices compose servs clusterRef = hoist runResourceT $ do
   verifyClusterIsActive clusterRef
-  registered <- registerTasks $ selectedServices servs $ compose ^. gcServices
+  services   <- selectServices servs $ compose ^. gcServices
+  registered <- registerTasks services
   deployServices clusterRef registered
-  where selectedServices [] m = Map.toList m
-        selectedServices xs m = catMaybes $ (\x -> (\y -> (x,y)) <$> Map.lookup x m) <$> xs
+  where selectServices :: MonadThrow m => [Text] -> HashMap Text ServiceDeployment -> m [(Text, ServiceDeployment)]
+        selectServices [] m = pure $ Map.toList m
+        selectServices xs m = traverse selectService xs
+          where selectService :: MonadThrow m => Text -> m (Text, ServiceDeployment)
+                selectService serviceName =
+                  let dep = maybe (throwM $ undefinedService serviceName) pure $ Map.lookup serviceName m
+                      pairUp x = (serviceName,x)
+                  in pairUp <$> dep

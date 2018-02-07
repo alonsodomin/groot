@@ -18,13 +18,19 @@ module Groot.Console
      ) where
 
 import           Control.Monad.IO.Class
+import           Control.Monad.Reader         (ReaderT)
+import           Control.Monad.Trans
+import           Control.Monad.Trans.Identity (IdentityT)
+import           Control.Monad.Trans.Maybe    (MaybeT)
 import           Data.Semigroup
-import           Data.Text               (Text)
-import qualified Data.Text               as T
-import qualified Data.Text.IO            as T
-import           Groot.Data.Text.Display
-import           Groot.Data.Text.Styled  as ST
+import           Data.Text                    (Text)
+import qualified Data.Text                    as T
+import qualified Data.Text.IO                 as T
+import           Network.AWS                  (Env)
 import           System.IO
+
+import           Groot.Data.Text.Display
+import           Groot.Data.Text.Styled       as ST
 
 errorText, warnText, infoText, successText :: StyledText
 errorText   = styled redStyle    "ERROR"
@@ -57,6 +63,16 @@ instance (Monad m, MonadIO m) => MonadConsole m where
     return $ if answer == ""
       then Nothing
       else Just answer
+
+instance MonadConsole m => MonadConsole (IdentityT m) where
+  putMessage sev txt = lift $ putMessage sev txt
+  askUser = lift . askUser
+instance MonadConsole m => MonadConsole (MaybeT m) where
+  putMessage sev txt = lift $ putMessage sev txt
+  askUser = lift . askUser
+-- instance MonadConsole m => MonadConsole (ReaderT Env m) where
+--   putMessage sev txt = lift $ putMessage sev txt
+--   askUser = lift . askUser
 
 askUserYN :: MonadConsole m => Bool -> Text -> m Bool
 askUserYN def msg = do
