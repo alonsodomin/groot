@@ -52,7 +52,13 @@ serviceComposeOpts = ServiceComposeOpts
 
 handleUndefinedService :: MonadConsole m => UndefinedService -> m ()
 handleUndefinedService (UndefinedService' serviceName) =
-  putError $ "Service " <> (styled yellowStyle serviceName) <> " has not been defined in compose file."
+  putError $ "Service" <+> (styled yellowStyle serviceName) <+> "has not been defined in compose file."
+
+handleDeploymentFailed :: MonadConsole m => FailedServiceDeployment -> m ()
+handleDeploymentFailed (FailedServiceDeployment' serviceRef clusterRef reason) =
+  putError $ "Failed to deploy service" <+> (styled yellowStyle $ toText serviceRef)
+    <+> "in cluster" <+> (styled yellowStyle $ toText clusterRef)
+    <> (maybe "" (\x -> " because" <+> (styled yellowStyle x)) reason)
 
 handleParseException :: MonadConsole m => ParseException -> FilePath -> m ()
 handleParseException err file = do
@@ -64,7 +70,8 @@ runDeployServices :: GrootCompose -> [Text] -> ClusterRef -> GrootM IO ()
 runDeployServices composeDef serviceList clusterRef =
   let deployAction = composeServices composeDef serviceList clusterRef
   in catches deployAction [
-    handler _UndefinedService handleUndefinedService
+    handler _UndefinedService        handleUndefinedService
+  , handler _FailedServiceDeployment handleDeploymentFailed
   ]
 
 runServiceCompose :: ServiceComposeOpts -> GrootM IO ()

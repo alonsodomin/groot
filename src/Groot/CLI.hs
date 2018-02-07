@@ -166,12 +166,6 @@ handleInactiveService (InactiveService' serviceRef clusterRef) =
     <> (styled yellowStyle $ toText $ clusterRef)
     <> " is not active."
 
-handleFailedServiceDeployment :: FailedServiceDeployment -> IO ()
-handleFailedServiceDeployment (FailedServiceDeployment' serviceRef clusterRef) =
-  putError $ "Service " <> (styled yellowStyle $ toText serviceRef) <> " in cluster "
-    <> (styled yellowStyle $ toText clusterRef)
-    <> " failed to stabilize during deployment."
-
 handleTaskNotFound :: TaskNotFound -> IO ()
 handleTaskNotFound (TaskNotFound' taskRef clusterRef) =
   putError $ "Could not find task " <> (styled yellowStyle $ toText taskRef) <>
@@ -189,7 +183,6 @@ handleExceptions act = catches act [
   , handler _AmbiguousServiceName    handleAmbiguousServiceName
   , handler _InactiveService         handleInactiveService
   , handler _TaskNotFound            handleTaskNotFound
-  , handler _FailedServiceDeployment handleFailedServiceDeployment
   ]
 
 -- | Runs a Groot command with the given AWS environment

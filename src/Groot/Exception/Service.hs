@@ -50,14 +50,14 @@ inactiveService serviceRef clusterRef =
   toException . InactiveService $ InactiveService' serviceRef clusterRef
 
 data FailedServiceDeployment =
-  FailedServiceDeployment' ContainerServiceRef ClusterRef
+  FailedServiceDeployment' ContainerServiceRef ClusterRef (Maybe Text)
   deriving (Eq, Typeable, Show)
 
 instance Exception FailedServiceDeployment
 
-failedServiceDeployment :: ContainerServiceRef -> ClusterRef -> SomeException
-failedServiceDeployment serviceRef clusterRef =
-  toException . FailedServiceDeployment $ FailedServiceDeployment' serviceRef clusterRef
+failedServiceDeployment :: ContainerServiceRef -> ClusterRef -> Maybe Text -> SomeException
+failedServiceDeployment serviceRef clusterRef reason =
+  toException . FailedServiceDeployment $ FailedServiceDeployment' serviceRef clusterRef reason
 
 data UndefinedService =
   UndefinedService' Text

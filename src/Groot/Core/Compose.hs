@@ -296,7 +296,7 @@ deployServices clusterRef =
                 -- liftIO . print $ createReq
                 fmap (\x -> x ^. ECS.csrsService) . send $ createReq
             case mservice of
-              Nothing  -> throwM $ failedServiceDeployment csref clusterRef
+              Nothing  -> throwM $ failedServiceDeployment csref clusterRef Nothing
               Just srv -> return (srv, serviceDeployed tdId)
 
           awaitSingle :: (MonadResource m, MonadBaseControl IO m)
@@ -315,7 +315,9 @@ deployServices clusterRef =
                                   "Service "
                                <> styled yellowStyle serviceName
                                <> " successfully deployed."
-              _             -> throwM $ failedServiceDeployment (ContainerServiceRef serviceName) clusterRef
+              _             -> do
+                errMsg <- pure "Service did not stabilize."
+                throwM $ failedServiceDeployment (ContainerServiceRef serviceName) clusterRef (Just errMsg)
 
           deploymentComplete :: TaskDefId -> Getter ECS.ContainerService Bool
           deploymentComplete tdi = to $ isComplete . taskDeployment
