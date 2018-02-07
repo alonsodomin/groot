@@ -20,7 +20,7 @@ import           Options.Applicative
 import           Groot.CLI.Common
 import           Groot.Console
 import           Groot.Core
-import           Groot.Core.Compose
+import           Groot.Compose
 import           Groot.Data.Text
 import           Groot.Exception
 import           Groot.Types
@@ -65,7 +65,7 @@ handleParseException err file = do
   putError $ "Could not parse service compose file: " <> (styled blueStyle $ T.pack file) <> "\n"
     <> (styled yellowStyle $ T.pack msg)
 
-runDeployServices :: GrootCompose -> [Text] -> ClusterRef -> GrootM IO ()
+runDeployServices :: ServiceCompose -> [Text] -> ClusterRef -> GrootM IO ()
 runDeployServices composeDef serviceList clusterRef =
   let deployAction = composeServices composeDef serviceList clusterRef
   in catches deployAction [

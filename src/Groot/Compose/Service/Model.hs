@@ -105,6 +105,8 @@ data ServiceDeployment = ServiceDeployment
 
 makeLenses ''ServiceDeployment
 
+type NamedServiceDeployment = (Text, ServiceDeployment)
+
 instance FromJSON ServiceDeployment where
   parseJSON = withObject "service deployment" $ \o -> do
     _sdTaskRole           <- o .:? "task-role"
@@ -116,13 +118,13 @@ instance FromJSON ServiceDeployment where
     _sdPlacementStrategy  <- maybe [] id <$> o .:? "placement-strategy"
     return ServiceDeployment{..}
 
-data GrootCompose = GrootCompose
-  { _gcServices :: HashMap Text ServiceDeployment
+data ServiceCompose = ServiceCompose
+  { _scServices :: HashMap Text ServiceDeployment
   } deriving (Eq, Show, Generic)
 
-makeLenses ''GrootCompose
+makeLenses ''ServiceCompose
 
-instance FromJSON GrootCompose where
+instance FromJSON ServiceCompose where
   parseJSON = withObject "service compose" $ \o -> do
-    _gcServices <- maybe Map.empty id <$> o .:? "services"
-    return GrootCompose{..}
+    _scServices <- maybe Map.empty id <$> o .:? "services"
+    return ServiceCompose{..}
