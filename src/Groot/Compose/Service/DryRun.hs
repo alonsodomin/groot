@@ -37,19 +37,25 @@ registerTask' (serviceName, _) = do
       putSuccess $ "Would have registered task" <+> (styled yellowStyle $ toText theId)
       return theId
 
-createService' :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
+createService' :: MonadConsole m
                => NamedServiceDeployment
                -> ClusterRef
                -> TaskDefId
-               -> GrootM m ()
-createService' = undefined
+               -> m ()
+createService' (serviceName, _) clusterRef tdId =
+  putInfo $ "Creates a new service named" <+> (styled yellowStyle serviceName)
+    <+> "in cluster" <+> (styled yellowStyle $ toText clusterRef)
+    <+> "linked to task" <+> (styled yellowStyle $ toText tdId)
 
-updateService' :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
+updateService' :: MonadConsole m
                => NamedServiceDeployment
                -> ClusterRef
                -> TaskDefId
-               -> GrootM m ()
-updateService' = undefined
+               -> m ()
+updateService' (serviceName, _) clusterRef tdId =
+  putInfo $ "Updates service named" <+> (styled yellowStyle serviceName)
+    <+> "in cluster" <+> (styled yellowStyle $ toText clusterRef)
+    <+> "linked to task" <+> (styled yellowStyle $ toText tdId)
 
 dryRunServiceCompose :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
                      => ServiceComposeM a
