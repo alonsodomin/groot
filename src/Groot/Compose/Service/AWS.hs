@@ -1,10 +1,12 @@
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE RankNTypes            #-}
 
 module Groot.Compose.Service.AWS
      ( serviceExists'
+     , verifyActiveCluster'
      , awsServiceCompose
      ) where
 
@@ -106,17 +108,7 @@ updateServiceReq clusterRef (serviceName, deployment) tdId =
   $ ECS.usDeploymentConfiguration ?~ (serviceDeploymentConf $ deployment ^. sdDeploymentStrategy)
   $ ECS.updateService serviceName
 
--- Operation functions
-
-serviceExists' :: MonadResource m
-               => Text
-               -> ClusterRef
-               -> GrootM m Bool
-serviceExists' serviceName clusterRef = do
-  env <- ask
-  hoist (runAWS env) $ awsToGrootM $ (maybe False (const True) <$> check)
-  where foundServices = findService (ContainerServiceRef serviceName) (Just clusterRef)
-        check         = runMaybeT $ filterM isActiveContainerService foundServices
+-- Implementation helper functions
 
 deploymentComplete :: TaskDefId -> Getter ECS.ContainerService Bool
 deploymentComplete tdi = to $ isComplete . taskDeployment
@@ -149,7 +141,7 @@ serviceDeployed taskId = Wait
     ]
   }
 
-waitForServiceDeployed :: (MonadConsole m, MonadResource m)
+waitForServiceDeployed :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
                        => ClusterRef
                        -> (ECS.ContainerService, Wait ECS.DescribeServices)
                        -> GrootM m ()
@@ -177,7 +169,26 @@ waitForServiceDeployed clusterRef (service, waiter) = do
 
 -- Free monad operations implementation
 
-registerTask' :: (MonadConsole m, MonadResource m)
+serviceExists' :: (MonadResource m, MonadBaseControl IO m)
+               => Text
+               -> ClusterRef
+               -> GrootM m Bool
+serviceExists' serviceName clusterRef = do
+  env <- ask
+  hoist (runAWS env) $ awsToGrootM $ (maybe False (const True) <$> check)
+  where foundServices = findService (ContainerServiceRef serviceName) (Just clusterRef)
+        check         = runMaybeT $ filterM isActiveContainerService foundServices
+
+verifyActiveCluster' :: (MonadResource m, MonadBaseControl IO m) => ClusterRef -> GrootM m ()
+verifyActiveCluster' clusterRef = do
+  env <- ask
+  runAWS env $ do
+    mcluster <- runMaybeT $ filterM isActiveCluster (findCluster clusterRef)
+    case mcluster of
+      Nothing -> throwM $ invalidClusterStatus clusterRef CSInactive (Just CSActive)
+      Just  _ -> return ()
+
+registerTask' :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
               => NamedServiceDeployment
               -> GrootM m TaskDefId
 registerTask' service@(serviceName, _) = do
@@ -194,7 +205,7 @@ registerTask' service@(serviceName, _) = do
         <+> styled yellowStyle (toText task)
       return task
 
-modifyService' :: (MonadConsole m, MonadResource m)
+modifyService' :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
                => (NamedServiceDeployment -> ClusterRef -> TaskDefId -> GrootM m (Maybe ECS.ContainerService))
                -> NamedServiceDeployment
                -> ClusterRef
@@ -206,7 +217,7 @@ modifyService' awsAction service@(serviceName, _) clusterRef taskId = do
     Nothing  -> throwM $ failedServiceDeployment (ContainerServiceRef serviceName) clusterRef Nothing
     Just srv -> return (srv, serviceDeployed taskId)
 
-createService' :: (MonadConsole m, MonadResource m)
+createService' :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
                => NamedServiceDeployment
                -> ClusterRef
                -> TaskDefId
@@ -217,7 +228,7 @@ createService' = modifyService' $ \service@(serviceName, _) clusterRef taskId ->
   createReq <- pure $ createServiceReq clusterRef service taskId
   runAWS env $ fmap (\x -> x ^. ECS.csrsService) . send $ createReq
 
-updateService' :: (MonadConsole m, MonadResource m)
+updateService' :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
                => NamedServiceDeployment
                -> ClusterRef
                -> TaskDefId
@@ -228,7 +239,7 @@ updateService' = modifyService' $ \service@(serviceName, _) clusterRef taskId ->
   updateReq <- pure $ updateServiceReq clusterRef service taskId
   runAWS env $ fmap (\x -> x ^. ECS.usrsService) . send $ updateReq
 
-awsServiceCompose :: (MonadConsole m, MonadResource m) => ServiceComposeM a -> GrootM m a
+awsServiceCompose :: (MonadConsole m, MonadResource m, MonadBaseControl IO m) => ServiceComposeM a -> GrootM m a
 awsServiceCompose = foldFree $ \case
   RegisterTask service next ->
     next <$> registerTask' service
@@ -238,3 +249,5 @@ awsServiceCompose = foldFree $ \case
     (const next) <$> (createService' service cluster taskId >>= waitForServiceDeployed cluster)
   UpdateService service cluster taskId next ->
     (const next) <$> (updateService' service cluster taskId >>= waitForServiceDeployed cluster)
+  VerifyActiveCluster cluster next ->
+    (const next) <$> verifyActiveCluster' cluster

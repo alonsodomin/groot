@@ -26,6 +26,7 @@ type ServiceComposeM = Free ServiceComposeOp
 
 deployService :: ClusterRef -> NamedServiceDeployment -> ServiceComposeM ()
 deployService clusterRef service = do
+  verifyActiveCluster clusterRef
   taskDefId <- registerTask service
   exists    <- serviceExists (fst service) clusterRef
   if exists

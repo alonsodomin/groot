@@ -38,8 +38,7 @@ library
                      , Groot.Config
                      , Groot.Console
                      , Groot.Core
-                     , Groot.Core.Common
-                     , Groot.Core.Compose                     
+                     , Groot.Core.Common                     
                      , Groot.Core.Events                     
                      , Groot.Data.Conduit.STM
                      , Groot.Data.Filter
@@ -54,6 +53,12 @@ library
                      , Groot.Exception
                      , Groot.Types
   other-modules:       Paths_groot
+                     , Groot.Compose.Service.Model
+                     , Groot.Compose.Service.Free
+                     , Groot.Compose.Service.AWS
+                     , Groot.Compose.Service.DryRun
+                     , Groot.Compose.Service
+                     , Groot.Compose
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , amazonka >= 1.5.0 && < 1.6
