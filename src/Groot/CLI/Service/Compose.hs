@@ -7,21 +7,25 @@ module Groot.CLI.Service.Compose
      ) where
 
 import           Control.Exception.Lens
+import           Control.Lens                 hiding (argument)
 import           Control.Monad.Catch
 import           Control.Monad.IO.Class
-import           Data.Semigroup         ((<>))
+import           Control.Monad.Morph
+import           Control.Monad.Trans.Resource
+import           Data.HashMap.Strict          (HashMap)
+import qualified Data.HashMap.Strict          as Map
+import           Data.Semigroup               ((<>))
 import           Data.String
-import           Data.Text              (Text)
-import qualified Data.Text as T
-import           Data.Yaml              (ParseException
-                                        , decodeFileEither
-                                        , prettyPrintParseException)
+import           Data.Text                    (Text)
+import qualified Data.Text                    as T
+import           Data.Yaml                    (ParseException, decodeFileEither,
+                                               prettyPrintParseException)
 import           Options.Applicative
 
 import           Groot.CLI.Common
+import           Groot.Compose
 import           Groot.Console
 import           Groot.Core
-import           Groot.Core.Compose
 import           Groot.Data.Text
 import           Groot.Exception
 import           Groot.Types
@@ -50,6 +54,15 @@ serviceComposeOpts = ServiceComposeOpts
                   <> help "Just emulate but do not perform any changes" )
                  <*> many serviceNameArg
 
+selectServices :: MonadThrow m => [Text] -> HashMap Text ServiceDeployment -> m [NamedServiceDeployment]
+selectServices [] m = pure $ Map.toList m
+selectServices xs m = traverse selectService xs
+  where selectService :: MonadThrow m => Text -> m NamedServiceDeployment
+        selectService serviceName =
+          let dep = maybe (throwM $ undefinedService serviceName) pure $ Map.lookup serviceName m
+              pairUp x = (serviceName,x)
+          in pairUp <$> dep
+
 handleUndefinedService :: MonadConsole m => UndefinedService -> m ()
 handleUndefinedService (UndefinedService' serviceName) =
   putError $ "Service" <+> (styled yellowStyle serviceName) <+> "has not been defined in compose file."
@@ -66,10 +79,13 @@ handleParseException err file = do
   putError $ "Could not parse service compose file: " <> (styled blueStyle $ T.pack file) <> "\n"
     <> (styled yellowStyle $ T.pack msg)
 
-runDeployServices :: GrootCompose -> [Text] -> ClusterRef -> GrootM IO ()
-runDeployServices composeDef serviceList clusterRef =
-  let deployAction = composeServices composeDef serviceList clusterRef
-  in catches deployAction [
+runDeployServices :: ServiceCompose -> ClusterRef -> [Text] -> Bool -> GrootM IO ()
+runDeployServices composeDef clusterRef serviceNames isDryRun =
+  let interpret = if isDryRun then dryRunServiceCompose else awsServiceCompose
+      runDeploy = do
+        serviceList <- selectServices serviceNames $ composeDef ^. scServices
+        hoist runResourceT $ interpret $ deployServices clusterRef serviceList
+  in catches runDeploy [
     handler _UndefinedService        handleUndefinedService
   , handler _FailedServiceDeployment handleDeploymentFailed
   ]
@@ -79,6 +95,4 @@ runServiceCompose opts = do
   parsed <- liftIO . decodeFileEither $ composeFile opts
   case parsed of
     Left err         -> handleParseException err $ composeFile opts
-    Right composeDef -> if (not $ dryRun opts)
-                        then runDeployServices composeDef (services opts) (cluster opts)
-                        else liftIO $ print composeDef
+    Right composeDef -> runDeployServices composeDef (cluster opts) (services opts) (dryRun opts)
