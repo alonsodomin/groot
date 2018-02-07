@@ -23,7 +23,6 @@ import           Control.Monad.Trans.Maybe
 import           Control.Monad.Trans.Resource
 import           Control.Monad.Trans.State.Lazy
 import           Data.Aeson
-import           Data.Aeson.Types
 import           Data.HashMap.Strict            (HashMap)
 import qualified Data.HashMap.Strict            as Map
 import           Data.Maybe

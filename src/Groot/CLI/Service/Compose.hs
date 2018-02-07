@@ -12,10 +12,9 @@ import           Control.Monad.IO.Class
 import           Data.Semigroup         ((<>))
 import           Data.String
 import           Data.Text              (Text)
-import qualified Data.Text as T
-import           Data.Yaml              (ParseException
-                                        , decodeFileEither
-                                        , prettyPrintParseException)
+import qualified Data.Text              as T
+import           Data.Yaml              (ParseException, decodeFileEither,
+                                         prettyPrintParseException)
 import           Options.Applicative
 
 import           Groot.CLI.Common
