@@ -30,11 +30,9 @@ library
                      , Groot.CLI.List.ContainerService
                      , Groot.CLI.List.Task
                      , Groot.CLI.List.TaskDef
-                     , Groot.CLI.List
-                     , Groot.CLI.Service.Compose
-                     , Groot.CLI.Service.Events
-                     , Groot.CLI.Service
-                     , Groot.CLI                     
+                     , Groot.CLI.List                     
+                     , Groot.CLI
+                     , Groot.Compose
                      , Groot.Config
                      , Groot.Console
                      , Groot.Core
@@ -44,21 +42,23 @@ library
                      , Groot.Data.Filter
                      , Groot.Data.Text.Display
                      , Groot.Data.Text.Styled
-                     , Groot.Data.Text
-                     , Groot.Exception.Cluster
-                     , Groot.Exception.Instance
-                     , Groot.Exception.Task
-                     , Groot.Exception.TaskDef
-                     , Groot.Exception.Service
+                     , Groot.Data.Text                     
                      , Groot.Exception
                      , Groot.Types
   other-modules:       Paths_groot
+                     , Groot.CLI.Service.Compose
+                     , Groot.CLI.Service.Events
+                     , Groot.CLI.Service
                      , Groot.Compose.Service.Model
                      , Groot.Compose.Service.Free
                      , Groot.Compose.Service.AWS
                      , Groot.Compose.Service.DryRun
                      , Groot.Compose.Service
-                     , Groot.Compose
+                     , Groot.Exception.Cluster
+                     , Groot.Exception.Instance
+                     , Groot.Exception.Task
+                     , Groot.Exception.TaskDef
+                     , Groot.Exception.Service
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , amazonka >= 1.5.0 && < 1.6
