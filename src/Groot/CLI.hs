@@ -147,7 +147,7 @@ handleInvalidClusterStatus :: InvalidClusterStatus -> IO ()
 handleInvalidClusterStatus (InvalidClusterStatus' clusterRef currentSt desiredSt) =
   putError $ "Can't operate on cluster " <> (styled yellowStyle $ toText clusterRef)
     <> " because it is " <> (styled redStyle $ toText currentSt)
-    <> maybe "." (\x -> ", it should be " <> (styled blueStyle $ toText x) <> " to continue.") desiredSt
+    <> maybe "." (\x -> ", it should be " <> (styled greenStyle $ toText x) <> " to continue.") desiredSt
 
 handleServiceNotFound :: ServiceNotFound -> IO ()
 handleServiceNotFound (ServiceNotFound' serviceRef clusterRef) =

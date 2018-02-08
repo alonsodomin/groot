@@ -30,7 +30,7 @@ registerTask' (serviceName, _) = do
   env  <- ask
   tdId <- runAWS env . runMaybeT $ do
     taskDef <- getTaskDef (TaskDefRef serviceName)
-    MaybeT . pure $ taskDefId taskDef
+    MaybeT . pure $ nextTaskDefId <$> taskDefId taskDef
   case tdId of
     Nothing    -> throwM $ failedToRegisterTaskDef (TaskDefRef serviceName)
     Just theId -> do

@@ -183,8 +183,8 @@ verifyActiveCluster' :: (MonadResource m, MonadBaseControl IO m) => ClusterRef -
 verifyActiveCluster' clusterRef = do
   env <- ask
   runAWS env $ do
-    mcluster <- runMaybeT $ filterM isActiveCluster (findCluster clusterRef)
-    case mcluster of
+    cluster <- getCluster clusterRef
+    case (maybeMatches isActiveCluster cluster) of
       Nothing -> throwM $ invalidClusterStatus clusterRef CSInactive (Just CSActive)
       Just  _ -> return ()
 
@@ -199,9 +199,9 @@ registerTask' service@(serviceName, _) = do
   case mtask of
     Nothing   -> throwM $ failedToRegisterTaskDef (TaskDefRef serviceName)
     Just task -> do
-      putSuccess $ "Service"
+      putSuccess $ "Task for service"
         <+> styled yellowStyle serviceName
-        <+> "has upgraded task to"
+        <+> "has been registed as"
         <+> styled yellowStyle (toText task)
       return task
 
@@ -223,7 +223,7 @@ createService' :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
                -> TaskDefId
                -> GrootM m (ECS.ContainerService, Wait ECS.DescribeServices)
 createService' = modifyService' $ \service@(serviceName, _) clusterRef taskId -> do
-  putInfo $ "Creating service" <+> styled yellowStyle serviceName
+  putInfo $ "Creating service" <+> styled yellowStyle serviceName <+> "with task" <+> (styled yellowStyle $ toText taskId)
   env       <- ask
   createReq <- pure $ createServiceReq clusterRef service taskId
   runAWS env $ fmap (\x -> x ^. ECS.csrsService) . send $ createReq
@@ -234,7 +234,7 @@ updateService' :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
                -> TaskDefId
                -> GrootM m (ECS.ContainerService, Wait ECS.DescribeServices)
 updateService' = modifyService' $ \service@(serviceName, _) clusterRef taskId -> do
-  putInfo $ "Updating service" <+> styled yellowStyle serviceName
+  putInfo $ "Updating service" <+> styled yellowStyle serviceName <+> "with task" <+> (styled yellowStyle $ toText taskId)
   env       <- ask
   updateReq <- pure $ updateServiceReq clusterRef service taskId
   runAWS env $ fmap (\x -> x ^. ECS.usrsService) . send $ updateReq

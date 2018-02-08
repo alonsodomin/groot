@@ -57,6 +57,7 @@ module Groot.Types
      , TaskDefId (..)
      , tdiTaskFamily
      , tdiTaskRevision
+     , nextTaskDefId
      , TaskDefArn
      , arnTaskDefId
      , arnTaskDefFamily
@@ -453,6 +454,9 @@ data TaskDefId = TaskDefId
   } deriving (Eq, Show, Data, Generic)
 
 makeLenses ''TaskDefId
+
+nextTaskDefId :: TaskDefId -> TaskDefId
+nextTaskDefId (TaskDefId family revision) = TaskDefId family (revision + 1)
 
 instance FromText TaskDefId where
   parser = do
