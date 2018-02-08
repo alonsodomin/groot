@@ -31,7 +31,7 @@ import           Groot.Exception
 import           Groot.Types
 
 data ServiceComposeOpts = ServiceComposeOpts
-  { composeFile :: FilePath
+  { composeFile :: Maybe FilePath
   , cluster     :: ClusterRef
   , dryRun      :: Bool
   , services    :: [Text]
@@ -42,17 +42,20 @@ serviceNameArg = fromString <$> argument str (metavar "SERVICES")
 
 serviceComposeOpts :: Parser ServiceComposeOpts
 serviceComposeOpts = ServiceComposeOpts
-                 <$> strOption
+                 <$> optional (strOption
                    ( long "file"
                   <> short 'f'
                   <> metavar "COMPOSE_FILE"
-                  <> help "Compose file" )
+                  <> help "Compose file" ))
                  <*> clusterOpt
                  <*> switch
                    ( long "dryRun"
                   <> short 'r'
                   <> help "Just emulate but do not perform any changes" )
                  <*> many serviceNameArg
+
+defaultComposeFilePath :: FilePath
+defaultComposeFilePath = "./groot-compose.yml"
 
 selectServices :: MonadThrow m => [Text] -> HashMap Text ServiceDeployment -> m [NamedServiceDeployment]
 selectServices [] m = pure $ Map.toList m
@@ -92,7 +95,8 @@ runDeployServices composeDef clusterRef serviceNames isDryRun =
 
 runServiceCompose :: ServiceComposeOpts -> GrootM IO ()
 runServiceCompose opts = do
-  parsed <- liftIO . decodeFileEither $ composeFile opts
+  givenFile <- pure $ maybe defaultComposeFilePath id $ composeFile opts
+  parsed    <- liftIO $ decodeFileEither givenFile
   case parsed of
-    Left err         -> handleParseException err $ composeFile opts
+    Left err         -> handleParseException err givenFile
     Right composeDef -> runDeployServices composeDef (cluster opts) (services opts) (dryRun opts)
