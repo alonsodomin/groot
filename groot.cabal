@@ -1,7 +1,9 @@
 name:                groot
 version:             0.0.1.0
--- synopsis:
-description:         Command line utility to manage AWS ECS resources
+synopsis:            Command line utility to manage AWS ECS resources
+description:
+    `groot` is a command line application with the purpose of remote managing AWS ECS Clusters and
+    their associated resources (Tasks, Instances, Services, etc.)
 homepage:            https://github.com/alonsodomin/groot
 license:             Apache
 license-file:        LICENSE
@@ -15,7 +17,20 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Groot.AWS.Cluster
+  exposed-modules:     Groot.CLI
+                     , Groot.Compose
+                     , Groot.Config
+                     , Groot.Console
+                     , Groot.Core                     
+                     , Groot.Data.Conduit.STM
+                     , Groot.Data.Filter
+                     , Groot.Data.Text.Display
+                     , Groot.Data.Text.Styled
+                     , Groot.Data.Text                     
+                     , Groot.Exception
+                     , Groot.Types
+  other-modules:       Paths_groot
+                     , Groot.AWS.Cluster
                      , Groot.AWS.Instance
                      , Groot.AWS.Service
                      , Groot.AWS.Task
@@ -30,22 +45,7 @@ library
                      , Groot.CLI.List.ContainerService
                      , Groot.CLI.List.Task
                      , Groot.CLI.List.TaskDef
-                     , Groot.CLI.List                     
-                     , Groot.CLI
-                     , Groot.Compose
-                     , Groot.Config
-                     , Groot.Console
-                     , Groot.Core
-                     , Groot.Core.Common                     
-                     , Groot.Core.Events                     
-                     , Groot.Data.Conduit.STM
-                     , Groot.Data.Filter
-                     , Groot.Data.Text.Display
-                     , Groot.Data.Text.Styled
-                     , Groot.Data.Text                     
-                     , Groot.Exception
-                     , Groot.Types
-  other-modules:       Paths_groot
+                     , Groot.CLI.List
                      , Groot.CLI.Service.Compose
                      , Groot.CLI.Service.Events
                      , Groot.CLI.Service
@@ -54,6 +54,8 @@ library
                      , Groot.Compose.Service.AWS
                      , Groot.Compose.Service.DryRun
                      , Groot.Compose.Service
+                     , Groot.Core.Common
+                     , Groot.Core.Events
                      , Groot.Exception.Cluster
                      , Groot.Exception.Instance
                      , Groot.Exception.Task
