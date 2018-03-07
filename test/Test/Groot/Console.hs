@@ -11,10 +11,11 @@ module Test.Groot.Console
      ) where
 
 import           Control.Monad.Free
+import           Control.Monad.Identity
+import           Control.Monad.Reader
 import           Control.Monad.State
-import Control.Monad.Reader
-import Control.Monad.Identity
-import           Data.Text           (Text)
+import           Data.Semigroup         ((<>))
+import           Data.Text              (Text)
 import           Test.Hspec
 
 import           Groot.Console
@@ -33,18 +34,18 @@ instance {-# OVERLAPS #-} MonadConsole ConsoleM where
 
 data ConsoleEvent =
     MessagePut Severity Text
-  | UserAsked Text (Maybe Text)
+  | UserAnswered Text (Maybe Text)
   deriving (Eq, Show)
 
 type ConsoleState = ReaderT (Maybe Text) (State [ConsoleEvent])
 
-toConsoleEvents :: Maybe Text -> ConsoleM a -> [ConsoleEvent]
-toConsoleEvents input console =
+runConsoleM :: Maybe Text -> ConsoleM a -> (a, [ConsoleEvent])
+runConsoleM input console =
   runReader (accumEvents console) input
-  where accumEvents :: ConsoleM a -> Reader (Maybe Text) [ConsoleEvent]
+  where accumEvents :: ConsoleM a -> Reader (Maybe Text) (a, [ConsoleEvent])
         accumEvents console =
-          mapReaderT (\st -> Identity $ execState st []) (interpretConsole console)
-    
+          mapReaderT (\st -> Identity $ runState st []) (interpretConsole console)
+
         interpretConsole :: ConsoleM a -> ConsoleState a
         interpretConsole = foldFree $ \msg -> do
           prev <- get
@@ -55,23 +56,44 @@ toConsoleEvents input console =
               return next
             AskUser txt fn -> do
               answer <- ask
-              let event = UserAsked txt answer
+              let event = UserAnswered txt answer
               put (event:prev)
               return (fn answer)
+
+eventsAfterAnswer :: Text -> ConsoleM a -> [ConsoleEvent]
+eventsAfterAnswer answer console = snd $ runConsoleM (Just answer) console
+
+events :: ConsoleM a -> [ConsoleEvent]
+events console = snd $ runConsoleM Nothing console
 
 describePutMessage :: IO ()
 describePutMessage = hspec $ do
   describe "putXXX" $ do
     it "is equivalent to a putMessage with the severity enum" $ do
       let txt = toText ("hello" :: String)
-      toConsoleEvents Nothing (putSuccess txt) `shouldBe` [MessagePut Success txt]
-      toConsoleEvents Nothing (putInfo    txt) `shouldBe` [MessagePut Info    txt]
-      toConsoleEvents Nothing (putWarn    txt) `shouldBe` [MessagePut Warn    txt]
-      toConsoleEvents Nothing (putError   txt) `shouldBe` [MessagePut Error   txt]
+      events (putSuccess txt) `shouldBe` [MessagePut Success txt]
+      events (putInfo    txt) `shouldBe` [MessagePut Info    txt]
+      events (putWarn    txt) `shouldBe` [MessagePut Warn    txt]
+      events (putError   txt) `shouldBe` [MessagePut Error   txt]
   describe "askUser" $ do
     it "should yield an AskUser event" $ do
       let txt = toText ("hello" :: String)
-      toConsoleEvents (Just "bye") (askUser txt) `shouldBe` [UserAsked txt (Just "bye")]
+      eventsAfterAnswer "bye" (askUser txt) `shouldBe` [UserAnswered txt (Just "bye")]
+  describe "askUserYN" $ do
+    it "should interpret no answer as the default" $ do
+      let prompt = toText ("say something" :: String)
+      let falseExpectedPrompt = prompt <> " [yN] "
+      let trueExpectedPrompt = prompt <> " [Yn] "
+      runConsoleM Nothing (askUserYN False prompt) `shouldBe` (False, [UserAnswered falseExpectedPrompt Nothing])
+      runConsoleM Nothing (askUserYN True  prompt) `shouldBe` (True,  [UserAnswered trueExpectedPrompt  Nothing])
+    it "should translate a y answer to a true" $ do
+      let prompt = toText ("foo" :: String)
+      let expectedPrompt = prompt <> " [yN] "
+      runConsoleM (Just "Y") (askUserYN False prompt) `shouldBe` (True, [UserAnswered expectedPrompt (Just "Y")])
+    it "should translate a n answer to a false" $ do
+      let prompt = toText ("foo" :: String)
+      let expectedPrompt = prompt <> " [Yn] "
+      runConsoleM (Just "N") (askUserYN True prompt) `shouldBe` (False, [UserAnswered expectedPrompt (Just "N")])
 
 describeConsole :: IO ()
 describeConsole = describePutMessage
