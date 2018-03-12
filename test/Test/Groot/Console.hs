@@ -66,8 +66,8 @@ eventsAfterAnswer answer console = snd $ runConsoleM (Just answer) console
 events :: ConsoleM a -> [ConsoleEvent]
 events console = snd $ runConsoleM Nothing console
 
-describePutMessage :: IO ()
-describePutMessage = hspec $ do
+describeConsole :: IO ()
+describeConsole = hspec $ do
   describe "putXXX" $ do
     it "is equivalent to a putMessage with the severity enum" $ do
       let txt = toText ("hello" :: String)
@@ -95,5 +95,3 @@ describePutMessage = hspec $ do
       let expectedPrompt = prompt <> " [Yn] "
       runConsoleM (Just "N") (askUserYN True prompt) `shouldBe` (False, [UserAnswered expectedPrompt (Just "N")])
 
-describeConsole :: IO ()
-describeConsole = describePutMessage
