@@ -18,6 +18,8 @@ cabal.sandbox.config
 *.eventlog
 .stack-work/
 .vagrant/
+.idea/
+*.iml
 cabal.project.local
 .HTF/
 .ghc.environment.*
