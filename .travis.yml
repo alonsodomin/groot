@@ -21,6 +21,9 @@ before_install:
   - stack setup
   - stack exec -- ghc --version
 
+  # Install additional build tools
+  - stack install cabal-rpm
+
 script:
   - stack --no-terminal test
   - stack --no-terminal haddock

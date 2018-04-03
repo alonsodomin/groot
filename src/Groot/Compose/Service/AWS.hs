@@ -108,6 +108,11 @@ updateServiceReq clusterRef (serviceName, deployment) tdId =
   $ ECS.usDeploymentConfiguration ?~ (serviceDeploymentConf $ deployment ^. sdDeploymentStrategy)
   $ ECS.updateService serviceName
 
+deleteServiceReq :: ClusterRef -> NamedServiceDeployment -> ECS.DeleteService
+deleteServiceReq clusterRef (serviceName, _) =
+    ECS.dsCluster ?~ (toText clusterRef)
+  $ ECS.deleteService serviceName
+
 -- Implementation helper functions
 
 deploymentComplete :: TaskDefId -> Getter ECS.ContainerService Bool
@@ -126,7 +131,7 @@ deploymentComplete tdi = to $ isComplete . taskDeployment
 
 serviceDeployed :: TaskDefId -> Wait ECS.DescribeServices
 serviceDeployed taskId = Wait
-  { _waitName = ""
+  { _waitName = "serviceDeployed"
   , _waitAttempts = 100
   , _waitDelay = 6
   , _waitAcceptors =
@@ -239,6 +244,26 @@ updateService' = modifyService' $ \service@(serviceName, _) clusterRef taskId ->
   updateReq <- pure $ updateServiceReq clusterRef service taskId
   runAWS env $ fmap (\x -> x ^. ECS.usrsService) . send $ updateReq
 
+removeService' :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
+               => NamedServiceDeployment
+               -> ClusterRef
+               -> GrootM m ()
+removeService' service@(serviceName, _) clusterRef = do
+  putInfo $ "Deleting service" <+> styled yellowStyle serviceName <> "."
+  env       <- ask
+
+  let csRef = ContainerServiceRef serviceName
+  current   <- runAWS env $ runMaybeT $ findService csRef (Just clusterRef)
+  
+  case current of
+    Nothing -> throwM $ serviceNotFound csRef (Just clusterRef)
+    Just  c -> do
+      updateReq <- pure $ ECS.usDesiredCount ?~ 0 $ ECS.usCluster ?~ (toText clusterRef) $ ECS.updateService serviceName
+      runAWS env $ send updateReq
+      deleteReq <- pure $ deleteServiceReq clusterRef service
+      runAWS env $ send deleteReq
+      return ()
+
 awsServiceCompose :: (MonadConsole m, MonadResource m, MonadBaseControl IO m) => ServiceComposeM a -> GrootM m a
 awsServiceCompose = foldFree $ \case
   RegisterTask service next ->
@@ -249,5 +274,7 @@ awsServiceCompose = foldFree $ \case
     (const next) <$> (createService' service cluster taskId >>= waitForServiceDeployed cluster)
   UpdateService service cluster taskId next ->
     (const next) <$> (updateService' service cluster taskId >>= waitForServiceDeployed cluster)
+  RemoveService service cluster next ->
+    (const next) <$> removeService' service cluster
   VerifyActiveCluster cluster next ->
     (const next) <$> verifyActiveCluster' cluster

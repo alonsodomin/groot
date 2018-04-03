@@ -1,18 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Groot.CLI.Service.Compose
      ( ServiceComposeOpts(..)
      , serviceComposeOpts
      , runServiceCompose
+     , runServiceDelete
      ) where
 
 import           Control.Exception.Lens
 import           Control.Lens                 hiding (argument)
 import           Control.Monad.Catch
 import           Control.Monad.IO.Class
-import           Control.Monad.Morph
-import           Control.Monad.Trans.Resource
 import           Data.HashMap.Strict          (HashMap)
 import qualified Data.HashMap.Strict          as Map
 import           Data.Semigroup               ((<>))
@@ -31,24 +29,13 @@ import           Groot.Data.Text
 import           Groot.Exception
 import           Groot.Types
 
-data RunMode = DryRun | Unattended
-  deriving (Eq, Show, Enum, Ord)
-
-_DryRun :: Prism' RunMode Bool
-_DryRun = prism (const DryRun) $ \case
-  DryRun -> Right True
-  x      -> Left x
-
-_Unattended :: Prism' RunMode Bool
-_Unattended = prism (const Unattended) $ \case
-  Unattended -> Right True
-  x          -> Left x
+-- Command Line
 
 data ServiceComposeOpts = ServiceComposeOpts
-  { composeFile :: Maybe FilePath
-  , cluster     :: ClusterRef
-  , runMode     :: Maybe RunMode
-  , services    :: [Text]
+  { composeFile  :: Maybe FilePath
+  , cluster      :: ClusterRef
+  , runMode      :: Maybe RunMode
+  , serviceNames :: [Text]
   } deriving (Eq, Show)
 
 composeFileOpt :: Parser FilePath
@@ -61,7 +48,7 @@ composeFileOpt = strOption
 dryRunOpt :: Parser RunMode
 dryRunOpt = flag' DryRun
           ( long "dryRun"
-         <> short 'r'
+         <> short 't'
          <> help "Just emulate but do not perform any changes" )
 
 unattendedOpt :: Parser RunMode
@@ -82,6 +69,8 @@ serviceComposeOpts = ServiceComposeOpts
                  <*> clusterOpt
                  <*> optional runModeOpt
                  <*> many serviceNameArg
+
+-- Configuration
 
 defaultComposeFilePath :: FilePath
 defaultComposeFilePath = "./groot-compose.yml"
@@ -115,28 +104,31 @@ selectServices xs m = traverse selectService xs
               pairUp x = (serviceName,x)
           in pairUp <$> dep
 
-runDeployServices :: ServiceCompose -> ClusterRef -> [Text] -> Maybe RunMode -> GrootM IO ()
-runDeployServices composeDef clusterRef serviceNames rm =
-  let shouldConfirm   = maybe True (isn't _Unattended) rm
-      isDryRun        = maybe False (\x -> not $ isn't _DryRun x) rm
-      confirmMsg srvs = "This will start deployment of the following services:\n" <>
-        (T.intercalate "\n" $ T.append "   - " . fst <$> srvs) <> ".\nDo you want to continue? "
-      interpret       = if isDryRun then dryRunServiceCompose else awsServiceCompose
-      doDeploy srvs   = if shouldConfirm
-        then askUserToContinue (confirmMsg srvs) (interpret $ deployServices clusterRef srvs)
-        else interpret $ deployServices clusterRef srvs
-      runDeploy       = do
-        serviceList <- selectServices serviceNames $ composeDef ^. scServices
-        hoist runResourceT $ doDeploy serviceList
-  in catches runDeploy [
-    handler _UndefinedService        handleUndefinedService
-  , handler _FailedServiceDeployment handleDeploymentFailed
-  ]
-
-runServiceCompose :: ServiceComposeOpts -> GrootM IO ()
-runServiceCompose opts = do
+performAction :: Text -> (ServiceComposeCfg -> ServiceComposeM ()) -> ServiceComposeOpts -> GrootM IO ()
+performAction userMsg buildComposeAction opts = do
   givenFile <- pure $ maybe defaultComposeFilePath id $ composeFile opts
   parsed    <- liftIO $ decodeFileEither givenFile
   case parsed of
-    Left err         -> handleParseException err givenFile
-    Right composeDef -> runDeployServices composeDef (cluster opts) (services opts) (runMode opts)
+    Left err -> handleParseException err givenFile
+    Right composeDef -> do
+      serviceList   <- selectServices (serviceNames opts) $ composeDef ^. scServices
+      cfg           <- pure $ ServiceComposeCfg (cluster opts) serviceList (runMode opts)
+      composeAction <- pure $ buildComposeAction cfg
+      catches (interpretServiceComposeM userMsg composeAction cfg) [
+          handler _UndefinedService        handleUndefinedService
+        , handler _FailedServiceDeployment handleDeploymentFailed
+        ]
+
+doDeployServices :: ServiceComposeCfg -> ServiceComposeM ()
+doDeployServices (ServiceComposeCfg clusterRef serviceList _) =
+  deployServices clusterRef serviceList
+
+doDeleteServices :: ServiceComposeCfg -> ServiceComposeM ()
+doDeleteServices (ServiceComposeCfg clusterRef serviceList _) =
+  deleteServices clusterRef serviceList
+
+runServiceCompose :: ServiceComposeOpts -> GrootM IO ()
+runServiceCompose = performAction "This will start deployment of the following services:" doDeployServices
+
+runServiceDelete :: ServiceComposeOpts -> GrootM IO ()
+runServiceDelete = performAction "This will delete the following services:" doDeleteServices

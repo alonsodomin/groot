@@ -17,6 +17,7 @@ data ServiceComposeOp next =
   | ServiceExists Text ClusterRef (Bool -> next)
   | CreateService NamedServiceDeployment ClusterRef TaskDefId next
   | UpdateService NamedServiceDeployment ClusterRef TaskDefId next
+  | RemoveService NamedServiceDeployment ClusterRef next
   | VerifyActiveCluster ClusterRef next
   deriving Functor
 
@@ -36,3 +37,7 @@ deployService clusterRef service = do
 deployServices :: Traversable f => ClusterRef -> f NamedServiceDeployment -> ServiceComposeM ()
 deployServices clusterRef = void . traverse (\serv -> deployService clusterRef serv)
 {-# INLINE deployServices #-}
+
+deleteServices :: Traversable f => ClusterRef -> f NamedServiceDeployment -> ServiceComposeM ()
+deleteServices clusterRef = void . traverse (\serv -> removeService serv clusterRef)
+{-# INLINE deleteServices #-}

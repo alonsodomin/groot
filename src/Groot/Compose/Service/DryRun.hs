@@ -57,6 +57,14 @@ updateService' (serviceName, _) clusterRef tdId =
     <+> "in cluster" <+> (styled yellowStyle $ toText clusterRef)
     <+> "linked to task" <+> (styled yellowStyle $ toText tdId)
 
+removeService' :: MonadConsole m
+               => NamedServiceDeployment
+               -> ClusterRef
+               -> m ()
+removeService' (serviceName, _) clusterRef =
+  putInfo $ "Deletes service named" <+> (styled yellowStyle serviceName)
+    <+> "from cluster" <+> (styled yellowStyle $ toText clusterRef)
+
 dryRunServiceCompose :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
                      => ServiceComposeM a
                      -> GrootM m a
@@ -69,5 +77,7 @@ dryRunServiceCompose = foldFree $ \case
     (const next) <$> createService' service cluster taskId
   UpdateService service cluster taskId next ->
     (const next) <$> updateService' service cluster taskId
+  RemoveService service cluster next ->
+    (const next) <$> removeService' service cluster
   VerifyActiveCluster cluster next ->
     (const next) <$> verifyActiveCluster' cluster
