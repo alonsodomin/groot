@@ -31,7 +31,6 @@ dependencies:
 - free
 - http-conduit
 - http-types
-- ini
 - lens
 - lifted-base
 - mmorph
@@ -54,6 +53,8 @@ library:
   source-dirs: src
   dependencies:
   - ansi-terminal
+  - ansi-wl-pprint
+  - ini
   - optparse-applicative
   - pptable
   exposed-modules:

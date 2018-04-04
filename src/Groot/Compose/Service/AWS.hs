@@ -254,7 +254,7 @@ removeService' service@(serviceName, _) clusterRef = do
 
   let csRef = ContainerServiceRef serviceName
   current   <- runAWS env $ runMaybeT $ findService csRef (Just clusterRef)
-  
+
   case current of
     Nothing -> throwM $ serviceNotFound csRef (Just clusterRef)
     Just  c -> do
