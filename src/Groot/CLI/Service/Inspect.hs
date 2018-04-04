@@ -1,3 +1,6 @@
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Groot.CLI.Service.Inspect
      ( ServiceInspectOpts
      , serviceInspectOpts
@@ -13,14 +16,14 @@ import           Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
---import System.Locale
 import           Network.AWS
 import qualified Network.AWS.ECS              as ECS
 import           Options.Applicative
-import           Text.PrettyPrint.ANSI.Leijen (Doc, (<>), (<+>))
+import           Text.PrettyPrint.ANSI.Leijen (Doc, (<+>))
 import qualified Text.PrettyPrint.ANSI.Leijen as Doc
 
 import           Groot.AWS
+import Groot.Data.Text (ToText, toText)
 import           Groot.CLI.Common
 import           Groot.Core
 import           Groot.Exception
@@ -43,27 +46,27 @@ defaultIndent = 3
 
 pprintService :: ECS.ContainerService -> Doc
 pprintService service = Doc.vsep [
-    Doc.blue $ service ^. ECS.csServiceName . txt
+    Doc.blue $ maybe Doc.empty (Doc.text . T.unpack) $ service ^. ECS.csServiceName
   , Doc.indent defaultIndent (Doc.vsep [
-        (Doc.text "status:") <+> (service ^. ECS.csStatus . txt)            
-      , (Doc.text "running:") <+> (service ^. ECS.csRunningCount . int)
-      , (Doc.text "desired:") <+> (service ^. ECS.csDesiredCount . int)
-      , (Doc.text "pending:") <+> (service ^. ECS.csPendingCount . int)
+        service ^. ECS.csStatus . plain "status:"
+      , service ^. ECS.csRunningCount . plain "running:"
+      , service ^. ECS.csDesiredCount . plain "desired:"
+      , service ^. ECS.csPendingCount . plain "pending:"
       , (Doc.text "ARNs:")
       , Doc.indent defaultIndent (Doc.vsep [
-          (Doc.text "service:") <+> (service ^. ECS.csServiceARN . txt)
-        , (Doc.text "task:") <+> (service ^. ECS.csTaskDefinition . txt)
-        , (Doc.text "cluster:") <+> (service ^. ECS.csClusterARN . txt)
-        , (Doc.text "role:") <+> (service ^. ECS.csRoleARN . txt)
+          service ^. ECS.csServiceARN . plain "service:"
+        , service ^. ECS.csTaskDefinition . plain "task:"
+        , service ^. ECS.csClusterARN . plain "cluster:"
+        , service ^. ECS.csRoleARN . plain "role:"
       ])
       , (Doc.text "created:") <+> (service ^. ECS.csCreatedAt . time)
     ])
   ]
-  where txt :: Getter (Maybe Text) Doc
-        txt = to (\x -> maybe Doc.empty (Doc.text . T.unpack) x)
-
-        int :: Getter (Maybe Int) Doc
-        int = to (\x -> maybe Doc.empty Doc.int x)
+  where label :: (a -> Doc) -> Text -> Getter (Maybe a) Doc
+        label f lb = to (\x -> maybe Doc.empty (\y -> (Doc.text (T.unpack lb)) <+> (f y)) x)
+    
+        plain :: ToText a => Text -> Getter (Maybe a) Doc
+        plain = label (Doc.text . T.unpack . toText)
 
         time :: Getter (Maybe UTCTime) Doc
         time = to (\x -> maybe Doc.empty (Doc.text . formatTime defaultTimeLocale "%FT%T.%q%z") x)
