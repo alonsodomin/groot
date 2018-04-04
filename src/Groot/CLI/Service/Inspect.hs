@@ -63,6 +63,8 @@ pprintService service = Doc.vsep [
       , service ^. ECS.csCreatedAt . label ppTime "Created:"
       , ppList ppLoadBalancer "Load Balancers:" $ service ^. ECS.csLoadBalancers
       , ppList ppDeployment "Deployments:" $ service ^. ECS.csDeployments
+      , ppList ppPlacementStrategy "Placement Strategies:" $ service ^. ECS.csPlacementStrategy
+      , ppList ppPlacementConstraint "Placement Constraints" $ service ^. ECS.csPlacementConstraints
     ])
   ]
   where label :: (a -> Doc) -> Text -> Getter (Maybe a) (Maybe Doc)
@@ -109,6 +111,18 @@ pprintService service = Doc.vsep [
                 , dep ^. ECS.dCreatedAt . label ppTime "Created:"
               ])
             ]
+        
+        ppPlacementStrategy :: ECS.PlacementStrategy -> Doc
+        ppPlacementStrategy ps = Doc.cyan $ Doc.hsep $ catMaybes [
+              Doc.text . T.unpack . toText <$> ps ^. ECS.psType
+            , Doc.text . T.unpack <$> ps ^. ECS.psField
+          ]
+
+        ppPlacementConstraint :: ECS.PlacementConstraint -> Doc
+        ppPlacementConstraint pc = Doc.cyan $ Doc.hsep $ catMaybes [
+             Doc.text . T.unpack . toText <$> pc ^. ECS.pcType
+           , Doc.text . T.unpack <$> pc ^. ECS.pcExpression
+         ]
 
 runServiceInspect :: ServiceInspectOpts -> GrootM IO ()
 runServiceInspect (ServiceInspectOpts clusterRef serviceRef) = do
