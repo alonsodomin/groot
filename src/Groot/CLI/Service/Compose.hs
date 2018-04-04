@@ -3,7 +3,7 @@
 module Groot.CLI.Service.Compose
      ( ServiceComposeOpts(..)
      , serviceComposeOpts
-     , runServiceCompose
+     , runServiceUp
      , runServiceDelete
      ) where
 
@@ -127,8 +127,8 @@ doDeleteServices :: ServiceComposeCfg -> ServiceComposeM ()
 doDeleteServices (ServiceComposeCfg clusterRef serviceList _) =
   deleteServices clusterRef serviceList
 
-runServiceCompose :: ServiceComposeOpts -> GrootM IO ()
-runServiceCompose = performAction "This will start deployment of the following services:" doDeployServices
+runServiceUp :: ServiceComposeOpts -> GrootM IO ()
+runServiceUp = performAction "This will start deployment of the following services:" doDeployServices
 
 runServiceDelete :: ServiceComposeOpts -> GrootM IO ()
 runServiceDelete = performAction "This will delete the following services:" doDeleteServices

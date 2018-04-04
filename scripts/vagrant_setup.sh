@@ -9,4 +9,4 @@ curl -sSL https://get.haskellstack.org/ | sh
 
 cd /vagrant
 stack setup
-stack install cabal-rpm
+stack install cabal-install cabal-rpm
