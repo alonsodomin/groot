@@ -1,0 +1,86 @@
+name:                groot
+version:             0.0.1.0
+github:              alonsodomin/groot
+author:              A. Alonso Dominguez
+maintainer:          alonso.domin@gmail.com
+copyright:           2017 A. Alonso Dominguez
+license:             Apache
+license-file:        LICENSE
+
+extra-source-files:
+  - README.md
+
+synopsis:            Command line utility to manage AWS ECS resources
+description: >
+  `groot` is a command line application with the purpose of remote managing AWS ECS Clusters and
+  their associated resources (Tasks, Instances, Services, etc.)
+
+dependencies:
+- base >= 4.7 && < 5
+- aeson
+- amazonka >= 1.5.0 && < 1.6
+- amazonka-core
+- amazonka-autoscaling
+- amazonka-ecs
+- attoparsec
+- bytestring
+- conduit
+- conduit-combinators
+- directory
+- exceptions
+- free
+- http-conduit
+- http-types
+- ini
+- lens
+- lifted-base
+- mmorph
+- monad-control
+- mtl >= 2.2 && < 2.3
+- resourcet
+- stm
+- stm-chans
+- stm-conduit
+- stm-delay
+- text
+- time
+- transformers      
+- unordered-containers               
+- uuid
+- vector
+- yaml >= 0.8.20 && < 0.9
+
+library:
+  source-dirs: src
+  dependencies:
+  - ansi-terminal
+  - optparse-applicative
+  - pptable
+  exposed-modules:
+    - Groot.CLI
+
+executables:
+  groot:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - groot    
+
+tests:
+  groot-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - checkers
+    - groot
+    - hspec
+    - QuickCheck
+    - quickcheck-text
