@@ -13,9 +13,11 @@ cache:
 before_install:
   - scripts/travis_setup.sh
 
+install:
+  - travis_wait stack --no-terminal --install-ghc test --only-dependencies
+
 script:
-  - travis_wait stack --no-terminal test --only-snapshot
-  - travis_wait stack --no-terminal haddock
+  - stack --no-terminal test --only-snapshot --haddock --no-haddock-deps
 
 branches:
   only:
