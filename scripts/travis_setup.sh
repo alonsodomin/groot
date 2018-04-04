@@ -15,4 +15,4 @@ stack setup
 stack exec -- ghc --version
 
 # Install additional build tools
-stack install cabal-rpm
+stack install cabal-rpm cabal-debian
