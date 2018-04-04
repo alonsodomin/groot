@@ -57,7 +57,10 @@ library:
   - optparse-applicative
   - pptable
   exposed-modules:
-    - Groot.CLI
+  - Groot.CLI
+  - Groot.Console
+  - Groot.Data.Text
+  - Groot.Types
 
 executables:
   groot:
