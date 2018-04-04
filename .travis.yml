@@ -14,8 +14,8 @@ before_install:
   - scripts/travis_setup.sh
 
 script:
-  - stack --no-terminal test
-  - stack --no-terminal haddock
+  - travis_wait stack --no-terminal test
+  - travis_wait stack --no-terminal haddock
 
 branches:
   only:
