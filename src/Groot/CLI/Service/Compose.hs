@@ -8,17 +8,17 @@ module Groot.CLI.Service.Compose
      ) where
 
 import           Control.Exception.Lens
-import           Control.Lens                 hiding (argument)
+import           Control.Lens           hiding (argument)
 import           Control.Monad.Catch
 import           Control.Monad.IO.Class
-import           Data.HashMap.Strict          (HashMap)
-import qualified Data.HashMap.Strict          as Map
-import           Data.Semigroup               ((<>))
+import           Data.HashMap.Strict    (HashMap)
+import qualified Data.HashMap.Strict    as Map
+import           Data.Semigroup         ((<>))
 import           Data.String
-import           Data.Text                    (Text)
-import qualified Data.Text                    as T
-import           Data.Yaml                    (ParseException, decodeFileEither,
-                                               prettyPrintParseException)
+import           Data.Text              (Text)
+import qualified Data.Text              as T
+import           Data.Yaml              (ParseException, decodeFileEither,
+                                         prettyPrintParseException)
 import           Options.Applicative
 
 import           Groot.CLI.Common
