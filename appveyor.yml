@@ -19,18 +19,18 @@ build_script:
 - stack setup --no-terminal > nul
 - stack --no-terminal test --haddock --no-haddock-deps
 - stack --local-bin-path . install groot
+- rename groot groot-win
 # Set a magical environment variable
 - cmd: for /f %%i in ('stack exec -- groot -v') do set GROOT_VERSION=%%i
 
 artifacts:
-- path: groot.exe
+- path: groot-win.exe
   
 deploy:
 - provider: GitHub
-  release: 'Release groot-$(GROOT_VERSION)'
   auth_token:
     secure: /G58fqzky9yPJQR8fa181WM1sfN3dD2ME7oIrp3bm4ofjKELgEh06hGUkyFnQdrH
-  artifact: groot.exe
+  artifact: groot-win.exe
   on:
     appveyor_repo_tag: true
   
