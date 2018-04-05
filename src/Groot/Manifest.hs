@@ -3,7 +3,7 @@
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TemplateHaskell   #-}
 
-module Groot.Compose.Service.Model where
+module Groot.Manifest where
 
 import           Control.Applicative
 import           Control.Lens
@@ -118,13 +118,13 @@ instance FromJSON ServiceDeployment where
     _sdPlacementStrategy  <- maybe [] id <$> o .:? "placement-strategy"
     return ServiceDeployment{..}
 
-data ServiceCompose = ServiceCompose
-  { _scServices :: HashMap Text ServiceDeployment
+data ServiceManifest = ServiceManifest
+  { _smServices :: HashMap Text ServiceDeployment
   } deriving (Eq, Show, Generic)
 
-makeLenses ''ServiceCompose
+makeLenses ''ServiceManifest
 
-instance FromJSON ServiceCompose where
+instance FromJSON ServiceManifest where
   parseJSON = withObject "service compose" $ \o -> do
-    _scServices <- maybe Map.empty id <$> o .:? "services"
-    return ServiceCompose{..}
+    _smServices <- maybe Map.empty id <$> o .:? "services"
+    return ServiceManifest{..}

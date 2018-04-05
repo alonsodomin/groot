@@ -25,12 +25,12 @@ import qualified Network.AWS.ECS              as ECS
 import           Network.AWS.Waiter
 
 import           Groot.Compose.Service.Free
-import           Groot.Compose.Service.Model
 import           Groot.Console
 import           Groot.Core
 import           Groot.Data.Filter
 import           Groot.Data.Text
 import           Groot.Exception
+import           Groot.Manifest
 import           Groot.Types
 
 -- Model mapping functions

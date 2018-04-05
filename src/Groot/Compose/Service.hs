@@ -3,8 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Groot.Compose.Service
-     ( module Groot.Compose.Service.Model
-     , ServiceComposeM
+     ( ServiceComposeM
      , ServiceComposeCfg(..)
      , RunMode(..)
      , deployService
@@ -23,9 +22,9 @@ import qualified Data.Text                    as T
 import           Groot.Compose.Service.AWS    (awsServiceCompose)
 import           Groot.Compose.Service.DryRun
 import           Groot.Compose.Service.Free
-import           Groot.Compose.Service.Model
 import           Groot.Console
 import           Groot.Core
+import           Groot.Manifest
 import           Groot.Types
 
 data RunMode = DryRun | Unattended

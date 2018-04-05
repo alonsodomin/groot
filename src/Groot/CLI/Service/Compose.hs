@@ -27,6 +27,7 @@ import           Groot.Console
 import           Groot.Core
 import           Groot.Data.Text
 import           Groot.Exception
+import           Groot.Manifest
 import           Groot.Types
 
 -- Command Line
@@ -111,7 +112,7 @@ performAction userMsg buildComposeAction opts = do
   case parsed of
     Left err -> handleParseException err givenFile
     Right composeDef -> do
-      serviceList   <- selectServices (serviceNames opts) $ composeDef ^. scServices
+      serviceList   <- selectServices (serviceNames opts) $ composeDef ^. smServices
       cfg           <- pure $ ServiceComposeCfg (cluster opts) serviceList (runMode opts)
       composeAction <- pure $ buildComposeAction cfg
       catches (interpretServiceComposeM userMsg composeAction cfg) [

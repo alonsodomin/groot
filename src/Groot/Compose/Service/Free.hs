@@ -7,9 +7,9 @@ module Groot.Compose.Service.Free where
 import           Control.Monad
 import           Control.Monad.Free
 import           Control.Monad.Free.TH
-import           Data.Text                   (Text)
+import           Data.Text             (Text)
 
-import           Groot.Compose.Service.Model
+import           Groot.Manifest
 import           Groot.Types
 
 data ServiceComposeOp next =

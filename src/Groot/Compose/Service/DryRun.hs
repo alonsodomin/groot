@@ -15,11 +15,11 @@ import           Network.AWS
 import           Groot.Compose.Service.AWS    (serviceExists',
                                                verifyActiveCluster')
 import           Groot.Compose.Service.Free
-import           Groot.Compose.Service.Model
 import           Groot.Console
 import           Groot.Core
 import           Groot.Data.Text
 import           Groot.Exception
+import           Groot.Manifest
 import           Groot.Types
 
 registerTask' :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
