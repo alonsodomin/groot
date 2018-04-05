@@ -14,13 +14,16 @@ import           Control.Monad.Trans.Reader
 import           Data.Conduit
 import qualified Data.Conduit.List          as CL
 import           Data.Data
+import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import           GHC.Generics
 import           Network.AWS
 import qualified Network.AWS.ECS            as ECS
-import           Text.PrettyPrint.Tabulate
+import           Text.PrettyPrint.Tabulate  (Tabulate, printTable)
+import qualified Text.PrettyPrint.Tabulate  as Tabs
 
 import           Groot.CLI.List.Common
+import           Groot.Console
 import           Groot.Core
 import           Groot.Data.Text
 import           Groot.Types
@@ -34,7 +37,7 @@ data ServiceSummary = ServiceSummary
   , desired :: Int
   } deriving (Eq, Show, Generic, Data)
 
-instance Tabulate ServiceSummary
+instance Tabulate ServiceSummary Tabs.ExpandWhenNested
 
 data ServiceAndRelatives = SR ECS.ContainerService ECS.Cluster
 
@@ -60,6 +63,8 @@ summarizeServices clusterId =
 
 printServiceSummary :: Maybe ClusterRef -> GrootM IO ()
 printServiceSummary clusterId = do
-  env <- ask
-  xs  <- runResourceT . runAWS env $ summarizeServices clusterId
-  liftIO $ printTable' "No services found" xs
+  env  <- ask
+  desc <- runResourceT . runAWS env $ summarizeServices clusterId
+  case desc of
+    [] -> putWarn ("No services found" :: Text)
+    xs -> liftIO $ printTable xs

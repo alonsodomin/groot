@@ -14,14 +14,18 @@ import           Data.Conduit
 import qualified Data.Conduit.List          as CL
 import           Data.Data
 import           Data.List
+import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import           GHC.Generics
 import           Network.AWS
 import qualified Network.AWS.ECS            as ECS
 import           Numeric
-import           Text.PrettyPrint.Tabulate
+import           Text.PrettyPrint.Tabulate  (CellValueFormatter, Tabulate,
+                                             printTable)
+import qualified Text.PrettyPrint.Tabulate  as Tabs
 
 import           Groot.CLI.List.Common
+import           Groot.Console
 import           Groot.Core
 import           Groot.Types
 
@@ -71,7 +75,7 @@ data InstanceSummary = InstanceSummary
   , dockerVersion :: String
   } deriving (Eq, Show, Generic, Data)
 
-instance Tabulate InstanceSummary
+instance Tabulate InstanceSummary Tabs.ExpandWhenNested
 
 instance HasSummary ECS.ContainerInstance InstanceSummary where
   summarize inst = InstanceSummary <$> iId <*> iEc2Id <*> iStatus <*> iRunning <*> iPending <*> iMem <*> iCpu <*> iAgentV <*> iDockerV
@@ -93,6 +97,8 @@ summarizeInstances cId =
 
 printInstanceSummary :: Maybe ClusterRef -> GrootM IO ()
 printInstanceSummary cId = do
-  env <- ask
-  xs <- runResourceT . runAWS env $ summarizeInstances cId
-  liftIO $ printTable' "No container instances found" xs
+  env  <- ask
+  desc <- runResourceT . runAWS env $ summarizeInstances cId
+  case desc of
+    [] -> putWarn ("No container instances found" :: Text)
+    xs -> liftIO $ printTable xs

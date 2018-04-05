@@ -16,15 +16,18 @@ import           Control.Monad.Trans.Reader
 import           Data.Conduit
 import qualified Data.Conduit.List          as CL
 import           Data.Data
+import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import           GHC.Generics
 import           Network.AWS
 import qualified Network.AWS.ECS            as ECS
 import           Options.Applicative
-import           Text.PrettyPrint.Tabulate
+import           Text.PrettyPrint.Tabulate  (Tabulate, printTable)
+import qualified Text.PrettyPrint.Tabulate  as Tabs
 
 import           Groot.CLI.Common
 import           Groot.CLI.List.Common
+import           Groot.Console
 import           Groot.Core
 import           Groot.Types
 
@@ -46,7 +49,7 @@ data TaskSummary = TaskSummary
   , stoppedAt  :: String
   } deriving (Eq, Show, Generic, Data)
 
-instance Tabulate TaskSummary
+instance Tabulate TaskSummary Tabs.ExpandWhenNested
 
 data TaskAndRelatives = TR ECS.Task ECS.ContainerInstance
 
@@ -73,6 +76,8 @@ summarizeTasks opts = sourceToList $ taskSource opts =$= annotateTask =$= CL.map
 
 printTaskSummary :: ListTaskOpts -> GrootM IO ()
 printTaskSummary opts = do
-  env <- ask
-  xs <- runResourceT . runAWS env $ summarizeTasks opts
-  liftIO $ printTable' "No tasks found" xs
+  env  <- ask
+  desc <- runResourceT . runAWS env $ summarizeTasks opts
+  case desc of
+    [] -> putWarn ("No tasks found" :: Text)
+    xs -> liftIO $ printTable xs

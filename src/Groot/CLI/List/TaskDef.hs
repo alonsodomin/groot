@@ -18,15 +18,18 @@ import qualified Data.Conduit.List          as CL
 import           Data.Data
 import           Data.Maybe                 (maybeToList)
 import           Data.Semigroup             ((<>))
+import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import           GHC.Generics
 import           Network.AWS
 import qualified Network.AWS.ECS            as ECS
 import           Options.Applicative
-import           Text.PrettyPrint.Tabulate
+import           Text.PrettyPrint.Tabulate  (Tabulate, printTable)
+import qualified Text.PrettyPrint.Tabulate  as Tabs
 
 import           Groot.CLI.Common
 import           Groot.CLI.List.Common
+import           Groot.Console
 import           Groot.Core
 import           Groot.Types
 
@@ -48,7 +51,7 @@ data TaskDefSummary = TaskDefSummary
   , status   :: String
   } deriving (Eq, Show, Generic, Data)
 
-instance Tabulate TaskDefSummary
+instance Tabulate TaskDefSummary Tabs.ExpandWhenNested
 
 instance HasSummary ECS.TaskDefinition TaskDefSummary where
   summarize taskDef = TaskDefSummary <$> tFamily <*> tRev <*> tStatus
@@ -70,6 +73,8 @@ printTaskDefsSummary (ListTaskDefsOpts showInactive fam) =
       familyFilter = maybeToList $ TDFFamily <$> fam
       filters      = statusFilter ++ familyFilter
   in do
-    env <- ask
-    xs <- runResourceT . runAWS env $ summarizeTaskDefs filters
-    liftIO $ printTable' "No task definitions found" xs
+    env  <- ask
+    desc <- runResourceT . runAWS env $ summarizeTaskDefs filters
+    case desc of
+      [] -> putWarn ("No task definitions found" :: Text)
+      xs -> liftIO $ printTable xs
