@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+  brew update
+fi
+
 mkdir -p ~/.local/bin
 export PATH=$HOME/.local/bin:$PATH
 
