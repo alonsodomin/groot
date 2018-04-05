@@ -53,9 +53,11 @@ library:
   source-dirs: src
   dependencies:
   - ansi-terminal
-  - ansi-wl-pprint
   - ini
   - optparse-applicative
+  - prettyprinter
+  - prettyprinter-ansi-terminal
+  - prettyprinter-compat-ansi-wl-pprint
   - pptable
   exposed-modules:
   - Groot.CLI
