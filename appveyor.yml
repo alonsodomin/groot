@@ -1,7 +1,11 @@
 build: off
 
+environment:
+  global:
+    STACK_ROOT: "c:\\stack"
+
 cache:
-- '%USERPROFILE%\.stack'
+- '%STACK_ROOT%'
 - .stack-work
 
 before_build:
