@@ -29,7 +29,7 @@ deploy:
 - provider: GitHub
   release: 'Release groot-$(GROOT_VERSION)'
   auth_token:
-    secure: gq3da34cEs1u37D2PzW+WiJrPIqph7mCpj6/QAdevkKliPb/50PdUcyAA88D+fG5a/fHRuqQV39IL9p8l87EB5Dn3xDVLvjTVUt2ab/CFz6CV3RTqvUyHJ7pbZQ3etNQeTw0/ZIdsvXdQ5GR2I1lf0G7qChcTUAaeyhwch6s0XcjEk5QEE9vEO8k+OAz6/oYatSati9H4VajiiWh9V8ov2vdUhseKkjFrsE5aXnFYtofT7m30XIA9Y53h6G7v45/BpRuOfp8IyNFFjGhHyi1hhSczk4waY/T3M0u7PXz9vwqpA6ErBGtYvBZknpUWY7LHQWZQ7DbYRaIHXJq/SkiYJpfelhBnu9QmjymUCYeWnuXJUheXNoMnp71cETVYzUaT6Hul6x8jZRlvQVVdA1Cp8KsNMzLNMmlYS3Ex7+Kt+BfSZYCDdOwDdd/dTNHmO8J0rh72Xt4undR5DAKhakLd9ru7Lg0DyQguQTEs+Cl+aAWkmxyX6Je4lrAP6t/EZS7p849DKjQoYXhz23gXPJnuUhRzvqHBVKrBEX6dOL/8DBPcC/A1q4EG2VxlRwhBNwgMcht5gfb5ZMPmc67CeD2zCdZqOiuNAETrt6jp4ySlXDXuN9TOOxlrBeZIga6srvqTsusAz80NiO9pQNQHEbNSR2ss1blyq/l4TFnjfSwb5Q=
+    secure: /G58fqzky9yPJQR8fa181WM1sfN3dD2ME7oIrp3bm4ofjKELgEh06hGUkyFnQdrH
   artifact: groot.exe
   on:
     branch: master
