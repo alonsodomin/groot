@@ -5,8 +5,9 @@ export PATH=$HOME/.local/bin:$PATH
 
 # Download and unpack the stack executable
 if [[ ! -x ~/.local/bin/stack ]]; then
-  travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-  chmod a+x ~/.local/bin/stack
+  #travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+  #chmod a+x ~/.local/bin/stack
+  curl -sSL https://get.haskellstack.org/ | sh
 fi
 stack --version
 

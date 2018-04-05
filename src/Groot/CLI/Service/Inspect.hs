@@ -13,6 +13,7 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
 import           Control.Monad.Trans.Reader
 import           Data.Maybe
+import           Data.Semigroup               ((<>))
 import           Data.String
 import           Data.Text                    (Text)
 import qualified Data.Text                    as T
@@ -25,8 +26,10 @@ import qualified Text.PrettyPrint.ANSI.Leijen as Doc
 
 import           Groot.AWS
 import           Groot.CLI.Common
+import           Groot.Console
 import           Groot.Core
-import           Groot.Data.Text              (ToText, toText)
+import           Groot.Data.Text              (ToText, styled, toText,
+                                               yellowStyle)
 import           Groot.Exception
 import           Groot.Types
 
@@ -111,7 +114,7 @@ pprintService service = Doc.vsep [
                 , dep ^. ECS.dCreatedAt . label ppTime "Created:"
               ])
             ]
-        
+
         ppPlacementStrategy :: ECS.PlacementStrategy -> Doc
         ppPlacementStrategy ps = Doc.cyan $ Doc.hsep $ catMaybes [
               Doc.text . T.unpack . toText <$> ps ^. ECS.psType
@@ -127,6 +130,9 @@ pprintService service = Doc.vsep [
 runServiceInspect :: ServiceInspectOpts -> GrootM IO ()
 runServiceInspect (ServiceInspectOpts clusterRef serviceRef) = do
   env <- ask
+  case clusterRef of
+    Nothing -> putInfo $ "Scanning clusters for service " <> (styled yellowStyle $ toText serviceRef)
+    _       -> pure ()
   xs <- runResourceT . runAWS env $ runMaybeT $ findService serviceRef clusterRef
   case xs of
     Nothing -> throwM $ serviceNotFound serviceRef clusterRef
