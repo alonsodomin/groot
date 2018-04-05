@@ -1,6 +1,8 @@
 language: generic
 
-dist: trusty
+os:
+  - linux
+  - osx
 
 sudo: false
 
