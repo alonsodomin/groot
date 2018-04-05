@@ -17,7 +17,7 @@ skip_tags: false
 build_script:
 # Suppress output from stack setup, as there is a lot and it's not necessary.
 - stack setup --no-terminal > nul
-- stack --no-terminal test --only-snapshot --haddock --no-haddock-deps
+- stack --no-terminal test --haddock --no-haddock-deps
 - stack --local-bin-path . install groot
 # Set a magical environment variable
 - cmd: for /f %%i in ('stack exec -- groot -v') do set GROOT_VERSION=%%i
@@ -32,6 +32,5 @@ deploy:
     secure: /G58fqzky9yPJQR8fa181WM1sfN3dD2ME7oIrp3bm4ofjKELgEh06hGUkyFnQdrH
   artifact: groot.exe
   on:
-    branch: master
     appveyor_repo_tag: true
   
