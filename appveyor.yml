@@ -19,7 +19,7 @@ build_script:
 - stack setup --no-terminal > nul
 - stack --no-terminal test --haddock --no-haddock-deps
 - stack --local-bin-path . install groot
-- rename groot groot-win
+- rename groot.exe groot-win.exe
 # Set a magical environment variable
 - cmd: for /f %%i in ('stack exec -- groot -v') do set GROOT_VERSION=%%i
 

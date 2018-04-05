@@ -22,13 +22,14 @@ install:
 script:
 - stack --no-terminal test --haddock --no-haddock-deps
 - stack --local-bin-path . install groot
-- mv groot groot-$TRAVIS_OS_NAME
+- mv groot "groot-$TRAVIS_OS_NAME"
 
 deploy:
   provider: releases
   api_key:
     secure: "hLcksLBA5o6ATAiT/ImJ6xTDFi6ZDx6exPAGMG9mKYemowki8JTQUa6rK+kOCkr3AEH+GF6AiX+0xSIcEVNRvFWaBOhGTio3b/Wu5huqu8rqUjaK4nYCpJ0J8eEJoe+L7qT2HdvNvB5rsB61w4ZisTVZ0evp0GGWWdF6knD9Jp0ptChdFGXciEhTVYIsoNHJrQS8hufPBEVLzZ/t3iE18HTaD6IBd1MAVmbpMKKjCTcJUgFBVPKO1TZGFkmS6c1WOjayWR8okIbRp+zs8080TWB7IB/fiTw45q6/KTEiu0jKaPNljYDi7JVqGhcbwbb6dSc1/d3JfzJ8vd7PtBEqXeV4wBpnfqy24+eJPM7oanB5mgdQLumSww5yKHjLugFD18pbLi5F2RyZ7KmUA7rSNxG+DVLVTOU6dw2wfNEK+fNk7wHXfmLdoWHIqRcDkWt/k+9H6p9BJZ5CpuIZOByN2dB8ku1rUwlGNpj+GVfMw3qY75TupNf9gGYndnESODN2qy/MzKRRzZiHTT0cIpnMVlRcmW33wzk+vldfNCpVwVNS+4IUSBMD760cOLaaq+1TjHd/1STO/WO1Okm1ohcSIJ8UnvpWwzSMWoCpumpS0ejR2FQST6jqYbrT80aq787ss+6fopO3TCK278p1LmpPrpkJFoiXUTL7XulLr6gl02c="
-  file: groot-$TRAVIS_OS_NAME
+  file_glob: true
+  file: groot-*
   skip_cleanup: true
   on:
     repo: alonsodomin/groot
