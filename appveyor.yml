@@ -9,7 +9,7 @@ skip_tags: true
 build_script:
   # Suppress output from stack setup, as there is a lot and it's not necessary.
   - stack setup --no-terminal > nul
-  - stack build --only-snapshot --no-terminal
+  - stack --no-terminal test --only-snapshot --haddock --no-haddock-deps
   - stack --local-bin-path . install groot
   # Set a magical environment variable
   - cmd: for /f %%i in ('stack exec -- groot -v') do set GROOT_VERSION=%%i
