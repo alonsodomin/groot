@@ -31,5 +31,4 @@ deploy:
   skip_cleanup: true
   on:
     repo: alonsodomin/groot
-    branch: master
     tags: true
