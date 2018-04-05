@@ -1,0 +1,30 @@
+build: off
+
+before_build:
+  - curl -ostack.zip -L --insecure http://www.stackage.org/stack/windows-i386
+  - 7z x stack.zip stack.exe
+
+skip_tags: true
+
+build_script:
+  # Suppress output from stack setup, as there is a lot and it's not necessary.
+  - stack setup --no-terminal > nul
+  - stack build --only-snapshot --no-terminal
+  - stack --local-bin-path . install groot
+  # Set a magical environment variable
+  - cmd: for /f %%i in ('stack exec -- groot -v') do set GROOT_VERSION=%%i
+
+artifacts:
+  - path: groot.exe
+  
+# Auto-deploy
+# deploy:
+#   - provider: GitHub
+#     tag: 'groot-$(GROOT_VERSION)'
+#     release: 'Release groot-$(GROOT_VERSION)'
+#     auth_token:
+#       secure: FZXhwa1ucQwyFtswv/XNUJkclAxoz4YGGu69dSOEEkwG7Rlh/Gho66SJtOUJ57kN
+#     artifact: groot.exe
+#     on:
+#       branch: master
+  

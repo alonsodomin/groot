@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE TemplateHaskell       #-}
 
 module Groot.CLI.Service.Events
@@ -14,7 +15,7 @@ import           Control.Monad.Reader
 import           Control.Monad.Trans.Resource
 import           Data.Conduit
 import           Data.Foldable
-import           Data.List.NonEmpty           (NonEmpty ((:|)))
+import           Data.List.NonEmpty           (NonEmpty ((:|)), intersperse)
 import           Data.Semigroup               ((<>))
 import           Data.String
 import           Data.Typeable
@@ -26,6 +27,7 @@ import           Groot.CLI.Common
 import           Groot.Console
 import           Groot.Core
 import           Groot.Core.Events
+import           Groot.Data.Text
 import           Groot.Types
 
 data ServiceEventOpts = ServiceEventOpts
@@ -64,6 +66,7 @@ runServiceEvents (ServiceEventOpts (Just clusterRef) follow lastN serviceRefs) =
   runConduit $ eventSource =$ printEventSink
 runServiceEvents (ServiceEventOpts Nothing follow lastN serviceRefs) = mapReaderT runResourceT $ do
   env         <- ask
+  putInfo $ "Scanning clusters for services: " <> (fold . intersperse (styleless ", ") $ (styled yellowStyle . toText) <$> serviceRefs)
   coords      <- runAWS env $ findServiceCoords serviceRefs
   eventSource <- fetchEvents coords follow lastN
   runConduit $ eventSource =$ printEventSink
