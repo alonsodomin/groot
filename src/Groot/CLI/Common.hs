@@ -5,6 +5,7 @@ import           Data.Semigroup       ((<>))
 import           Data.String
 import           Options.Applicative
 
+import           Groot.Manifest       (defaultManifestFilePath)
 import           Groot.Types          (ClusterRef (..),
                                        ContainerServiceRef (..),
                                        TaskFamily (..))
@@ -39,3 +40,10 @@ eventCountOpt = option auto
              <> help "Number of events"
              <> showDefault
              <> value 25 )
+
+manifestFileOpt :: Parser FilePath
+manifestFileOpt = strOption
+                ( long "file"
+               <> short 'f'
+               <> metavar "MANIFEST_FILE"
+               <> help ("Groot manifest file (default: " ++ defaultManifestFilePath ++ ")" ))

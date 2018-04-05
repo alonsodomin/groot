@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TemplateHaskell   #-}
@@ -6,15 +7,26 @@
 module Groot.Manifest where
 
 import           Control.Applicative
+import           Control.Exception.Lens
 import           Control.Lens
+import           Control.Monad.Catch       hiding (Handler)
+import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
 import           Data.Aeson
 import           Data.HashMap.Strict       (HashMap)
 import qualified Data.HashMap.Strict       as Map
+import           Data.Semigroup            ((<>))
+import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
+import           Data.Typeable
+import           Data.Yaml                 (decodeFileEither,
+                                            prettyPrintParseException)
 import           GHC.Generics
 import qualified Network.AWS.ECS           as ECS
+
+import           Groot.Console
+import           Groot.Data.Text
 
 data PortELBLink =
     ELBNameLink Text
@@ -118,13 +130,66 @@ instance FromJSON ServiceDeployment where
     _sdPlacementStrategy  <- maybe [] id <$> o .:? "placement-strategy"
     return ServiceDeployment{..}
 
-data ServiceManifest = ServiceManifest
-  { _smServices :: HashMap Text ServiceDeployment
+data GrootManifest = GrootManifest
+  { _gmServices :: HashMap Text ServiceDeployment
   } deriving (Eq, Show, Generic)
 
-makeLenses ''ServiceManifest
+makeLenses ''GrootManifest
 
-instance FromJSON ServiceManifest where
-  parseJSON = withObject "service compose" $ \o -> do
-    _smServices <- maybe Map.empty id <$> o .:? "services"
-    return ServiceManifest{..}
+instance FromJSON GrootManifest where
+  parseJSON = withObject "manifest" $ \o -> do
+    _gmServices <- maybe Map.empty id <$> o .:? "services"
+    return GrootManifest{..}
+
+-- Exceptions
+
+data ManifestException =
+  ManifestParseError ManifestParseError
+  deriving (Eq, Show, Typeable)
+
+instance Exception ManifestException
+
+data ManifestParseError = ManifestParseError' FilePath Text
+  deriving (Eq, Show, Typeable)
+
+instance Exception ManifestParseError
+
+manifestParseError :: FilePath -> Text -> SomeException
+manifestParseError file reason =
+  toException . ManifestParseError $ ManifestParseError' file reason
+
+class AsManifestException t where
+  _ManifestException :: Prism' t ManifestException
+  {-# MINIMAL _ManifestException #-}
+
+  _ManifestParseError :: Prism' t ManifestParseError
+  _ManifestParseError = _ManifestException . _ManifestParseError
+
+instance AsManifestException SomeException where
+  _ManifestException = exception
+
+instance AsManifestException ManifestException where
+  _ManifestException = id
+
+  _ManifestParseError = prism ManifestParseError $ \case
+    ManifestParseError x -> Right x
+
+-- Defaults
+
+defaultManifestFilePath :: FilePath
+defaultManifestFilePath = "./groot-manifest.yml"
+
+-- Operations
+
+handleManifestParseError :: MonadConsole m => ManifestParseError -> m ()
+handleManifestParseError (ManifestParseError' file reason) =
+  putError $ "Could not parse manifest file: " <> (styled blueStyle $ T.pack file) <> "\n"
+    <> (styled yellowStyle reason)
+
+loadManifest :: (MonadIO m, MonadConsole m, MonadThrow m) => Maybe FilePath -> m GrootManifest
+loadManifest maybeFile = do
+  file   <- pure $ maybe defaultManifestFilePath id maybeFile
+  parsed <- liftIO $ decodeFileEither file
+  case parsed of
+    Left err       -> throwM $ manifestParseError file (fromString $ prettyPrintParseException err)
+    Right manifest -> return manifest

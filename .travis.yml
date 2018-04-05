@@ -23,10 +23,6 @@ script:
 - stack --no-terminal test --only-snapshot --haddock --no-haddock-deps
 - stack --local-bin-path . install groot
 
-branches:
-  only:
-  - master
-
 deploy:
   provider: releases
   api_key:
@@ -34,4 +30,6 @@ deploy:
   file: groot
   skip_cleanup: true
   on:
+    repo: alonsodomin/groot
+    branch: master
     tags: true

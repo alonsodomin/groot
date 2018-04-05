@@ -28,6 +28,7 @@ import           Groot.Console
 import           Groot.Core
 import           Groot.Data.Text
 import           Groot.Exception
+import           Groot.Manifest
 
 data CredentialsOpt =
     ProfileOpt (Maybe Text) (Maybe FilePath)
@@ -183,6 +184,7 @@ handleExceptions act = catches act [
   , handler _AmbiguousServiceName    handleAmbiguousServiceName
   , handler _InactiveService         handleInactiveService
   , handler _TaskNotFound            handleTaskNotFound
+  , handler _ManifestParseError      handleManifestParseError
   ]
 
 -- | Runs a Groot command with the given AWS environment
