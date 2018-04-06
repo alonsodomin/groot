@@ -23,6 +23,7 @@ data RpmSpec = RpmSpec
   , rpmSummary :: String
   , rpmDescription :: String
   , rpmLicense :: String
+  , rpmUrl :: String
   } deriving (Eq, Show)
 
 generateRpmSpecFile :: PackageDescription -> FilePath -> IO ()
@@ -33,9 +34,10 @@ generateRpmSpecFile pckg _ = print generateSpec
           , rpmSummary = Pckg.synopsis pckg
           , rpmDescription = Pckg.description pckg
           , rpmLicense = describeLicense . Pckg.license $ pckg
+          , rpmUrl = Pckg.homepage pckg
         }
 
         describeLicense :: License -> String
         describeLicense (GPL v) = "GPL " ++ (maybe "" showVersion v)
-        describeLicense (Apache v) = "Apache " ++ (maybe "" showVersion v)
+        describeLicense (Apache v) = "ASL " ++ (maybe "" showVersion v)
         describeLicense lic = show lic
