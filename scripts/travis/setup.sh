@@ -2,7 +2,6 @@
 
 if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
   brew update
-  brew install llvm
 fi
 
 mkdir -p ~/.local/bin

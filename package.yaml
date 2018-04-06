@@ -72,8 +72,8 @@ executable:
   - -threaded
   - -rtsopts
   - -with-rtsopts=-N
-  - -fPIC
-  - -fllvm
+  - -optl-static
+  - -optl-pthread
   dependencies:
   - groot
 
