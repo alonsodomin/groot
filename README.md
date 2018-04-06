@@ -6,7 +6,22 @@
 Groot is a command line application with the purpose of remote managing AWS ECS Clusters and
  their associated resources (Tasks, Instances, Services, etc.)
 
-## Getting Started
+## Installing
+
+Head over to the [Releases](https://github.com/alonsodomin/groot/releases) and download the binaries for your OS. There are
+ pre-built binaries for 64bits Linux, Mac OS and Windows. It gets downloaded as a single binary file, copy into your own machine
+ and place it in a folder under your `PATH` environment variable.
+
+For example, for Linux machines:
+
+```
+wget -O groot https://github.com/alonsodomin/groot/releases/download/v0.0.1.0/groot-linux
+mv groot /usr/local/bin/
+```
+
+A more user friendly install process in on the works, someday I could get around to actually finish it.
+
+## Building From Source
 
 You will need [Stack](http://haskellstack.org) installed in your local machine. Once you´ve got that, then clone this
  repository and install the binaries using Stack:
@@ -16,6 +31,8 @@ git clone https://github.com/alonsodomin/groot
 cd groot
 stack install
 ```
+
+## First Steps
 
 Now that you have it installed in your system, run it with the `-h` (or `--help`) command line
  option to get an idea of what you can do.
