@@ -29,7 +29,7 @@ artifacts:
 deploy:
 - provider: GitHub
   auth_token:
-    secure: "%GITHUB_OAUTH_TOKEN%"
+    secure: $(GITHUB_OAUTH_TOKEN)
   artifact: groot-win.exe
   on:
     appveyor_repo_tag: true
