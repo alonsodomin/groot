@@ -1,4 +1,5 @@
 import Distribution.Package
+import Distribution.License (License(..))
 import Distribution.PackageDescription (PackageDescription)
 import qualified Distribution.PackageDescription as Pckg
 import Distribution.Simple
@@ -21,13 +22,20 @@ data RpmSpec = RpmSpec
   , rpmVersion :: String
   , rpmSummary :: String
   , rpmDescription :: String
+  , rpmLicense :: String
   } deriving (Eq, Show)
 
 generateRpmSpecFile :: PackageDescription -> FilePath -> IO ()
 generateRpmSpecFile pckg _ = print generateSpec
   where generateSpec = RpmSpec {
-        rpmName = unPackageName . pkgName . Pckg.package $ pckg
-      , rpmVersion = showVersion . pkgVersion . Pckg.package $ pckg
-      , rpmSummary = Pckg.synopsis pckg
-      , rpmDescription = Pckg.description pckg
-    }
+            rpmName = unPackageName . pkgName . Pckg.package $ pckg
+          , rpmVersion = showVersion . pkgVersion . Pckg.package $ pckg
+          , rpmSummary = Pckg.synopsis pckg
+          , rpmDescription = Pckg.description pckg
+          , rpmLicense = describeLicense . Pckg.license $ pckg
+        }
+
+        describeLicense :: License -> String
+        describeLicense (GPL v) = "GPL " ++ (maybe "" showVersion v)
+        describeLicense (Apache v) = "Apache " ++ (maybe "" showVersion v)
+        describeLicense lic = show lic
