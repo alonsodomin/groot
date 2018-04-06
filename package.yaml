@@ -65,16 +65,17 @@ library:
   - Groot.Data.Text
   - Groot.Types
 
-executables:
-  groot:
-    main:                Main.hs
-    source-dirs:         app
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - groot    
+executable:
+  main:              Main.hs
+  source-dirs:       app
+  ghc-options:
+  - -threaded
+  - -rtsopts
+  - -with-rtsopts=-N
+  - -fPIC
+  - -fllvm
+  dependencies:
+  - groot
 
 tests:
   groot-test:

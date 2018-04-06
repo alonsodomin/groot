@@ -14,19 +14,16 @@ cache:
   - ".stack-work/"
 
 before_install:
-- scripts/travis_setup.sh
+- scripts/travis/setup.sh
 
 install:
 - travis_wait 30 stack --no-terminal --install-ghc test --only-dependencies
 
 script:
-- stack --no-terminal test --haddock --no-haddock-deps
-- stack --local-bin-path . install groot
-- mkdir -p dist/completion
-- mv groot "dist/groot-$TRAVIS_OS_NAME"
-- "./dist/groot-$TRAVIS_OS_NAME --bash-completion-script groot > ./dist/completion/groot-bash-completion.sh"
-- "./dist/groot-$TRAVIS_OS_NAME --zsh-completion-script groot > ./dist/completion/groot-zsh-completion.sh"
-- "./dist/groot-$TRAVIS_OS_NAME --fish-completion-script groot > ./dist/completion/groot-fish-completion.fish"
+- scripts/travis/build.sh
+
+after_success:
+- scripts/travis/hackage.sh
 
 deploy:
   provider: releases

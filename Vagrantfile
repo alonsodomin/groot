@@ -12,13 +12,6 @@ Vagrant.configure("2") do |config|
 
   config.vm.box = "centos/7"
 
-  local_cabal_cache = File.expand_path("~/.cabal")
-  if File.exist?(local_cabal_cache)
-    config.vm.synced_folder local_cabal_cache, "/home/vagrant/.cabal",
-                            id: "cabal-cache",
-                            mount_options: ["dmode=777,fmode=777"]
-  end
-
-  config.vm.provision "shell", path: "scripts/vagrant_setup.sh",
-                               privileged: false
+  # config.vm.provision "shell", path: "scripts/centos_setup.sh",
+  #                              privileged: false
 end

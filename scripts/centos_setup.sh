@@ -1,6 +1,8 @@
 #!/bin/bash
 
-sudo yum install -y rpm-build zlib-devel
+sudo yum install -y rpm-build zlib-devel epel-release
+sudo yum update -y
+sudo yum install -y cabal-rpm
 
 mkdir -p ~/.local/bin
 export PATH=$HOME/.local/bin:$PATH
