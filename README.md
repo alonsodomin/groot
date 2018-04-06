@@ -32,6 +32,8 @@ cd groot
 stack install
 ```
 
+Now step back, the whole of The Internet is going to be sucked into your machine.
+
 ## First Steps
 
 Now that you have it installed in your system, run it with the `-h` (or `--help`) command line
