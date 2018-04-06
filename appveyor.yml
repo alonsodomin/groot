@@ -26,11 +26,11 @@ build_script:
 artifacts:
 - path: groot-win.exe
   
-deploy:
-- provider: GitHub
-  auth_token:
-    secure: /G58fqzky9yPJQR8fa181WM1sfN3dD2ME7oIrp3bm4ofjKELgEh06hGUkyFnQdrH
-  artifact: groot-win.exe
-  on:
-    appveyor_repo_tag: true
+# deploy:
+# - provider: GitHub
+#   auth_token:
+#     secure: /G58fqzky9yPJQR8fa181WM1sfN3dD2ME7oIrp3bm4ofjKELgEh06hGUkyFnQdrH
+#   artifact: groot-win.exe
+#   on:
+#     appveyor_repo_tag: true
   

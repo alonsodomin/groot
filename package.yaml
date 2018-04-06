@@ -89,9 +89,3 @@ tests:
     - hspec
     - QuickCheck
     - quickcheck-text
-
-custom-setup:
-  dependencies:
-  - base >= 4.7 && < 5
-  - Cabal >= 2.0
-  - optparse-applicative
