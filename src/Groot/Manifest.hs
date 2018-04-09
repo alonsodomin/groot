@@ -19,6 +19,7 @@ import           Data.Semigroup            ((<>))
 import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
+import           Data.These
 import           Data.Typeable
 import           Data.Yaml                 (decodeFileEither,
                                             prettyPrintParseException)
@@ -61,14 +62,35 @@ newtype SharedMemory = SharedMemory Int
 newtype ReservedMemory = ReservedMemory Int
   deriving (Eq, Show, Generic)
 
+type ContainerMemoryAssignment  = Int
+type ContainerMemoryReservation = Int
+
+type ContainerMemory = These ContainerMemoryAssignment ContainerMemoryReservation
+
+_ContainerMemoryAssignment :: Prism' ContainerMemory ContainerMemoryAssignment
+_ContainerMemoryAssignment = prism This $ \case
+  This  a   -> Right a
+  These a _ -> Right a
+  x         -> Left x
+
+_ContainerMemoryReservation :: Prism' ContainerMemory ContainerMemoryReservation
+_ContainerMemoryReservation = prism That $ \case
+  That  r   -> Right r
+  These _ r -> Right r
+  x         -> Left x
+
 data Container = Container
   { _cName         :: Text
   , _cImage        :: Text
-  , _cMemory       :: Maybe Int
+  , _cMemory       :: ContainerMemory
   , _cCpu          :: Maybe Int
+  , _cHostname     :: Maybe Text
   , _cPortMappings :: [PortMapping]
   , _cEnvironment  :: HashMap Text Text
   , _cLogConfig    :: Maybe ECS.LogConfiguration
+  , _cPriviledged  :: Maybe Bool
+  , _cEssential    :: Maybe Bool
+  , _cWorkDir      :: Maybe Text
   , _cEntryPoint   :: [Text]
   , _cCommand      :: [Text]
   } deriving (Eq, Show, Generic)
@@ -79,11 +101,27 @@ instance FromJSON Container where
   parseJSON = withObject "container" $ \o -> do
     _cName         <- T.pack <$> o .: "name"
     _cImage        <- T.pack <$> o .: "image"
-    _cMemory       <- o .:? "memory"
+
+    -- Parse container memory
+    let memAssign = o .:? "memory"
+        memReserv = o .:? "memory-reserved"
+
+        memChoice ((Just a), (Just r)) = pure $ These a r
+        memChoice ((Just a), _)        = pure $ This a
+        memChoice (_,        (Just r)) = pure $ That r
+        memChoice (_,        _)        =
+          fail "One or both of 'memory' or 'memory-reserved' are needed per container"
+
+    _cMemory       <- memChoice =<< ((,) <$> memAssign <*> memReserv)
+
     _cCpu          <- o .:? "cpu"
+    _cHostname     <- o .:? "hostname"
     _cPortMappings <- maybe [] id <$> o .:? "port-mappings"
     _cEnvironment  <- maybe Map.empty id <$> o .:? "environment"
     _cLogConfig    <- o .:? "logging"
+    _cPriviledged  <- o .:? "priviledged"
+    _cEssential    <- o .:? "essential"
+    _cWorkDir      <- o .:? "workdir"
     _cEntryPoint   <- maybe [] id <$> o .:? "entry-point"
     _cCommand      <- maybe [] id <$> o .:? "command"
     return Container{..}

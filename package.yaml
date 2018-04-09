@@ -42,6 +42,7 @@ dependencies:
 - stm-conduit
 - stm-delay
 - text
+- these
 - time
 - transformers      
 - unordered-containers               
