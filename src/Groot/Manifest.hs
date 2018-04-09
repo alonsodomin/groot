@@ -56,25 +56,18 @@ instance FromJSON PortMapping where
 
     return PortMapping{..}
 
-newtype SharedMemory = SharedMemory Int
-  deriving (Eq, Show, Generic)
+type AssignedMemory = Int
+type ReservedMemory = Int
+type Memory         = These AssignedMemory ReservedMemory
 
-newtype ReservedMemory = ReservedMemory Int
-  deriving (Eq, Show, Generic)
-
-type ContainerMemoryAssignment  = Int
-type ContainerMemoryReservation = Int
-
-type ContainerMemory = These ContainerMemoryAssignment ContainerMemoryReservation
-
-_ContainerMemoryAssignment :: Prism' ContainerMemory ContainerMemoryAssignment
-_ContainerMemoryAssignment = prism This $ \case
+_AssignedMemory :: Prism' Memory AssignedMemory
+_AssignedMemory = prism This $ \case
   This  a   -> Right a
   These a _ -> Right a
   x         -> Left x
 
-_ContainerMemoryReservation :: Prism' ContainerMemory ContainerMemoryReservation
-_ContainerMemoryReservation = prism That $ \case
+_ReservedMemory :: Prism' Memory ReservedMemory
+_ReservedMemory = prism That $ \case
   That  r   -> Right r
   These _ r -> Right r
   x         -> Left x
@@ -82,7 +75,7 @@ _ContainerMemoryReservation = prism That $ \case
 data Container = Container
   { _cName         :: Text
   , _cImage        :: Text
-  , _cMemory       :: ContainerMemory
+  , _cMemory       :: Memory
   , _cCpu          :: Maybe Int
   , _cHostname     :: Maybe Text
   , _cPortMappings :: [PortMapping]
@@ -170,6 +163,7 @@ instance FromJSON ServiceDeployment where
 
 data GrootManifest = GrootManifest
   { _gmServices :: HashMap Text ServiceDeployment
+  , _gmVolumes  :: [ECS.Volume]
   } deriving (Eq, Show, Generic)
 
 makeLenses ''GrootManifest
@@ -177,6 +171,7 @@ makeLenses ''GrootManifest
 instance FromJSON GrootManifest where
   parseJSON = withObject "manifest" $ \o -> do
     _gmServices <- maybe Map.empty id <$> o .:? "services"
+    _gmVolumes  <- maybe [] id <$> o .:? "volumes"
     return GrootManifest{..}
 
 -- Exceptions
