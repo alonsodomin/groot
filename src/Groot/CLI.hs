@@ -1,8 +1,27 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
 
+{-|
+Module      : Groot.CLI
+Description : Command Line Interface for Groot
+Copyright   : A. Alonso Dominguez (c) 2017, http://github.com/alonsodomin
+License     : Apache 2.0
+Maintainer  : A. Alonso Dominguez <alonso.domin (λ) google>
+Stability   : experimental
+Portability : portable
+
+This is the main application module, application's 'main' function hooks into this
+via the 'grootCli' function and applications interested on embedding some of Groot's
+features can use some of the more fain grained functions exposed via this module.
+-}
 module Groot.CLI
-     ( grootCli
+     ( GrootOpts
+     , GrootCmd
+     , CredentialsOpt
+     , loadEnv
+     , grootOpts
+     , grootCli
+     , evalCmd
      ) where
 
 import           Control.Exception.Lens
@@ -75,12 +94,14 @@ versionOpt = infoOption versionInfo $ mconcat [
   , help "Show version number"
   ]
 
+-- |Top level Groot commands
 data GrootCmd =
     ClusterCmd ClusterSubCmd
   | ListCmd ListSubCmd
   | ServiceCmd ServiceSubCmd
   deriving (Eq, Show)
 
+-- |Groot options for a given execution
 data GrootOpts = GrootOpts
   { _grootCreds  :: CredentialsOpt
   , _grootRegion :: Maybe Region
@@ -97,6 +118,7 @@ commands = hsubparser
   -- <> command "task"    (info (TaskCmd    <$> grootTaskCli)    (progDesc "Manage ECS tasks"))
     )
 
+-- |Command line parser for all the possible Groot options
 grootOpts :: Parser GrootOpts
 grootOpts = ( GrootOpts
           <$> credsOpt
@@ -187,13 +209,15 @@ handleExceptions act = catches act [
   , handler _ManifestParseError      handleManifestParseError
   ]
 
--- | Runs a Groot command with the given AWS environment
+-- |Runs a Groot command with the given AWS environment
 evalCmd :: GrootCmd -> GrootM IO ()
 evalCmd (ClusterCmd opts) = runClusterCmd opts
 evalCmd (ListCmd opts)    = runListCmd opts
 evalCmd (ServiceCmd opts) = runServiceCmd opts
 --evalCmd (TaskCmd opts)    = runGrootTask opts
 
+-- |Groot main entry point from the Command line, able to interpret
+-- arguments and parameters passed to it
 grootCli :: IO ()
 grootCli =
   prog =<< (execParser cli)

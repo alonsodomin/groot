@@ -8,6 +8,17 @@
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
+{-|
+Module      : Groot.Types
+Description : Type definitions for Groot
+Copyright   : A. Alonso Dominguez (c) 2017, http://github.com/alonsodomin
+License     : Apache 2.0
+Maintainer  : A. Alonso Dominguez <alonso.domin (λ) google>
+Stability   : experimental
+Portability : portable
+
+This is a module providing global type definitions needed in Groot
+-}
 module Groot.Types
      ( ServiceId (..)
      , AccountId (..)
@@ -123,15 +134,19 @@ data Arn a = Arn
   , _arnResourcePath :: a
   } deriving (Eq, Show, Data, Generic)
 
+-- |Obtain the 'ServiceId' from a given 'Arn'
 arnServiceId :: forall a. Getter (Arn a) ServiceId
 arnServiceId = to _arnServiceId
 
+-- |Obtain the AWS region from a given 'Arn'
 arnRegion :: forall a. Getter (Arn a) Region
 arnRegion = to _arnRegion
 
+-- |Obtain the 'AccountId' from a given 'Arn'
 arnAccountId :: forall a. Getter (Arn a) AccountId
 arnAccountId = to _arnAccountId
 
+-- |Obtain the resource path from a given 'Arn'
 arnResourcePath :: forall a. Getter (Arn a) a
 arnResourcePath = to _arnResourcePath
 
@@ -159,6 +174,7 @@ instance ToText a => ToText (Arn a) where
     , toText path
     ]
 
+-- |Parse an ARN given a getter an a resource from where to obtain the text form
 viewArn :: forall a b. FromText b => Getting (First Text) a Text -> a -> Maybe (Arn b)
 viewArn l item = join $ either (\_ -> Nothing) Just <$> fromText <$> item ^? l
 
@@ -178,6 +194,7 @@ instance ToText Ami where
 
 -- Cluster
 
+-- |Type describing the cluster name
 newtype ClusterName = ClusterName Text
   deriving (Eq, Show, Data, Generic)
 
@@ -190,14 +207,18 @@ instance FromText ClusterName where
 instance ToText ClusterName where
   toText (ClusterName x) = x
 
+-- |Type describing the ARN path for ECS clusters
 newtype ClusterArnPath = ClusterArnPath ClusterName
   deriving (Eq, Show, Data, Generic)
 
+-- |Obtains the cluster name from a given Cluster ARN path
 capClusterName :: Getter ClusterArnPath ClusterName
 capClusterName = to (\(ClusterArnPath name) -> name)
 
+-- |Type describing cluster ARNs
 type ClusterArn = Arn ClusterArnPath
 
+-- |Obtains the cluster name from a cluster ARN
 arnClusterName :: Getter ClusterArn ClusterName
 arnClusterName = arnResourcePath . capClusterName
 
@@ -214,6 +235,7 @@ instance ToText ClusterArnPath where
   toText (ClusterArnPath clusterName) =
     T.append capPreffix $ toText clusterName
 
+-- |Type used across the code to make references to clusters
 newtype ClusterRef = ClusterRef Text
   deriving (Eq, Show, Data, Generic)
 
@@ -223,6 +245,7 @@ instance IsString ClusterRef where
 instance ToText ClusterRef where
   toText (ClusterRef txt) = txt
 
+-- |Different statuses available for clusters
 data ClusterStatus =
     CSActive
   | CSInactive
@@ -232,15 +255,18 @@ instance ToText ClusterStatus where
   toText CSActive   = "ACTIVE"
   toText CSInactive = "INACTIVE"
 
+-- |Filter definition for clusters
 data ClusterFilter =
     CFRef ClusterRef
   | CFStatus ClusterStatus
   deriving (Eq, Show)
 
+-- |Cluster filter predicates based on status
 isActiveCluster, isInactiveCluster :: ClusterFilter
 isActiveCluster   = CFStatus CSActive
 isInactiveCluster = CFStatus CSInactive
 
+-- |Cluster filter based on name or ARN
 clusterHasNameOrArn :: Text -> ClusterFilter
 clusterHasNameOrArn = CFRef . ClusterRef
 
@@ -257,6 +283,7 @@ instance Filter ClusterFilter where
 
 -- Container Instance
 
+-- |Type describing a Container Instance Identifier
 newtype ContainerInstanceId = ContainerInstanceId UUID
   deriving (Eq, Show)
 
@@ -266,14 +293,18 @@ instance FromText ContainerInstanceId where
 instance ToText ContainerInstanceId where
   toText (ContainerInstanceId s) = UUID.toText s
 
+-- |Type describing a Container Instance ARN path
 newtype ContainerInstanceArnPath = ContainerInstanceArnPath ContainerInstanceId
   deriving (Eq, Show)
 
+-- |Obtain a Container Instance Identifier from a Container Instance ARN
 ciapContainerInstanceId :: Getter ContainerInstanceArnPath ContainerInstanceId
 ciapContainerInstanceId = to (\(ContainerInstanceArnPath x) -> x)
 
+-- |Type describing a Container Instance ARN
 type ContainerInstanceArn = Arn ContainerInstanceArnPath
 
+-- |Obtain a Container Instance Identifier from a Container Instance ARN
 arnContainerInstanceId :: Getter ContainerInstanceArn ContainerInstanceId
 arnContainerInstanceId = arnResourcePath . ciapContainerInstanceId
 
@@ -290,6 +321,7 @@ instance ToText ContainerInstanceArnPath where
   toText (ContainerInstanceArnPath instanceId) =
     T.append ciapPreffix $ toText instanceId
 
+-- |Type used across the code to make references to container instances
 newtype ContainerInstanceRef = ContainerInstanceRef Text
   deriving (Eq, Show, Data, Read, Generic)
 
@@ -301,6 +333,7 @@ instance IsString ContainerInstanceRef where
 
 -- Container Service
 
+-- |Type describing a service name
 newtype ServiceName = ServiceName Text
   deriving (Eq, Show)
 
@@ -310,14 +343,18 @@ instance FromText ServiceName where
 instance ToText ServiceName where
   toText (ServiceName s) = s
 
+-- |Type describing a service ARN path
 newtype ContainerServiceArnPath = ContainerServiceArnPath ServiceName
   deriving (Eq, Show)
 
+-- |Obtain a service name from a service ARN path
 csapContainerServiceName :: Getter ContainerServiceArnPath ServiceName
 csapContainerServiceName = to (\(ContainerServiceArnPath x) -> x)
 
+-- |Type describing a service ARN
 type ContainerServiceArn = Arn ContainerServiceArnPath
 
+-- |Obtain a service name from a service ARN
 arnContainerServiceName :: Getter ContainerServiceArn ServiceName
 arnContainerServiceName = arnResourcePath . csapContainerServiceName
 
@@ -334,6 +371,7 @@ instance ToText ContainerServiceArnPath where
   toText (ContainerServiceArnPath serviceName) =
     T.append csapPreffix $ toText serviceName
 
+-- |Type used across the code to make references to services
 newtype ContainerServiceRef = ContainerServiceRef Text
   deriving (Eq, Show, Generic, Data, Read)
 
@@ -343,23 +381,29 @@ instance IsString ContainerServiceRef where
 instance ToText ContainerServiceRef where
   toText (ContainerServiceRef s) = s
 
+-- |Service coordinates are compoound of a service reference and a cluster reference.
+-- They uniquely identify a service
 data ContainerServiceCoords = ContainerServiceCoords ContainerServiceRef ClusterRef
   deriving (Eq, Show, Generic, Data)
 
+-- |Service statuses
 data ContainerServiceStatus =
     CSSActive
   | CSSInactive
   deriving (Eq, Show, Ord, Enum, Bounded, Data, Generic)
 
+-- |Service filters
 data ContainerServiceFilter =
     CSFRef ContainerServiceRef
   | CSFStatus ContainerServiceStatus
   deriving (Eq, Show)
 
+-- |Service filter predicate based on service status
 isActiveContainerService, isInactiveContainerService :: ContainerServiceFilter
 isActiveContainerService   = CSFStatus CSSActive
 isInactiveContainerService = CSFStatus CSSInactive
 
+-- |Service filter preficate based on service name or ARN
 isContainerService :: ContainerServiceRef -> ContainerServiceFilter
 isContainerService = CSFRef
 
@@ -377,6 +421,7 @@ instance Filter ContainerServiceFilter where
 
 -- Task
 
+-- |Type describing a task identifier
 newtype TaskId = TaskId UUID
   deriving (Eq, Show)
 
@@ -386,14 +431,18 @@ instance FromText TaskId where
 instance ToText TaskId where
   toText (TaskId s) = UUID.toText s
 
+-- |Type describing a task ARN path
 newtype TaskArnPath = TaskArnPath TaskId
   deriving (Eq, Show)
 
+-- |Obtain a task identifier from a task ARN
 tapTaskId :: Getter TaskArnPath TaskId
 tapTaskId = to (\(TaskArnPath x) -> x)
 
+-- |Type describing a task ARN
 type TaskArn = Arn TaskArnPath
 
+-- |Obtain a task identifier from a task ARN
 arnTaskId :: Getter TaskArn TaskId
 arnTaskId = arnResourcePath . tapTaskId
 
@@ -410,6 +459,7 @@ instance ToText TaskArnPath where
   toText (TaskArnPath taskId) =
     T.append tapPreffix $ toText taskId
 
+-- |Type used across the code to make references to tasks
 newtype TaskRef = TaskRef Text
   deriving (Eq, Show, Generic, Data, Read)
 
@@ -419,6 +469,7 @@ instance IsString TaskRef where
 instance ToText TaskRef where
   toText (TaskRef t) = t
 
+-- |Task statuses
 data TaskStatus =
     TSRunning
   | TSStopped
@@ -427,6 +478,7 @@ data TaskStatus =
 
 -- Task Definition
 
+-- |Type used across the code to make references to task definitions
 newtype TaskDefRef = TaskDefRef Text
   deriving (Eq, Generic, Data, Show, Read)
 
@@ -436,6 +488,7 @@ instance IsString TaskDefRef where
 instance ToText TaskDefRef where
   toText (TaskDefRef t) = t
 
+-- |Type describing a task definition family
 newtype TaskFamily = TaskFamily Text
   deriving (Eq, Show, Data, Generic)
 
@@ -448,6 +501,7 @@ instance FromText TaskFamily where
 instance ToText TaskFamily where
   toText (TaskFamily s) = s
 
+-- |A Task Definition Identifier, compound of a task family and a revision number
 data TaskDefId = TaskDefId
   { _tdiTaskFamily   :: TaskFamily
   , _tdiTaskRevision :: Int
@@ -455,6 +509,7 @@ data TaskDefId = TaskDefId
 
 makeLenses ''TaskDefId
 
+-- |Increments the revision number of a given task definition
 nextTaskDefId :: TaskDefId -> TaskDefId
 nextTaskDefId (TaskDefId family revision) = TaskDefId family (revision + 1)
 
@@ -469,20 +524,26 @@ instance ToText TaskDefId where
   toText (TaskDefId family revision) =
     T.concat [toText family, ":", toText revision]
 
+-- |Type describing the task definition ARN path
 newtype TaskDefArnPath = TaskDefArnPath TaskDefId
   deriving (Eq, Show, Data, Generic)
 
+-- |Obtain a task definition identifier from a task definition ARN path
 tdapTaskDefId :: Getter TaskDefArnPath TaskDefId
 tdapTaskDefId = to (\(TaskDefArnPath x) -> x)
 
+-- |Type describing a task definition ARN
 type TaskDefArn = Arn TaskDefArnPath
 
+-- |Obtain a task definition identifier from a task definition ARN
 arnTaskDefId :: Getter TaskDefArn TaskDefId
 arnTaskDefId = arnResourcePath . tdapTaskDefId
 
+-- |Obtain a task definition family from a task definition ARN
 arnTaskDefFamily :: Getter TaskDefArn TaskFamily
 arnTaskDefFamily = arnTaskDefId . tdiTaskFamily
 
+-- |Obtain a task definition revision number from a task definition ARN
 arnTaskDefRevision :: Getter TaskDefArn Int
 arnTaskDefRevision = arnTaskDefId . tdiTaskRevision
 
@@ -499,11 +560,13 @@ instance ToText TaskDefArnPath where
   toText (TaskDefArnPath taskDefId) =
     T.append tdapPreffix $ toText taskDefId
 
+-- |Task definition statuses
 data TaskDefStatus =
     TDSActive
   | TDSInactive
   deriving (Eq, Show, Ord, Enum, Bounded, Read, Generic, Data)
 
+-- |Task definition filters
 data TaskDefFilter =
     TDFFamily TaskFamily
   | TDFStatus TaskDefStatus
