@@ -1,7 +1,9 @@
 #!/bin/bash
 
+set -e
+
 if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-  brew upgrade
+  brew update
 fi
 
 mkdir -p ~/.local/bin
