@@ -87,7 +87,7 @@ performAction :: Text -> (ServiceComposeCfg -> ServiceComposeM ()) -> ServiceCom
 performAction userMsg buildComposeAction opts = do
   manifest      <- loadManifest $ manifestFile opts
   serviceList   <- selectServices (serviceNames opts) $ manifest ^. gmServices
-  cfg           <- pure $ ServiceComposeCfg (cluster opts) serviceList (runMode opts)
+  cfg           <- pure $ ServiceComposeCfg manifest (cluster opts) serviceList (runMode opts)
   composeAction <- pure $ buildComposeAction cfg
   catches (interpretServiceComposeM userMsg composeAction cfg) [
       handler _UndefinedService        handleUndefinedService
@@ -95,11 +95,11 @@ performAction userMsg buildComposeAction opts = do
     ]
 
 doDeployServices :: ServiceComposeCfg -> ServiceComposeM ()
-doDeployServices (ServiceComposeCfg clusterRef serviceList _) =
+doDeployServices (ServiceComposeCfg _ clusterRef serviceList _) =
   deployServices clusterRef serviceList
 
 doDeleteServices :: ServiceComposeCfg -> ServiceComposeM ()
-doDeleteServices (ServiceComposeCfg clusterRef serviceList _) =
+doDeleteServices (ServiceComposeCfg _ clusterRef serviceList _) =
   deleteServices clusterRef serviceList
 
 runServiceUp :: ServiceComposeOpts -> GrootM IO ()

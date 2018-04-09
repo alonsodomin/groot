@@ -56,6 +56,34 @@ instance FromJSON PortMapping where
 
     return PortMapping{..}
 
+data Volume = Volume
+  { _vName       :: Text
+  , _vSourcePath :: Text
+  } deriving (Eq, Show, Generic)
+
+makeLenses ''Volume
+
+instance FromJSON Volume where
+  parseJSON = withObject "cluster volume" $ \o -> do
+    _vName       <- o .: "name"
+    _vSourcePath <- o .: "source-path"
+    return Volume{..}
+
+data MountPoint = MountPoint
+  { _mpVolume     :: Text
+  , _mpTargetPath :: Text
+  , _mpReadOnly   :: Maybe Bool
+  } deriving (Eq, Show, Generic)
+
+makeLenses ''MountPoint
+
+instance FromJSON MountPoint where
+  parseJSON = withObject "container mount point" $ \o -> do
+    _mpVolume     <- o .: "volume"
+    _mpTargetPath <- o .: "target-path"
+    _mpReadOnly   <- o .:? "read-only"
+    return MountPoint{..}
+
 type AssignedMemory = Int
 type ReservedMemory = Int
 type Memory         = These AssignedMemory ReservedMemory
@@ -84,6 +112,7 @@ data Container = Container
   , _cPriviledged  :: Maybe Bool
   , _cEssential    :: Maybe Bool
   , _cWorkDir      :: Maybe Text
+  , _cMountPoints  :: [MountPoint]
   , _cEntryPoint   :: [Text]
   , _cCommand      :: [Text]
   } deriving (Eq, Show, Generic)
@@ -115,6 +144,7 @@ instance FromJSON Container where
     _cPriviledged  <- o .:? "priviledged"
     _cEssential    <- o .:? "essential"
     _cWorkDir      <- o .:? "workdir"
+    _cMountPoints  <- maybe [] id <$> o .:? "mount-points"
     _cEntryPoint   <- maybe [] id <$> o .:? "entry-point"
     _cCommand      <- maybe [] id <$> o .:? "command"
     return Container{..}
@@ -163,7 +193,7 @@ instance FromJSON ServiceDeployment where
 
 data GrootManifest = GrootManifest
   { _gmServices :: HashMap Text ServiceDeployment
-  , _gmVolumes  :: [ECS.Volume]
+  , _gmVolumes  :: HashMap Text Volume
   } deriving (Eq, Show, Generic)
 
 makeLenses ''GrootManifest
@@ -171,7 +201,7 @@ makeLenses ''GrootManifest
 instance FromJSON GrootManifest where
   parseJSON = withObject "manifest" $ \o -> do
     _gmServices <- maybe Map.empty id <$> o .:? "services"
-    _gmVolumes  <- maybe [] id <$> o .:? "volumes"
+    _gmVolumes  <- maybe Map.empty (\xs -> Map.fromList $ (\x -> (x ^. vName, x)) <$> xs) <$> o .:? "volumes"
     return GrootManifest{..}
 
 -- Exceptions

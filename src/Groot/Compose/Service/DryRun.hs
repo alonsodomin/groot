@@ -66,9 +66,10 @@ removeService' (serviceName, _) clusterRef =
     <+> "from cluster" <+> (styled yellowStyle $ toText clusterRef)
 
 dryRunServiceCompose :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
-                     => ServiceComposeM a
+                     => GrootManifest
+                     -> ServiceComposeM a
                      -> GrootM m a
-dryRunServiceCompose = foldFree $ \case
+dryRunServiceCompose _ = foldFree $ \case
   RegisterTask service next ->
     next <$> registerTask' service
   ServiceExists name clusterRef next ->

@@ -40,22 +40,26 @@ _Unattended = prism (const Unattended) $ \case
   Unattended -> Right True
   x          -> Left x
 
-data ServiceComposeCfg = ServiceComposeCfg ClusterRef [NamedServiceDeployment] (Maybe RunMode)
-  deriving (Eq, Show)
+data ServiceComposeCfg = ServiceComposeCfg
+  { composeManifest :: GrootManifest
+  , composeCluster  :: ClusterRef
+  , composeServices :: [NamedServiceDeployment]
+  , composeRunMode  :: Maybe RunMode
+  } deriving (Eq, Show)
 
 interpretServiceComposeM :: Text
                          -> ServiceComposeM ()
                          -> ServiceComposeCfg
                          -> GrootM IO ()
-interpretServiceComposeM userMsg action (ServiceComposeCfg _ serviceList mode) =
-  let shouldConfirm   = maybe True (isn't _Unattended) mode
-      isDryRun        = maybe False (\x -> not $ isn't _DryRun x) mode
+interpretServiceComposeM userMsg action cfg =
+  let shouldConfirm   = maybe True (isn't _Unattended) (composeRunMode cfg)
+      isDryRun        = maybe False (\x -> not $ isn't _DryRun x) (composeRunMode cfg)
       confirmMsg srvs = userMsg <> "\n"
                      <> (T.intercalate "\n" $ T.append "   - " . fst <$> srvs)
                      <> ".\nDo you want to continue? "
       interpret       = if isDryRun then dryRunServiceCompose else awsServiceCompose
       performFor srvs =
         if shouldConfirm
-        then askUserToContinue (confirmMsg srvs) $ interpret action
-        else interpret action
-  in hoist runResourceT $ performFor serviceList
+        then askUserToContinue (confirmMsg srvs) $ interpret (composeManifest cfg) action
+        else interpret (composeManifest cfg) action
+  in hoist runResourceT $ performFor (composeServices cfg)

@@ -49,11 +49,12 @@ serviceDeploymentConf DSTearDown =
   $ ECS.dcMaximumPercent ?~ 100
   $ ECS.deploymentConfiguration
 
-createTaskDefinitionReq :: NamedServiceDeployment -> ECS.RegisterTaskDefinition
-createTaskDefinitionReq (serviceName, deployment) =
+createTaskDefinitionReq :: GrootManifest -> NamedServiceDeployment -> ECS.RegisterTaskDefinition
+createTaskDefinitionReq manifest (serviceName, deployment) =
     ECS.rtdNetworkMode .~ (deployment ^. sdNetworkMode)
   $ ECS.rtdTaskRoleARN .~ (deployment ^. sdTaskRole)
   $ ECS.rtdContainerDefinitions .~ (containerDef <$> deployment ^. sdContainers)
+  $ ECS.rtdVolumes .~ (taskVolume <$> Map.elems (manifest ^. gmVolumes))
   $ ECS.registerTaskDefinition serviceName
   where containerEnv env =
           Map.foldrWithKey (\k v acc -> (ECS.kvpName ?~ k $ ECS.kvpValue ?~ v $ ECS.keyValuePair):acc) [] env
@@ -63,6 +64,17 @@ createTaskDefinitionReq (serviceName, deployment) =
           $ ECS.pmHostPort .~ (port ^. pmHostPort)
           $ ECS.pmContainerPort ?~ (port ^. pmContainerPort)
           $ ECS.portMapping
+
+        taskVolume v =
+            ECS.vName ?~ (v ^. vName)
+          $ ECS.vHost ?~ (ECS.hvpSourcePath ?~ (v ^. vSourcePath) $ ECS.hostVolumeProperties)
+          $ ECS.volume
+
+        mountPoint mp =
+            ECS.mpSourceVolume ?~ (mp ^. mpVolume)
+          $ ECS.mpContainerPath ?~ (mp ^. mpTargetPath)
+          $ ECS.mpReadOnly .~ (mp ^. mpReadOnly)
+          $ ECS.mountPoint
 
         containerDef c =
             ECS.cdImage ?~ (c ^. cImage)
@@ -77,6 +89,7 @@ createTaskDefinitionReq (serviceName, deployment) =
           $ ECS.cdPrivileged .~ (c ^. cPriviledged)
           $ ECS.cdEssential .~ (c ^. cEssential)
           $ ECS.cdWorkingDirectory .~ (c ^. cWorkDir)
+          $ ECS.cdMountPoints .~ (mountPoint <$> c ^. cMountPoints)
           $ ECS.cdEntryPoint .~ (c ^. cEntryPoint)
           $ ECS.cdCommand .~ (c ^. cCommand)
           $ ECS.containerDefinition
@@ -199,12 +212,13 @@ verifyActiveCluster' clusterRef = do
       Just  _ -> return ()
 
 registerTask' :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
-              => NamedServiceDeployment
+              => GrootManifest
+              -> NamedServiceDeployment
               -> GrootM m TaskDefId
-registerTask' service@(serviceName, _) = do
+registerTask' manifest service@(serviceName, _) = do
   putInfo $ "Registering task definition for service " <> styled yellowStyle serviceName
   env   <- ask
-  res   <- lift $ runAWS env . send $ createTaskDefinitionReq service
+  res   <- lift $ runAWS env . send $ createTaskDefinitionReq manifest service
   mtask <- pure $ res ^. ECS.rtdrsTaskDefinition >>= taskDefId
   case mtask of
     Nothing   -> throwM $ failedToRegisterTaskDef (TaskDefRef serviceName)
@@ -269,10 +283,10 @@ removeService' service@(serviceName, _) clusterRef = do
       runAWS env $ send deleteReq
       return ()
 
-awsServiceCompose :: (MonadConsole m, MonadResource m, MonadBaseControl IO m) => ServiceComposeM a -> GrootM m a
-awsServiceCompose = foldFree $ \case
+awsServiceCompose :: (MonadConsole m, MonadResource m, MonadBaseControl IO m) => GrootManifest -> ServiceComposeM a -> GrootM m a
+awsServiceCompose manifest = foldFree $ \case
   RegisterTask service next ->
-    next <$> registerTask' service
+    next <$> registerTask' manifest service
   ServiceExists name clusterRef next ->
     next <$> serviceExists' name clusterRef
   CreateService service cluster taskId next ->
