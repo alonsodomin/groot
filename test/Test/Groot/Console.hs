@@ -75,6 +75,7 @@ describeConsole = hspec $ do
       events (putInfo    txt) `shouldBe` [MessagePut Info    txt]
       events (putWarn    txt) `shouldBe` [MessagePut Warn    txt]
       events (putError   txt) `shouldBe` [MessagePut Error   txt]
+      events (putDebug   txt) `shouldBe` [MessagePut Debug   txt]
   describe "askUser" $ do
     it "should yield an AskUser event" $ do
       let txt = toText ("hello" :: String)

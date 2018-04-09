@@ -34,9 +34,11 @@ import           Data.String
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import           Data.Version               (showVersion)
-import           Network.AWS
+import           Network.AWS                hiding (Debug)
+import qualified Network.AWS                as AWS
 import           Options.Applicative
 import           Paths_groot                (version)
+import           System.IO
 
 import           Groot.CLI.Cluster
 import           Groot.CLI.Common
@@ -105,6 +107,7 @@ data GrootCmd =
 data GrootOpts = GrootOpts
   { _grootCreds  :: CredentialsOpt
   , _grootRegion :: Maybe Region
+  , _grootDebug  :: Bool
   , _grootCmd    :: GrootCmd
   } deriving Eq
 
@@ -123,6 +126,9 @@ grootOpts :: Parser GrootOpts
 grootOpts = ( GrootOpts
           <$> credsOpt
           <*> optional regionOpt
+          <*> switch
+            ( long "debug"
+           <> help "Enable debug mode when running" )
           <*> commands
           ) <**> versionOpt
 
@@ -132,7 +138,7 @@ loadEnv opts = do
   configFile       <- defaultConfigFile
   (creds, profile) <- buildCreds $ opts ^. grootCreds
   env              <- newEnv creds
-  assignRegion (findRegion configFile profile) env
+  setupLogger =<< assignRegion (findRegion configFile profile) env
     where buildCreds :: CredentialsOpt -> IO (Credentials, Maybe Text)
           buildCreds (ProfileOpt profile file) = do
             profileName <- return $ maybe defaultSectionName id profile
@@ -159,6 +165,13 @@ loadEnv opts = do
           assignRegion r env = do
             maybeRegion <- runMaybeT r
             return $ maybe id (\x -> envRegion .~ x) maybeRegion env
+
+          setupLogger :: Env -> IO Env
+          setupLogger env = if opts ^. grootDebug
+            then do
+              lgr <- newLogger AWS.Debug stdout
+              return $ env & envLogger .~ lgr
+            else return env
 
 -- Groot Error handlers
 

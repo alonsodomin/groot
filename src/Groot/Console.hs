@@ -41,14 +41,15 @@ import           System.IO
 import           Groot.Data.Text.Display
 import           Groot.Data.Text.Styled       as ST
 
-errorText, warnText, infoText, successText :: StyledText
+errorText, warnText, infoText, successText, debugText :: StyledText
 errorText   = styled redStyle    "ERROR"
 warnText    = styled yellowStyle "WARN"
 infoText    = styled blueStyle   "INFO"
 successText = styled greenStyle  "DONE"
+debugText   = styled cyanStyle   "DEBUG"
 
 -- |Severity level of the different output messages
-data Severity = Error | Warn | Info | Success
+data Severity = Error | Warn | Info | Success | Debug
   deriving (Eq, Show, Enum, Bounded, Ord)
 
 -- |Definition of operations availbale when interacting with the user via the
@@ -68,6 +69,7 @@ instance (Monad m, MonadIO m) => MonadConsole m where
               Warn    -> warnText
               Info    -> infoText
               Success -> successText
+              Debug   -> debugText
 
   askUser prompt = do
     answer <- liftIO $ do
@@ -122,3 +124,7 @@ putError = putMessage Error
 -- |Outputs an 'SUCCESS' message
 putSuccess :: (MonadConsole m, Display a) => a -> m ()
 putSuccess = putMessage Success
+
+-- |Outputs an 'DEBUG' message
+putDebug :: (MonadConsole m, Display a) => a -> m ()
+putDebug = putMessage Debug
