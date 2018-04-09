@@ -26,6 +26,7 @@ module Groot.Console
      , putWarn
      , putError
      , putSuccess
+     , putDebug
      ) where
 
 import           Control.Monad.IO.Class
