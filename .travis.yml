@@ -8,11 +8,6 @@ matrix:
   - os: osx
     osx_image: xcode9.2
 
-addons:
-  apt:
-    packages:
-      - libpthread-stubs0-dev
-
 cache:
   directories:
   - "$HOME/.stack"
