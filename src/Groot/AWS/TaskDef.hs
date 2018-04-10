@@ -13,9 +13,11 @@ taskDefId :: ECS.TaskDefinition -> Maybe TaskDefId
 taskDefId taskDef = TaskDefId <$> (TaskFamily <$> taskDef ^. ECS.tdFamily) <*> (taskDef ^. ECS.tdRevision)
 
 getTaskDef :: MonadAWS m => TaskDefRef -> MaybeT m ECS.TaskDefinition
-getTaskDef (TaskDefRef arn) = MaybeT $ do
-  res <- send $ ECS.describeTaskDefinition arn
-  return $ res ^. ECS.desrsTaskDefinition
+getTaskDef (TaskDefRef arn) =
+  catching _ServiceError readTaskDef $ \_ -> MaybeT (pure Nothing)
+  where readTaskDef = MaybeT $ do
+          res <- send $ ECS.describeTaskDefinition arn
+          return $ res ^. ECS.desrsTaskDefinition
 
 taskDefFromTask :: MonadAWS m => ECS.Task -> MaybeT m ECS.TaskDefinition
 taskDefFromTask tsk = do

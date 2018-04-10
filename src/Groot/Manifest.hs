@@ -13,6 +13,7 @@ import           Control.Monad.Catch       hiding (Handler)
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
 import           Data.Aeson
+import Data.Hashable (Hashable)
 import           Data.HashMap.Strict       (HashMap)
 import qualified Data.HashMap.Strict       as Map
 import           Data.Semigroup            ((<>))
@@ -28,6 +29,9 @@ import qualified Network.AWS.ECS           as ECS
 
 import           Groot.Console
 import           Groot.Data.Text
+
+toHashMap :: (Hashable k, Eq k) => (a -> k) -> [a] -> HashMap k a
+toHashMap f xs = Map.fromList $ (\x -> (f x, x)) <$> xs
 
 data PortELBLink =
     ELBNameLink Text
@@ -166,14 +170,24 @@ instance FromJSON DeploymentStrategy where
       "tear-down"  -> pure DSTearDown
       _            -> fail $ "Invalid deployment strategy: " ++ (T.unpack txt)
 
+data DeploymentConstraint =
+  InstanceAttributesConstraint (HashMap Text Text)
+  deriving (Eq, Show)
+
+instance FromJSON DeploymentConstraint where
+  parseJSON = withObject "deployment constaint" $ \o -> do
+    attrs <- o .: "instance-attrs"
+    return $ InstanceAttributesConstraint attrs
+
 data ServiceDeployment = ServiceDeployment
-  { _sdTaskRole           :: Maybe Text
-  , _sdServiceRole        :: Maybe Text
-  , _sdDesiredCount       :: Int
-  , _sdDeploymentStrategy :: DeploymentStrategy
-  , _sdContainers         :: [Container]
-  , _sdNetworkMode        :: Maybe ECS.NetworkMode
-  , _sdPlacementStrategy  :: [ECS.PlacementStrategy]
+  { _sdTaskRole              :: Maybe Text
+  , _sdServiceRole           :: Maybe Text
+  , _sdDesiredCount          :: Int
+  , _sdDeploymentStrategy    :: DeploymentStrategy
+  , _sdContainers            :: [Container]
+  , _sdNetworkMode           :: Maybe ECS.NetworkMode
+  , _sdDeploymentConstraints :: [DeploymentConstraint]
+  , _sdPlacementStrategy     :: [ECS.PlacementStrategy]
   } deriving (Eq, Show, Generic)
 
 makeLenses ''ServiceDeployment
@@ -182,13 +196,14 @@ type NamedServiceDeployment = (Text, ServiceDeployment)
 
 instance FromJSON ServiceDeployment where
   parseJSON = withObject "service deployment" $ \o -> do
-    _sdTaskRole           <- o .:? "task-role"
-    _sdServiceRole        <- o .:? "service-role"
-    _sdDesiredCount       <- maybe 1 id <$> o .:? "desired-count"
-    _sdDeploymentStrategy <- maybe defaultDeploymentStrategy id <$> o .:? "deployment-strategy"
-    _sdContainers         <- o .: "containers"
-    _sdNetworkMode        <- o .:? "network"
-    _sdPlacementStrategy  <- maybe [] id <$> o .:? "placement-strategy"
+    _sdTaskRole              <- o .:? "task-role"
+    _sdServiceRole           <- o .:? "service-role"
+    _sdDesiredCount          <- maybe 1 id <$> o .:? "desired-count"
+    _sdDeploymentStrategy    <- maybe defaultDeploymentStrategy id <$> o .:? "deployment-strategy"
+    _sdContainers            <- o .: "containers"
+    _sdNetworkMode           <- o .:? "network"
+    _sdDeploymentConstraints <- maybe [] id <$> o .:? "deployment-constraints"
+    _sdPlacementStrategy     <- maybe [] id <$> o .:? "placement-strategy"
     return ServiceDeployment{..}
 
 data GrootManifest = GrootManifest
@@ -201,7 +216,7 @@ makeLenses ''GrootManifest
 instance FromJSON GrootManifest where
   parseJSON = withObject "manifest" $ \o -> do
     _gmServices <- maybe Map.empty id <$> o .:? "services"
-    _gmVolumes  <- maybe Map.empty (\xs -> Map.fromList $ (\x -> (x ^. vName, x)) <$> xs) <$> o .:? "volumes"
+    _gmVolumes  <- maybe Map.empty (toHashMap $ view vName) <$> o .:? "volumes"
     return GrootManifest{..}
 
 -- Exceptions

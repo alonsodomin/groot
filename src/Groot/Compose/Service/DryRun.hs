@@ -32,9 +32,12 @@ registerTask' (serviceName, _) = do
     taskDef <- getTaskDef (TaskDefRef serviceName)
     MaybeT . pure $ nextTaskDefId <$> taskDefId taskDef
   case tdId of
-    Nothing    -> throwM $ failedToRegisterTaskDef (TaskDefRef serviceName)
+    Nothing    -> do
+      let theId = TaskDefId (TaskFamily serviceName) 0
+      putSuccess $ "Would have created task" <+> (styled yellowStyle $ toText theId)
+      return theId
     Just theId -> do
-      putSuccess $ "Would have registered task" <+> (styled yellowStyle $ toText theId)
+      putSuccess $ "Would have upgrade task to" <+> (styled yellowStyle $ toText theId)
       return theId
 
 createService' :: MonadConsole m

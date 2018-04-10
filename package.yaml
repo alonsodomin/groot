@@ -29,6 +29,7 @@ dependencies:
 - directory
 - exceptions
 - free
+- hashable
 - http-conduit
 - http-types
 - lens

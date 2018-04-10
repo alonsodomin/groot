@@ -55,6 +55,7 @@ createTaskDefinitionReq manifest (serviceName, deployment) =
   $ ECS.rtdTaskRoleARN .~ (deployment ^. sdTaskRole)
   $ ECS.rtdContainerDefinitions .~ (containerDef <$> deployment ^. sdContainers)
   $ ECS.rtdVolumes .~ (taskVolume <$> Map.elems (manifest ^. gmVolumes))
+  $ ECS.rtdPlacementConstraints .~ (concat $ taskPlacementConstaints <$> deployment ^. sdDeploymentConstraints)
   $ ECS.registerTaskDefinition serviceName
   where containerEnv env =
           Map.foldrWithKey (\k v acc -> (ECS.kvpName ?~ k $ ECS.kvpValue ?~ v $ ECS.keyValuePair):acc) [] env
@@ -75,6 +76,13 @@ createTaskDefinitionReq manifest (serviceName, deployment) =
           $ ECS.mpContainerPath ?~ (mp ^. mpTargetPath)
           $ ECS.mpReadOnly .~ (mp ^. mpReadOnly)
           $ ECS.mountPoint
+
+        taskPlacementConstaints (InstanceAttributesConstraint attrs) =
+          Map.foldrWithKey (\k v acc -> (attrExpr k v):acc) [] attrs
+          where attrExpr k v =
+                    ECS.tdpcType ?~ ECS.MemberOf
+                  $ ECS.tdpcExpression ?~ (T.concat ["attribute:", k, " == ", v])
+                  $ ECS.taskDefinitionPlacementConstraint
 
         containerDef c =
             ECS.cdImage ?~ (c ^. cImage)
