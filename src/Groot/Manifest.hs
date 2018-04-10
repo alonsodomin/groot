@@ -13,7 +13,7 @@ import           Control.Monad.Catch       hiding (Handler)
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
 import           Data.Aeson
-import Data.Hashable (Hashable)
+import           Data.Hashable             (Hashable)
 import           Data.HashMap.Strict       (HashMap)
 import qualified Data.HashMap.Strict       as Map
 import           Data.Semigroup            ((<>))

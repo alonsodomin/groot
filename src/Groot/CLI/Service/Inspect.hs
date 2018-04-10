@@ -7,30 +7,33 @@ module Groot.CLI.Service.Inspect
      , runServiceInspect
      ) where
 
-import           Control.Lens                 hiding (argument)
+import           Control.Lens                              hiding (argument)
 import           Control.Monad.Catch
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
 import           Control.Monad.Trans.Reader
 import           Data.Maybe
-import           Data.Semigroup               ((<>))
+import           Data.Monoid
 import           Data.String
-import           Data.Text                    (Text)
-import qualified Data.Text                    as T
+import           Data.Text                                 (Text)
+import qualified Data.Text                                 as T
+import qualified Data.Text.Prettyprint.Doc                 as Doc
+import qualified Data.Text.Prettyprint.Doc.Render.Terminal as DocT
 import           Data.Time
 import           Network.AWS
-import qualified Network.AWS.ECS              as ECS
+import qualified Network.AWS.ECS                           as ECS
 import           Options.Applicative
-import           Text.PrettyPrint.ANSI.Leijen (Doc, (<+>))
-import qualified Text.PrettyPrint.ANSI.Leijen as Doc
 
 import           Groot.AWS
 import           Groot.CLI.Common
 import           Groot.Console
 import           Groot.Core
-import           Groot.Data.Text              (ToText, styled, toText,
-                                               yellowStyle)
+import           Groot.Data.Text                           (ToText, styled,
+                                                            toText, yellowStyle)
 import           Groot.Exception
+import           Groot.PrettyPrint                         (Doc, defaultIndent,
+                                                            (<+>))
+import qualified Groot.PrettyPrint                         as Doc
 import           Groot.Types
 
 data ServiceInspectOpts =
@@ -45,86 +48,68 @@ serviceInspectOpts = ServiceInspectOpts
                  <$> optional clusterOpt
                  <*> serviceNameArg
 
-defaultIndent :: Int
-defaultIndent = 3
-
 pprintService :: ECS.ContainerService -> Doc
 pprintService service = Doc.vsep [
-    Doc.bold . Doc.dullblue $ maybe Doc.empty (Doc.text . T.unpack) $ service ^. ECS.csServiceName
+    Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ service ^. ECS.csServiceName
   , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
-        service ^. ECS.csStatus . label ppStatus "Status:"
-      , service ^. ECS.csRunningCount . plain "Running:"
-      , service ^. ECS.csDesiredCount . plain "Desired:"
-      , service ^. ECS.csPendingCount . plain "Pending:"
-      , (Just . Doc.blue . Doc.text $ "ARNs:")
+        Doc.field ppStatus "Status:" <$> service ^. ECS.csStatus
+      , Doc.field' "Running:" <$> service ^. ECS.csRunningCount
+      , Doc.field' "Desired:" <$> service ^. ECS.csDesiredCount
+      , Doc.field' "Pending:" <$> service ^. ECS.csPendingCount
+      , (Just . Doc.blue . Doc.pretty $ ("ARNs:" :: Text))
       , Just $ Doc.indent defaultIndent (Doc.vsep $ catMaybes [
-          service ^. ECS.csServiceARN . label ppArn "Service:"
-        , service ^. ECS.csTaskDefinition . label ppArn "Task:"
-        , service ^. ECS.csClusterARN . label ppArn "Cluster:"
-        , service ^. ECS.csRoleARN . label ppArn "Role:"
+          Doc.field ppArn "Service:" <$> service ^. ECS.csServiceARN
+        , Doc.field ppArn "Task:" <$> service ^. ECS.csTaskDefinition
+        , Doc.field ppArn "Cluster:" <$> service ^. ECS.csClusterARN
+        , Doc.field ppArn "Role:" <$> service ^. ECS.csRoleARN
       ])
-      , service ^. ECS.csCreatedAt . label ppTime "Created:"
-      , ppList ppLoadBalancer "Load Balancers:" $ service ^. ECS.csLoadBalancers
-      , ppList ppDeployment "Deployments:" $ service ^. ECS.csDeployments
-      , ppList ppPlacementStrategy "Placement Strategies:" $ service ^. ECS.csPlacementStrategy
-      , ppList ppPlacementConstraint "Placement Constraints" $ service ^. ECS.csPlacementConstraints
+      , Doc.field Doc.defaultTime "Created:" <$> service ^. ECS.csCreatedAt
+      , Doc.listField ppLoadBalancer "Load Balancers:" $ service ^. ECS.csLoadBalancers
+      , Doc.listField ppDeployment "Deployments:" $ service ^. ECS.csDeployments
+      , Doc.listField ppPlacementStrategy "Placement Strategies:" $ service ^. ECS.csPlacementStrategy
+      , Doc.listField ppPlacementConstraint "Placement Constraints" $ service ^. ECS.csPlacementConstraints
     ])
   ]
-  where label :: (a -> Doc) -> Text -> Getter (Maybe a) (Maybe Doc)
-        label f lb = to (\x -> (\y -> (Doc.blue . Doc.text . T.unpack $ lb) <+> (f y)) <$> x)
-
-        plain :: ToText a => Text -> Getter (Maybe a) (Maybe Doc)
-        plain = label (Doc.text . T.unpack . toText)
-
+  where
         ppStatus :: Text -> Doc
-        ppStatus txt@"ACTIVE" = Doc.bold . Doc.green . Doc.text . T.unpack $ txt
-        ppStatus txt          = Doc.bold . Doc.red . Doc.text . T.unpack $ txt
+        ppStatus txt@"ACTIVE" = Doc.bold . Doc.green . Doc.pretty $ txt
+        ppStatus txt          = Doc.bold . Doc.red . Doc.pretty $ txt
 
         ppArn :: Text -> Doc
-        ppArn = Doc.underline . Doc.text . T.unpack . toText
-
-        ppTime :: UTCTime -> Doc
-        ppTime = Doc.yellow . Doc.text . formatTime defaultTimeLocale "%d/%m/%Y %T"
-
-        ppList :: (a -> Doc) -> Text -> [a] -> Maybe Doc
-        ppList _ _   [] = Nothing
-        ppList f lbl xs = Just $ Doc.vsep [
-              Doc.blue . Doc.text . T.unpack $ lbl
-            , Doc.indent defaultIndent (Doc.vsep $ f <$> xs)
-          ]
+        ppArn = Doc.underline . Doc.pretty
 
         ppLoadBalancer :: ECS.LoadBalancer -> Doc
         ppLoadBalancer lb = Doc.vsep [
-            Doc.bold . Doc.dullblue $ maybe Doc.empty (Doc.text . T.unpack) $ lb ^. ECS.lbContainerName
+            Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ lb ^. ECS.lbContainerName
           , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
-                lb ^. ECS.lbContainerPort . plain "Port:"
-              , lb ^. ECS.lbLoadBalancerName . plain "ELB:"
-              , lb ^. ECS.lbTargetGroupARN . label ppArn "Target Group:"
+                Doc.field' "Port:" <$> lb ^. ECS.lbContainerPort
+              , Doc.field' "ELB:" <$> lb ^. ECS.lbLoadBalancerName
+              , Doc.field ppArn "Target Group:" <$> lb ^. ECS.lbTargetGroupARN
             ])
           ]
 
         ppDeployment :: ECS.Deployment -> Doc
         ppDeployment dep = Doc.vsep [
-              Doc.bold . Doc.dullblue $ maybe Doc.empty (Doc.text . T.unpack) $ dep ^. ECS.dId
+              Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ dep ^. ECS.dId
             , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
-                  dep ^. ECS.dTaskDefinition . label ppArn "Task:"
-                , dep ^. ECS.dRunningCount . plain "Running:"
-                , dep ^. ECS.dDesiredCount . plain "Desired:"
-                , dep ^. ECS.dUpdatedAt . label ppTime "Updated:"
-                , dep ^. ECS.dCreatedAt . label ppTime "Created:"
+                  Doc.field ppArn "Task:" <$> dep ^. ECS.dTaskDefinition
+                , Doc.field' "Running:" <$> dep ^. ECS.dRunningCount
+                , Doc.field' "Desired:" <$> dep ^. ECS.dDesiredCount
+                , Doc.field Doc.defaultTime "Updated:" <$> dep ^. ECS.dUpdatedAt
+                , Doc.field Doc.defaultTime "Created:" <$> dep ^. ECS.dCreatedAt
               ])
             ]
 
         ppPlacementStrategy :: ECS.PlacementStrategy -> Doc
         ppPlacementStrategy ps = Doc.cyan $ Doc.hsep $ catMaybes [
-              Doc.text . T.unpack . toText <$> ps ^. ECS.psType
-            , Doc.text . T.unpack <$> ps ^. ECS.psField
+              Doc.pretty . toText <$> ps ^. ECS.psType
+            , Doc.pretty <$> ps ^. ECS.psField
           ]
 
         ppPlacementConstraint :: ECS.PlacementConstraint -> Doc
         ppPlacementConstraint pc = Doc.cyan $ Doc.hsep $ catMaybes [
-             Doc.text . T.unpack . toText <$> pc ^. ECS.pcType
-           , Doc.text . T.unpack <$> pc ^. ECS.pcExpression
+             Doc.pretty . toText <$> pc ^. ECS.pcType
+           , Doc.pretty <$> pc ^. ECS.pcExpression
          ]
 
 runServiceInspect :: ServiceInspectOpts -> GrootM IO ()
@@ -136,4 +121,4 @@ runServiceInspect (ServiceInspectOpts clusterRef serviceRef) = do
   xs <- runResourceT . runAWS env $ runMaybeT $ findService serviceRef clusterRef
   case xs of
     Nothing -> throwM $ serviceNotFound serviceRef clusterRef
-    Just  s -> liftIO . Doc.putDoc $ pprintService s
+    Just  s -> liftIO . DocT.putDoc $ pprintService s
