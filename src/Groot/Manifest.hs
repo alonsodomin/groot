@@ -121,6 +121,7 @@ data Container = Container
   , _cWorkDir      :: Maybe Text
   , _cUser         :: Maybe Text
   , _cMountPoints  :: [MountPoint]
+  , _cDnsSearch    :: [Text]
   , _cEntryPoint   :: [Text]
   , _cCommand      :: [Text]
   } deriving (Eq, Show, Generic)
@@ -157,6 +158,7 @@ instance FromJSON Container where
     _cWorkDir      <- o .:? "workdir"
     _cUser         <- o .:? "user"
     _cMountPoints  <- maybe [] id <$> o .:? "mount-points"
+    _cDnsSearch    <- maybe [] id <$> o .:? "dns-search"
     _cEntryPoint   <- maybe [] id <$> o .:? "entry-point"
     _cCommand      <- maybe [] id <$> o .:? "command"
     return Container{..}

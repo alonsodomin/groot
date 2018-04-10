@@ -105,6 +105,7 @@ createTaskDefinitionReq manifest (serviceName, deployment) =
           $ ECS.cdWorkingDirectory .~ (c ^. cWorkDir)
           $ ECS.cdMountPoints .~ (mountPoint <$> c ^. cMountPoints)
           $ ECS.cdEntryPoint .~ (c ^. cEntryPoint)
+          $ ECS.cdDnsSearchDomains .~ (c ^. cDnsSearch)
           $ ECS.cdUser .~ (c ^. cUser)
           $ ECS.cdCommand .~ (c ^. cCommand)
           $ ECS.containerDefinition
