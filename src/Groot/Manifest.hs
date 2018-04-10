@@ -110,12 +110,16 @@ data Container = Container
   , _cMemory       :: Memory
   , _cCpu          :: Maybe Int
   , _cHostname     :: Maybe Text
+  , _cExtraHosts   :: HashMap Text Text
   , _cPortMappings :: [PortMapping]
   , _cEnvironment  :: HashMap Text Text
+  , _cLinks        :: [Text]
+  , _cLabels       :: HashMap Text Text
   , _cLogConfig    :: Maybe ECS.LogConfiguration
   , _cPriviledged  :: Maybe Bool
   , _cEssential    :: Maybe Bool
   , _cWorkDir      :: Maybe Text
+  , _cUser         :: Maybe Text
   , _cMountPoints  :: [MountPoint]
   , _cEntryPoint   :: [Text]
   , _cCommand      :: [Text]
@@ -142,12 +146,16 @@ instance FromJSON Container where
 
     _cCpu          <- o .:? "cpu"
     _cHostname     <- o .:? "hostname"
+    _cExtraHosts   <- maybe Map.empty id <$> o .:? "extra-hosts"
     _cPortMappings <- maybe [] id <$> o .:? "port-mappings"
     _cEnvironment  <- maybe Map.empty id <$> o .:? "environment"
+    _cLinks        <- maybe [] id <$> o .:? "links"
+    _cLabels       <- maybe Map.empty id <$> o .:? "labels"
     _cLogConfig    <- o .:? "logging"
     _cPriviledged  <- o .:? "priviledged"
     _cEssential    <- o .:? "essential"
     _cWorkDir      <- o .:? "workdir"
+    _cUser         <- o .:? "user"
     _cMountPoints  <- maybe [] id <$> o .:? "mount-points"
     _cEntryPoint   <- maybe [] id <$> o .:? "entry-point"
     _cCommand      <- maybe [] id <$> o .:? "command"

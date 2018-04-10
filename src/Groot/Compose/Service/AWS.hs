@@ -57,8 +57,8 @@ createTaskDefinitionReq manifest (serviceName, deployment) =
   $ ECS.rtdVolumes .~ (taskVolume <$> Map.elems (manifest ^. gmVolumes))
   $ ECS.rtdPlacementConstraints .~ (concat $ taskPlacementConstaints <$> deployment ^. sdDeploymentConstraints)
   $ ECS.registerTaskDefinition serviceName
-  where containerEnv env =
-          Map.foldrWithKey (\k v acc -> (ECS.kvpName ?~ k $ ECS.kvpValue ?~ v $ ECS.keyValuePair):acc) [] env
+  where containerEnv =
+          Map.foldrWithKey (\k v acc -> (ECS.kvpName ?~ k $ ECS.kvpValue ?~ v $ ECS.keyValuePair):acc) []
 
         containerPort port =
             ECS.pmProtocol .~ (port ^. pmProtocol)
@@ -77,6 +77,9 @@ createTaskDefinitionReq manifest (serviceName, deployment) =
           $ ECS.mpReadOnly .~ (mp ^. mpReadOnly)
           $ ECS.mountPoint
 
+        containerExtraHosts =
+          Map.foldrWithKey (\host ip acc -> (ECS.hostEntry host ip):acc) []
+
         taskPlacementConstaints (InstanceAttributesConstraint attrs) =
           Map.foldrWithKey (\k v acc -> (attrExpr k v):acc) [] attrs
           where attrExpr k v =
@@ -91,7 +94,10 @@ createTaskDefinitionReq manifest (serviceName, deployment) =
           $ ECS.cdMemory .~ (c ^? cMemory . _AssignedMemory)
           $ ECS.cdMemoryReservation .~ (c ^? cMemory . _ReservedMemory)
           $ ECS.cdHostname .~ (c ^. cHostname)
+          $ ECS.cdExtraHosts .~ (containerExtraHosts $ c ^. cExtraHosts)
           $ ECS.cdCpu .~ (c ^. cCpu)
+          $ ECS.cdDockerLabels .~ (c ^. cLabels)
+          $ ECS.cdLinks .~ (c ^. cLinks)
           $ ECS.cdLogConfiguration .~ (c ^. cLogConfig)
           $ ECS.cdName ?~ (c ^. cName)
           $ ECS.cdPrivileged .~ (c ^. cPriviledged)
@@ -99,6 +105,7 @@ createTaskDefinitionReq manifest (serviceName, deployment) =
           $ ECS.cdWorkingDirectory .~ (c ^. cWorkDir)
           $ ECS.cdMountPoints .~ (mountPoint <$> c ^. cMountPoints)
           $ ECS.cdEntryPoint .~ (c ^. cEntryPoint)
+          $ ECS.cdUser .~ (c ^. cUser)
           $ ECS.cdCommand .~ (c ^. cCommand)
           $ ECS.containerDefinition
 
