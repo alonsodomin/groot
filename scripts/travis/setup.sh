@@ -5,7 +5,7 @@ set -e
 if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
   brew update
 elif [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-  apt-get install -y libpthread-stubs0-dev
+  sudo apt-get install -y libpthread-stubs0-dev
 fi
 
 mkdir -p ~/.local/bin
