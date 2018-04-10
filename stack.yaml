@@ -40,6 +40,8 @@ packages:
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
+  - hakyll-4.11.0.0
+  - pandoc-citeproc-0.13.0.1
   - pptable-0.3.0.0
 
 # Override default flag values for local packages and extra-deps
