@@ -31,9 +31,9 @@ import           Groot.Core
 import           Groot.Data.Text                           (ToText, styled,
                                                             toText, yellowStyle)
 import           Groot.Exception
-import           Groot.PrettyPrint                         (Doc, defaultIndent,
+import           Groot.Internal.PrettyPrint                (Doc, defaultIndent,
                                                             (<+>))
-import qualified Groot.PrettyPrint                         as Doc
+import qualified Groot.Internal.PrettyPrint                as Doc
 import           Groot.Types
 
 data ServiceInspectOpts =
@@ -70,8 +70,7 @@ pprintService service = Doc.vsep [
       , Doc.listField ppPlacementConstraint "Placement Constraints" $ service ^. ECS.csPlacementConstraints
     ])
   ]
-  where
-        ppStatus :: Text -> Doc
+  where ppStatus :: Text -> Doc
         ppStatus txt@"ACTIVE" = Doc.bold . Doc.green . Doc.pretty $ txt
         ppStatus txt          = Doc.bold . Doc.red . Doc.pretty $ txt
 
@@ -90,7 +89,7 @@ pprintService service = Doc.vsep [
 
         ppDeployment :: ECS.Deployment -> Doc
         ppDeployment dep = Doc.vsep [
-              Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ dep ^. ECS.dId
+              Doc.hyphen <+> (Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ dep ^. ECS.dId)
             , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
                   Doc.field ppArn "Task:" <$> dep ^. ECS.dTaskDefinition
                 , Doc.field' "Running:" <$> dep ^. ECS.dRunningCount

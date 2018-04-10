@@ -1,4 +1,4 @@
-module Groot.PrettyPrint where
+module Groot.Internal.PrettyPrint where
 
 import           Prelude                                   hiding ((<$>))
 
@@ -81,6 +81,9 @@ debold = id
 underline = New.annotate NewT.underlined
 deunderline = id
 {-# WARNING deunderline "Deunderline does not do anything" #-}
+
+hyphen :: Doc
+hyphen = New.pretty "-"
 
 -- Groot specific functions
 
