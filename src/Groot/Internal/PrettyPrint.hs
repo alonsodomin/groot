@@ -1,8 +1,12 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Groot.Internal.PrettyPrint (
     -- Types
     Doc, SimpleDoc,
     -- Lines
-    line, linebreak, softline, softbreak, hardline, hyphen, time, defaultTime,
+    line, linebreak, softline, softbreak, hardline, hyphen,
+    -- Custom utils
+    time, defaultTime, status,
     -- Infix operators
     (<>), (<+>), (<$>), (</>), (<$$>), (<//>),
     -- Style
@@ -105,7 +109,7 @@ deunderline = id
 {-# WARNING deunderline "Deunderline does not do anything" #-}
 
 hyphen :: Doc
-hyphen = New.pretty "-"
+hyphen = New.pretty ("-" :: Text)
 
 -- Groot specific functions
 
@@ -139,3 +143,8 @@ time tl fmt t = New.pretty $ formatTime tl fmt t
 
 defaultTime :: FormatTime t => t -> Doc
 defaultTime = time defaultTimeLocale "%d/%m/%Y %T"
+
+status :: Text -> Doc
+status txt@"ACTIVE"   = bold . green . New.pretty $ txt
+status txt@"DRAINING" = bold . yellow . New.pretty $ txt
+status txt            = bold . red . New.pretty $ txt

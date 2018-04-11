@@ -37,23 +37,18 @@ pprintCluster :: ECS.Cluster -> [ECS.ContainerInstance] -> Doc
 pprintCluster cluster nodes = Doc.vsep [
       Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ cluster ^. ECS.cClusterName
     , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
-        Doc.field ppStatus "Status:" <$> cluster ^. ECS.cStatus
+        Doc.field Doc.status "Status:" <$> cluster ^. ECS.cStatus
       , Doc.field' "Active Services:" <$> cluster ^. ECS.cActiveServicesCount
       , Doc.field' "Running Tasks:" <$> cluster ^. ECS.cRunningTasksCount
       , Doc.field' "Pending Tasks:" <$> cluster ^. ECS.cPendingTasksCount
       , Doc.listField ppInstance "Nodes:" nodes
     ])
   ]
-  where ppStatus :: Text -> Doc
-        ppStatus txt@"ACTIVE"   = Doc.bold . Doc.green . Doc.pretty $ txt
-        ppStatus txt@"DRAINING" = Doc.bold . Doc.yellow . Doc.pretty $ txt
-        ppStatus txt            = Doc.bold . Doc.red . Doc.pretty $ txt
-
-        ppInstance :: ECS.ContainerInstance -> Doc
+  where ppInstance :: ECS.ContainerInstance -> Doc
         ppInstance inst = Doc.vsep [
               Doc.hyphen <+> (Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ inst ^. ECS.ciEc2InstanceId)
             , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
-                Doc.field ppStatus "Status:" <$> inst ^. ECS.ciStatus
+                Doc.field Doc.status "Status:" <$> inst ^. ECS.ciStatus
               , Doc.field' "Connected:" <$> inst ^. ECS.ciAgentConnected
               , Doc.field' "Running Tasks:" <$> inst ^. ECS.ciRunningTasksCount
               , Doc.field' "Pending Tasks:" <$> inst ^. ECS.ciPendingTasksCount
