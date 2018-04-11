@@ -1,11 +1,33 @@
-module Groot.Internal.PrettyPrint where
+module Groot.Internal.PrettyPrint (
+    -- Types
+    Doc, SimpleDoc,
+    -- Lines
+    line, linebreak, softline, softbreak, hardline, hyphen, time, defaultTime,
+    -- Infix operators
+    (<>), (<+>), (<$>), (</>), (<$$>), (<//>),
+    -- Style
+    black, red, green, yellow, blue, magenta, cyan, white, dullblack, dullred,
+    dullgreen, dullyellow, dullblue, dullmagenta, dullcyan, dullwhite, onblack, onred,
+    ongreen, onyellow, onblue, onmagenta, oncyan, onwhite, ondullblack,
+    ondullred, ondullgreen, ondullyellow, ondullblue, ondullmagenta, ondullcyan,
+    ondullwhite, bold, debold, underline, deunderline, plain,
+    -- Layout
+    defaultIndent, label, field, field', listField, listField',
+    -- Modules
+    module Data.Text.Prettyprint.Doc,
+    module Data.Text.Prettyprint.Doc.Render.Terminal
+  ) where
 
 import           Prelude                                   hiding ((<$>))
 
 import           Data.Monoid
 import           Data.Text                                 (Text)
-import           Data.Text.Prettyprint.Doc                 (Pretty (..))
+import           Data.Text.Prettyprint.Doc                 hiding (Doc,
+                                                            hardline, line,
+                                                            softline, (<+>),
+                                                            (<>))
 import qualified Data.Text.Prettyprint.Doc                 as New
+import           Data.Text.Prettyprint.Doc.Render.Terminal hiding (bold)
 import qualified Data.Text.Prettyprint.Doc.Render.Terminal as NewT
 import           Data.Time
 

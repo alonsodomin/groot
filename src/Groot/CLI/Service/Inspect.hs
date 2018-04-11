@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes        #-}
 
 module Groot.CLI.Service.Inspect
      ( ServiceInspectOpts
@@ -7,7 +6,7 @@ module Groot.CLI.Service.Inspect
      , runServiceInspect
      ) where
 
-import           Control.Lens                              hiding (argument)
+import           Control.Lens               hiding (argument)
 import           Control.Monad.Catch
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
@@ -15,25 +14,19 @@ import           Control.Monad.Trans.Reader
 import           Data.Maybe
 import           Data.Monoid
 import           Data.String
-import           Data.Text                                 (Text)
-import qualified Data.Text                                 as T
-import qualified Data.Text.Prettyprint.Doc                 as Doc
-import qualified Data.Text.Prettyprint.Doc.Render.Terminal as DocT
-import           Data.Time
+import           Data.Text                  (Text)
 import           Network.AWS
-import qualified Network.AWS.ECS                           as ECS
+import qualified Network.AWS.ECS            as ECS
 import           Options.Applicative
 
 import           Groot.AWS
 import           Groot.CLI.Common
 import           Groot.Console
 import           Groot.Core
-import           Groot.Data.Text                           (ToText, styled,
-                                                            toText, yellowStyle)
+import           Groot.Data.Text            (styled, toText, yellowStyle)
 import           Groot.Exception
-import           Groot.Internal.PrettyPrint                (Doc, defaultIndent,
-                                                            (<+>))
-import qualified Groot.Internal.PrettyPrint                as Doc
+import           Groot.Internal.PrettyPrint (Doc, defaultIndent, (<+>))
+import qualified Groot.Internal.PrettyPrint as Doc
 import           Groot.Types
 
 data ServiceInspectOpts =
@@ -120,4 +113,4 @@ runServiceInspect (ServiceInspectOpts clusterRef serviceRef) = do
   xs <- runResourceT . runAWS env $ runMaybeT $ findService serviceRef clusterRef
   case xs of
     Nothing -> throwM $ serviceNotFound serviceRef clusterRef
-    Just  s -> liftIO . DocT.putDoc $ pprintService s
+    Just  s -> liftIO . Doc.putDoc $ pprintService s
