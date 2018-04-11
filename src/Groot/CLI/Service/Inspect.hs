@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes        #-}
 
 module Groot.CLI.Service.Inspect
      ( ServiceInspectOpts
