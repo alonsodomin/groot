@@ -22,4 +22,4 @@ stack setup
 stack exec -- ghc --version
 
 # Install additional build tools
-stack install hakyll # cabal-rpm cabal-debian
+travis_wait 30 stack install hakyll # cabal-rpm cabal-debian
