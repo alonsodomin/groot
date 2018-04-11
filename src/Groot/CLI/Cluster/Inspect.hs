@@ -15,6 +15,7 @@ import           Data.Maybe
 import           Data.String
 import           Data.Text                  (Text)
 import           Network.AWS
+import qualified Network.AWS.EC2            as EC2
 import qualified Network.AWS.ECS            as ECS
 import           Options.Applicative        (Parser)
 import qualified Options.Applicative        as Opts
@@ -33,7 +34,7 @@ clusterRefArg = fromString <$> Opts.argument Opts.str (Opts.metavar "CLUSTER_NAM
 clusterInspectOpts :: Parser ClusterInspectOpts
 clusterInspectOpts = ClusterInspectOpts <$> clusterRefArg
 
-pprintCluster :: ECS.Cluster -> [ECS.ContainerInstance] -> Doc
+pprintCluster :: ECS.Cluster -> [(ECS.ContainerInstance, EC2.Instance)] -> Doc
 pprintCluster cluster nodes = Doc.vsep [
       Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ cluster ^. ECS.cClusterName
     , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
@@ -49,23 +50,28 @@ pprintCluster cluster nodes = Doc.vsep [
         ppStatus txt@"DRAINING" = Doc.bold . Doc.yellow . Doc.pretty $ txt
         ppStatus txt            = Doc.bold . Doc.red . Doc.pretty $ txt
 
-        ppInstance :: ECS.ContainerInstance -> Doc
-        ppInstance inst = Doc.vsep [
-              Doc.hyphen <+> (Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ inst ^. ECS.ciEc2InstanceId)
+        ppInstance :: (ECS.ContainerInstance, EC2.Instance) -> Doc
+        ppInstance (ecsInst, ec2Inst) = Doc.vsep [
+              Doc.hyphen <+> (Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ ecsInst ^. ECS.ciEc2InstanceId)
             , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
-                Doc.field ppStatus "Status:" <$> inst ^. ECS.ciStatus
-              , Doc.field' "Connected:" <$> inst ^. ECS.ciAgentConnected
-              , Doc.field' "Running Tasks:" <$> inst ^. ECS.ciRunningTasksCount
-              , Doc.field' "Pending Tasks:" <$> inst ^. ECS.ciPendingTasksCount
-              , Doc.field Doc.defaultTime "Registered At:" <$> inst ^. ECS.ciRegisteredAt
+                Doc.field ppStatus "Status:" <$> ecsInst ^. ECS.ciStatus
+              , Doc.field' "Private IP:" <$> ec2Inst ^. EC2.insPrivateIPAddress
+              , Doc.field' "Connected:" <$> ecsInst ^. ECS.ciAgentConnected
+              , Doc.field' "Running Tasks:" <$> ecsInst ^. ECS.ciRunningTasksCount
+              , Doc.field' "Pending Tasks:" <$> ecsInst ^. ECS.ciPendingTasksCount
+              , Doc.field Doc.defaultTime "Registered At:" <$> ecsInst ^. ECS.ciRegisteredAt
             ])
           ]
 
 runClusterInspect :: ClusterInspectOpts -> GrootM IO ()
 runClusterInspect (ClusterInspectOpts clusterRef) = do
   env              <- ask
+
   (cluster, nodes) <- runResourceT . runAWS env $ do
-    c <- getCluster clusterRef
-    n <- runConduit $ fetchInstances clusterRef =$ CL.consume
-    return (c, n)
+    clus        <- getCluster clusterRef
+    fromCluster <- runConduit $ fetchInstances clusterRef =$ CL.consume
+    ids         <- pure $ fmap EC2InstanceId $ catMaybes $ (view ECS.ciEc2InstanceId) <$> fromCluster
+    fromEc2     <- runConduit $ findEc2Instances ids =$ CL.consume
+    return (clus, zip fromCluster fromEc2)
+
   liftIO . Doc.putDoc $ pprintCluster cluster nodes

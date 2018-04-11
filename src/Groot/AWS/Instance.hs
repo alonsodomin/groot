@@ -5,6 +5,8 @@ module Groot.AWS.Instance
      , findInstance
      , getInstance
      , taskInstance
+     -- EC2 instances
+     , findEc2Instances
      ) where
 
 import           Control.Lens
@@ -13,6 +15,7 @@ import           Control.Monad.Trans.Maybe
 import           Data.Conduit
 import qualified Data.Conduit.List         as CL
 import           Network.AWS
+import qualified Network.AWS.EC2           as EC2
 import qualified Network.AWS.ECS           as ECS
 
 import           Groot.AWS.Cluster
@@ -75,3 +78,8 @@ getInstance iref cref = do
   case inst of
     Just x  -> return x
     Nothing -> throwM $ instanceNotFound iref cref
+
+findEc2Instances :: MonadAWS m => [EC2InstanceId] -> Source m EC2.Instance
+findEc2Instances ids = paginate (EC2.diiInstanceIds .~ (toText <$> ids) $ EC2.describeInstances)
+  =$= CL.concatMap (\x -> x ^. EC2.dirsReservations)
+  =$= CL.concatMap (\x -> x ^. EC2.rInstances)
