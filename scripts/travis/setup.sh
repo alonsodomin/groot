@@ -20,6 +20,3 @@ stack --version
 # Install GHC
 stack setup
 stack exec -- ghc --version
-
-# Install additional build tools
-travis_wait 30 stack install hakyll # cabal-rpm cabal-debian
