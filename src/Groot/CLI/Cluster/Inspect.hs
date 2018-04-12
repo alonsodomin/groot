@@ -45,15 +45,16 @@ pprintCluster cluster nodes = Doc.vsep [
       , Doc.listField ppInstance "Nodes:" nodes
     ])
   ]
-  where ppInstance :: ECS.ContainerInstance -> Doc
-        ppInstance inst = Doc.vsep [
-              Doc.hyphen <+> (Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ inst ^. ECS.ciEc2InstanceId)
+  where ppInstance :: (ECS.ContainerInstance, EC2.Instance) -> Doc
+        ppInstance (ecsInst, ec2Inst) = Doc.vsep [
+              Doc.hyphen <+> (Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ ecsInst ^. ECS.ciEc2InstanceId)
             , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
-                Doc.field Doc.status "Status:" <$> inst ^. ECS.ciStatus
-              , Doc.field' "Connected:" <$> inst ^. ECS.ciAgentConnected
-              , Doc.field' "Running Tasks:" <$> inst ^. ECS.ciRunningTasksCount
-              , Doc.field' "Pending Tasks:" <$> inst ^. ECS.ciPendingTasksCount
-              , Doc.field Doc.defaultTime "Registered At:" <$> inst ^. ECS.ciRegisteredAt
+                Doc.field Doc.status "Status:" <$> ecsInst ^. ECS.ciStatus
+              , Doc.field' "Connected:" <$> ecsInst ^. ECS.ciAgentConnected
+              , Doc.field' "Private IP:" <$> ec2Inst ^. EC2.insPrivateIPAddress
+              , Doc.field' "Running Tasks:" <$> ecsInst ^. ECS.ciRunningTasksCount
+              , Doc.field' "Pending Tasks:" <$> ecsInst ^. ECS.ciPendingTasksCount
+              , Doc.field Doc.defaultTime "Registered At:" <$> ecsInst ^. ECS.ciRegisteredAt
             ])
           ]
 
