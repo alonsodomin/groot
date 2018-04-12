@@ -180,31 +180,71 @@ serviceDeployed taskId = Wait
     ]
   }
 
+waitServiceStateChange :: (MonadResource m, MonadBaseControl IO m)
+                       => (ContainerServiceRef -> m ())
+                       -> (ContainerServiceRef -> m ())
+                       -> (ContainerServiceRef -> m ())
+                       -> Wait ECS.DescribeServices
+                       -> ECS.ContainerService
+                       -> GrootM m ()
+waitServiceStateChange onStart onSuccess onFailure waiter service = do
+  env <- ask
+  serviceRef <- case (service ^. ECS.csServiceName) of
+    Nothing -> fail "No service name defined!"
+    Just  x -> pure $ ContainerServiceRef x
+  lift $ onStart serviceRef
+  waitResult <- runAWS env $ await waiter describeIt
+  lift $ case waitResult of
+    AcceptSuccess -> onSuccess serviceRef
+    _             -> onFailure serviceRef
+  where describeIt :: ECS.DescribeServices
+        describeIt =
+            ECS.dCluster .~ (service ^. ECS.csClusterARN)
+          $ ECS.dServices .~ (maybeToList $ service ^. ECS.csServiceARN)
+          $ ECS.describeServices
+
 waitForServiceDeployed :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
                        => ClusterRef
                        -> (ECS.ContainerService, Wait ECS.DescribeServices)
                        -> GrootM m ()
-waitForServiceDeployed clusterRef (service, waiter) = do
-  env         <- ask
-  serviceName <- pure $ maybe "<unknown>" id $ service ^. ECS.csServiceName
-  putInfo $ "Waiting for service "
-    <> styled yellowStyle serviceName
-    <> " to complete deployment..."
-  deployStatus <- runAWS env $ await waiter describeIt
-  case deployStatus of
-    AcceptSuccess -> putSuccess $ "Service "
-                     <> styled yellowStyle serviceName
-                     <> " successfully deployed."
-    _             -> do
-      errMsg <- pure "Service did not stabilize."
-      throwM $ failedServiceDeployment (ContainerServiceRef serviceName) clusterRef (Just errMsg)
+waitForServiceDeployed clusterRef (service, waiter) =
+  let onStart serviceRef =
+        putInfo $ "Waiting for service"
+          <+> (styled yellowStyle $ toText serviceRef)
+          <+> "to complete deployment on cluster"
+          <+> (styled yellowStyle $ toText clusterRef)
+          <+> "..."
+      onSuccess serviceRef =
+        putSuccess $ "Service"
+          <+> (styled yellowStyle $ toText serviceRef)
+          <+> "successfully deployed on cluster"
+          <+> (styled yellowStyle $ toText clusterRef)
+          <+> "."
+      onFailure serviceRef = do
+        errMsg <- pure "Service did not stabilize."
+        throwM $ failedServiceDeployment serviceRef clusterRef (Just errMsg)
+  in waitServiceStateChange onStart onSuccess onFailure waiter service
 
-  where
-    describeIt :: ECS.DescribeServices
-    describeIt =
-        ECS.dCluster .~ (service ^. ECS.csClusterARN)
-      $ ECS.dServices .~ (maybeToList $ service ^. ECS.csServiceARN)
-      $ ECS.describeServices
+waitForServiceUndeployed :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
+                         => ClusterRef
+                         -> ECS.ContainerService
+                         -> GrootM m ()
+waitForServiceUndeployed clusterRef =
+  let onStart serviceRef =
+        putInfo $ "Waiting for service"
+          <+> (styled yellowStyle $ toText serviceRef)
+          <+> "to be removed from cluster"
+          <+> (styled yellowStyle $ toText clusterRef)
+          <+> "..."
+      onSuccess serviceRef =
+        putSuccess $ "Service"
+          <+> (styled yellowStyle $ toText serviceRef)
+          <+> "has been successfully removed from cluster"
+          <+> (styled yellowStyle $ toText clusterRef)
+          <+> "."
+      onFailure serviceRef =
+        throwM $ failedServiceDeletion serviceRef clusterRef
+  in waitServiceStateChange onStart onSuccess onFailure ECS.servicesInactive
 
 -- Free monad operations implementation
 
@@ -282,7 +322,7 @@ updateService' = modifyService' $ \service@(serviceName, _) clusterRef taskId ->
 removeService' :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
                => NamedServiceDeployment
                -> ClusterRef
-               -> GrootM m ()
+               -> GrootM m ECS.ContainerService
 removeService' service@(serviceName, _) clusterRef = do
   putInfo $ "Deleting service" <+> styled yellowStyle serviceName <> "."
   env       <- ask
@@ -296,8 +336,10 @@ removeService' service@(serviceName, _) clusterRef = do
       updateReq <- pure $ ECS.usDesiredCount ?~ 0 $ ECS.usCluster ?~ (toText clusterRef) $ ECS.updateService serviceName
       runAWS env $ send updateReq
       deleteReq <- pure $ deleteServiceReq clusterRef service
-      runAWS env $ send deleteReq
-      return ()
+      res <- runAWS env $ send deleteReq
+      case (res ^. ECS.dsrsService) of
+        Nothing -> throwM $ serviceNotFound csRef (Just clusterRef)
+        Just  x -> return x
 
 awsServiceCompose :: (MonadConsole m, MonadResource m, MonadBaseControl IO m) => GrootManifest -> ServiceComposeM a -> GrootM m a
 awsServiceCompose manifest = foldFree $ \case
@@ -310,6 +352,6 @@ awsServiceCompose manifest = foldFree $ \case
   UpdateService service cluster taskId next ->
     (const next) <$> (updateService' service cluster taskId >>= waitForServiceDeployed cluster)
   RemoveService service cluster next ->
-    (const next) <$> removeService' service cluster
+    (const next) <$> (removeService' service cluster >>= waitForServiceUndeployed cluster)
   VerifyActiveCluster cluster next ->
     (const next) <$> verifyActiveCluster' cluster

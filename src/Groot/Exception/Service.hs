@@ -14,6 +14,7 @@ data ServiceException =
   | AmbiguousServiceName AmbiguousServiceName
   | InactiveService InactiveService
   | FailedServiceDeployment FailedServiceDeployment
+  | FailedServiceDeletion FailedServiceDeletion
   | UndefinedService UndefinedService
   deriving (Eq, Show, Typeable)
 
@@ -59,6 +60,16 @@ failedServiceDeployment :: ContainerServiceRef -> ClusterRef -> Maybe Text -> So
 failedServiceDeployment serviceRef clusterRef reason =
   toException . FailedServiceDeployment $ FailedServiceDeployment' serviceRef clusterRef reason
 
+data FailedServiceDeletion =
+  FailedServiceDeletion' ContainerServiceRef ClusterRef
+  deriving (Eq, Typeable, Show)
+
+instance Exception FailedServiceDeletion
+
+failedServiceDeletion :: ContainerServiceRef -> ClusterRef -> SomeException
+failedServiceDeletion serviceRef clusterRef =
+  toException . FailedServiceDeletion $ FailedServiceDeletion' serviceRef clusterRef
+
 data UndefinedService =
   UndefinedService' Text
   deriving (Eq, Typeable, Show)
@@ -84,6 +95,9 @@ class AsServiceException t where
   _FailedServiceDeployment :: Prism' t FailedServiceDeployment
   _FailedServiceDeployment = _ServiceException . _FailedServiceDeployment
 
+  _FailedServiceDeletion :: Prism' t FailedServiceDeletion
+  _FailedServiceDeletion = _ServiceException . _FailedServiceDeletion
+
   _UndefinedService :: Prism' t UndefinedService
   _UndefinedService = _ServiceException . _UndefinedService
 
@@ -108,6 +122,10 @@ instance AsServiceException ServiceException where
   _FailedServiceDeployment = prism FailedServiceDeployment $ \case
     FailedServiceDeployment e -> Right e
     x                         -> Left x
+
+  _FailedServiceDeletion = prism FailedServiceDeletion $ \case
+    FailedServiceDeletion e -> Right e
+    x                       -> Left x
 
   _UndefinedService = prism UndefinedService $ \case
     UndefinedService e -> Right e

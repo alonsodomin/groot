@@ -72,6 +72,11 @@ handleDeploymentFailed (FailedServiceDeployment' serviceRef clusterRef reason) =
     <+> "in cluster" <+> (styled yellowStyle $ toText clusterRef)
     <> (maybe "" (\x -> " because" <+> (styled yellowStyle x)) reason)
 
+handleDeletionFailed :: MonadConsole m => FailedServiceDeletion -> m ()
+handleDeletionFailed (FailedServiceDeletion' serviceRef clusterRef) =
+  putError $ "Failed to delete service" <+> (styled yellowStyle $ toText serviceRef)
+    <+> "from cluster" <+> (styled yellowStyle $ toText clusterRef)
+
 -- Main functions
 
 selectServices :: MonadThrow m => [Text] -> HashMap Text ServiceDeployment -> m [NamedServiceDeployment]
@@ -92,6 +97,7 @@ performAction userMsg buildComposeAction opts = do
   catches (interpretServiceComposeM userMsg composeAction cfg) [
       handler _UndefinedService        handleUndefinedService
     , handler _FailedServiceDeployment handleDeploymentFailed
+    , handler _FailedServiceDeletion   handleDeletionFailed
     ]
 
 doDeployServices :: ServiceComposeCfg -> ServiceComposeM ()
