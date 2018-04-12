@@ -45,6 +45,8 @@ module Groot.Types
      , ContainerInstanceArn
      , arnContainerInstanceId
      , ContainerInstanceRef(..)
+     -- EC2 Instance
+     , EC2InstanceId (..)
      -- Container Service
      , ServiceName (..)
      , ContainerServiceArn
@@ -330,6 +332,14 @@ instance ToText ContainerInstanceRef where
 
 instance IsString ContainerInstanceRef where
   fromString = ContainerInstanceRef . T.pack
+
+-- EC2 Instance
+
+newtype EC2InstanceId = EC2InstanceId Text
+  deriving (Eq, Show)
+
+instance ToText EC2InstanceId where
+  toText (EC2InstanceId id) = id
 
 -- Container Service
 
