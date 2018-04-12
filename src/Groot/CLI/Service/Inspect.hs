@@ -45,7 +45,7 @@ pprintService :: ECS.ContainerService -> Doc
 pprintService service = Doc.vsep [
     Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ service ^. ECS.csServiceName
   , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
-        Doc.field ppStatus "Status:" <$> service ^. ECS.csStatus
+        Doc.field Doc.status "Status:" <$> service ^. ECS.csStatus
       , Doc.field' "Running:" <$> service ^. ECS.csRunningCount
       , Doc.field' "Desired:" <$> service ^. ECS.csDesiredCount
       , Doc.field' "Pending:" <$> service ^. ECS.csPendingCount
@@ -63,11 +63,7 @@ pprintService service = Doc.vsep [
       , Doc.listField ppPlacementConstraint "Placement Constraints" $ service ^. ECS.csPlacementConstraints
     ])
   ]
-  where ppStatus :: Text -> Doc
-        ppStatus txt@"ACTIVE" = Doc.bold . Doc.green . Doc.pretty $ txt
-        ppStatus txt          = Doc.bold . Doc.red . Doc.pretty $ txt
-
-        ppArn :: Text -> Doc
+  where ppArn :: Text -> Doc
         ppArn = Doc.underline . Doc.pretty
 
         ppLoadBalancer :: ECS.LoadBalancer -> Doc
