@@ -12,6 +12,7 @@ import           Control.Monad.Trans.Reader
 import           Data.Conduit
 import qualified Data.Conduit.List          as CL
 import           Data.Maybe
+import           Data.Monoid
 import           Data.String
 import           Data.Text                  (Text)
 import           Network.AWS
@@ -21,22 +22,28 @@ import           Options.Applicative        (Parser)
 import qualified Options.Applicative        as Opts
 
 import           Groot.Core
-import           Groot.Data.Text            hiding ((<+>))
 import           Groot.Internal.PrettyPrint (Doc, defaultIndent, (<+>))
 import qualified Groot.Internal.PrettyPrint as Doc
 import           Groot.Types
 
-data ClusterInspectOpts = ClusterInspectOpts ClusterRef
+data ClusterInspectOpts = ClusterInspectOpts ClusterRef Bool
   deriving (Eq, Show)
+
+clusterInspectOpts :: Parser ClusterInspectOpts
+clusterInspectOpts = ClusterInspectOpts
+                  <$> clusterRefArg
+                  <*> showInstanceAttrsOpt
+
+showInstanceAttrsOpt :: Parser Bool
+showInstanceAttrsOpt = Opts.switch
+                     ( Opts.long "show-instance-attrs"
+                    <> Opts.help "displays instance attributes" )
 
 clusterRefArg :: Parser ClusterRef
 clusterRefArg = fromString <$> Opts.argument Opts.str (Opts.metavar "CLUSTER_NAME")
 
-clusterInspectOpts :: Parser ClusterInspectOpts
-clusterInspectOpts = ClusterInspectOpts <$> clusterRefArg
-
-pprintCluster :: ECS.Cluster -> [(ECS.ContainerInstance, EC2.Instance)] -> Doc
-pprintCluster cluster nodes = Doc.vsep [
+pprintCluster :: ECS.Cluster -> [(ECS.ContainerInstance, EC2.Instance)] -> Bool -> Doc
+pprintCluster cluster nodes showInstanceAttrs = Doc.vsep [
       Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ cluster ^. ECS.cClusterName
     , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
         Doc.field Doc.status "Status:" <$> cluster ^. ECS.cStatus
@@ -56,7 +63,8 @@ pprintCluster cluster nodes = Doc.vsep [
               , Doc.field' "Running Tasks:" <$> ecsInst ^. ECS.ciRunningTasksCount
               , Doc.field' "Pending Tasks:" <$> ecsInst ^. ECS.ciPendingTasksCount
               , Doc.field Doc.defaultTime "Registered At:" <$> ecsInst ^. ECS.ciRegisteredAt
-              , Doc.listField ppInstanceAttr "Attributes:" $ ecsInst ^. ECS.ciAttributes
+              , if showInstanceAttrs then Doc.listField ppInstanceAttr "Attributes:" $ ecsInst ^. ECS.ciAttributes
+                else Nothing
             ])
           ]
 
@@ -67,7 +75,7 @@ pprintCluster cluster nodes = Doc.vsep [
           ]
 
 runClusterInspect :: ClusterInspectOpts -> GrootM IO ()
-runClusterInspect (ClusterInspectOpts clusterRef) = do
+runClusterInspect (ClusterInspectOpts clusterRef showInstanceAttrs) = do
   env              <- ask
 
   (cluster, nodes) <- runResourceT . runAWS env $ do
@@ -77,4 +85,4 @@ runClusterInspect (ClusterInspectOpts clusterRef) = do
     fromEc2     <- runConduit $ findEc2Instances ids =$ CL.consume
     return (clus, zip fromCluster fromEc2)
 
-  liftIO . Doc.putDoc $ pprintCluster cluster nodes
+  liftIO . Doc.putDoc $ pprintCluster cluster nodes showInstanceAttrs
