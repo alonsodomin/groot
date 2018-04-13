@@ -78,7 +78,7 @@ pprintService service = Doc.vsep [
 
         ppDeployment :: ECS.Deployment -> Doc
         ppDeployment dep = Doc.vsep [
-              Doc.hyphen <+> (Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ dep ^. ECS.dId)
+              Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ dep ^. ECS.dId
             , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
                   Doc.field ppArn "Task:" <$> dep ^. ECS.dTaskDefinition
                 , Doc.field' "Running:" <$> dep ^. ECS.dRunningCount

@@ -21,6 +21,7 @@ import           Options.Applicative        (Parser)
 import qualified Options.Applicative        as Opts
 
 import           Groot.Core
+import           Groot.Data.Text            hiding ((<+>))
 import           Groot.Internal.PrettyPrint (Doc, defaultIndent, (<+>))
 import qualified Groot.Internal.PrettyPrint as Doc
 import           Groot.Types
@@ -47,7 +48,7 @@ pprintCluster cluster nodes = Doc.vsep [
   ]
   where ppInstance :: (ECS.ContainerInstance, EC2.Instance) -> Doc
         ppInstance (ecsInst, ec2Inst) = Doc.vsep [
-              Doc.hyphen <+> (Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ ecsInst ^. ECS.ciEc2InstanceId)
+              Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ ecsInst ^. ECS.ciEc2InstanceId
             , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
                 Doc.field Doc.status "Status:" <$> ecsInst ^. ECS.ciStatus
               , Doc.field' "Connected:" <$> ecsInst ^. ECS.ciAgentConnected
@@ -55,7 +56,14 @@ pprintCluster cluster nodes = Doc.vsep [
               , Doc.field' "Running Tasks:" <$> ecsInst ^. ECS.ciRunningTasksCount
               , Doc.field' "Pending Tasks:" <$> ecsInst ^. ECS.ciPendingTasksCount
               , Doc.field Doc.defaultTime "Registered At:" <$> ecsInst ^. ECS.ciRegisteredAt
+              , Doc.listField ppInstanceAttr "Attributes:" $ ecsInst ^. ECS.ciAttributes
             ])
+          ]
+
+        ppInstanceAttr :: ECS.Attribute -> Doc
+        ppInstanceAttr attr = Doc.hsep $ catMaybes [
+              Just (Doc.bold . Doc.dullblue . Doc.pretty $ attr ^. ECS.aName)
+            , (\x -> Doc.pretty ("=" :: Text) <+> Doc.pretty x) <$> attr ^. ECS.aValue
           ]
 
 runClusterInspect :: ClusterInspectOpts -> GrootM IO ()

@@ -132,7 +132,7 @@ listField :: (a -> Doc) -> Text -> [a] -> Maybe Doc
 listField _ _   [] = Nothing
 listField f lbl xs = Just $ New.vsep [
     label lbl,
-    New.indent defaultIndent (New.vsep $ fmap f xs)
+    New.indent defaultIndent (New.vsep $ fmap (\x -> hyphen <+> f x) xs)
   ]
 
 listField' :: Pretty a => Text -> [a] -> Maybe Doc
