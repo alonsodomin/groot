@@ -7,21 +7,18 @@ module Groot.CLI.Service.Compose
      , runServiceDelete
      ) where
 
-import           Control.Exception.Lens
-import           Control.Lens           hiding (argument)
+import           Control.Lens        hiding (argument)
 import           Control.Monad.Catch
-import           Data.HashMap.Strict    (HashMap)
-import qualified Data.HashMap.Strict    as Map
-import           Data.Semigroup         ((<>))
+import           Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as Map
+import           Data.Semigroup      ((<>))
 import           Data.String
-import           Data.Text              (Text)
+import           Data.Text           (Text)
 import           Options.Applicative
 
 import           Groot.CLI.Common
 import           Groot.Compose
-import           Groot.Console
 import           Groot.Core
-import           Groot.Data.Text
 import           Groot.Exception
 import           Groot.Manifest
 import           Groot.Types
@@ -60,45 +57,25 @@ serviceComposeOpts = ServiceComposeOpts
                  <*> optional runModeOpt
                  <*> many serviceNameArg
 
--- Error handlers
-
-handleUndefinedService :: MonadConsole m => UndefinedService -> m ()
-handleUndefinedService (UndefinedService' serviceName) =
-  putError $ "Service" <+> (styled yellowStyle serviceName) <+> "has not been defined in compose file."
-
-handleDeploymentFailed :: MonadConsole m => FailedServiceDeployment -> m ()
-handleDeploymentFailed (FailedServiceDeployment' serviceRef clusterRef reason) =
-  putError $ "Failed to deploy service" <+> (styled yellowStyle $ toText serviceRef)
-    <+> "in cluster" <+> (styled yellowStyle $ toText clusterRef)
-    <> (maybe "" (\x -> " because" <+> (styled yellowStyle x)) reason)
-
-handleDeletionFailed :: MonadConsole m => FailedServiceDeletion -> m ()
-handleDeletionFailed (FailedServiceDeletion' serviceRef clusterRef) =
-  putError $ "Failed to delete service" <+> (styled yellowStyle $ toText serviceRef)
-    <+> "from cluster" <+> (styled yellowStyle $ toText clusterRef)
-
 -- Main functions
 
-selectServices :: MonadThrow m => [Text] -> HashMap Text ServiceDeployment -> m [NamedServiceDeployment]
-selectServices [] m = pure $ Map.toList m
-selectServices xs m = traverse selectService xs
+selectServices :: MonadThrow m => FilePath -> [Text] -> HashMap Text ServiceDeployment -> m [NamedServiceDeployment]
+selectServices _        [] m = pure $ Map.toList m
+selectServices manifest xs m = traverse selectService xs
   where selectService :: MonadThrow m => Text -> m NamedServiceDeployment
         selectService serviceName =
-          let dep = maybe (throwM $ undefinedService serviceName) pure $ Map.lookup serviceName m
+          let dep = maybe (throwM $ undefinedService serviceName manifest) pure $ Map.lookup serviceName m
               pairUp x = (serviceName,x)
           in pairUp <$> dep
 
 performAction :: Text -> (ServiceComposeCfg -> ServiceComposeM ()) -> ServiceComposeOpts -> GrootM IO ()
 performAction userMsg buildComposeAction opts = do
-  manifest      <- loadManifest $ manifestFile opts
-  serviceList   <- selectServices (serviceNames opts) $ manifest ^. gmServices
+  let manifestFileName = maybe defaultManifestFilePath id $ manifestFile opts
+  manifest      <- loadManifest manifestFileName
+  serviceList   <- selectServices manifestFileName (serviceNames opts) $ manifest ^. gmServices
   cfg           <- pure $ ServiceComposeCfg manifest (cluster opts) serviceList (runMode opts)
   composeAction <- pure $ buildComposeAction cfg
-  catches (interpretServiceComposeM userMsg composeAction cfg) [
-      handler _UndefinedService        handleUndefinedService
-    , handler _FailedServiceDeployment handleDeploymentFailed
-    , handler _FailedServiceDeletion   handleDeletionFailed
-    ]
+  interpretServiceComposeM userMsg composeAction cfg
 
 doDeployServices :: ServiceComposeCfg -> ServiceComposeM ()
 doDeployServices (ServiceComposeCfg _ clusterRef serviceList _) =

@@ -274,9 +274,8 @@ handleManifestParseError (ManifestParseError' file reason) =
   putError $ "Could not parse manifest file: " <> (styled blueStyle $ T.pack file) <> "\n"
     <> (styled yellowStyle reason)
 
-loadManifest :: (MonadIO m, MonadConsole m, MonadThrow m) => Maybe FilePath -> m GrootManifest
-loadManifest maybeFile = do
-  file   <- pure $ maybe defaultManifestFilePath id maybeFile
+loadManifest :: (MonadIO m, MonadConsole m, MonadThrow m) => FilePath -> m GrootManifest
+loadManifest file = do
   parsed <- liftIO $ decodeFileEither file
   case parsed of
     Left err       -> throwM $ manifestParseError file (fromString $ prettyPrintParseException err)

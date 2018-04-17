@@ -71,13 +71,13 @@ failedServiceDeletion serviceRef clusterRef =
   toException . FailedServiceDeletion $ FailedServiceDeletion' serviceRef clusterRef
 
 data UndefinedService =
-  UndefinedService' Text
+  UndefinedService' Text FilePath
   deriving (Eq, Typeable, Show)
 
 instance Exception UndefinedService
 
-undefinedService :: Text -> SomeException
-undefinedService = toException . UndefinedService . UndefinedService'
+undefinedService :: Text -> FilePath -> SomeException
+undefinedService service sourceFile = toException . UndefinedService $ UndefinedService' service sourceFile
 
 class AsServiceException t where
   _ServiceException :: Prism' t ServiceException

@@ -1,16 +1,24 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Groot.CLI.Service
      ( ServiceSubCmd
      , serviceCmds
      , runServiceCmd
      ) where
 
+import           Control.Exception.Lens
+import           Control.Monad.Catch
 import           Data.Semigroup            ((<>))
+import qualified Data.Text                 as T
 import           Options.Applicative
 
 import           Groot.CLI.Service.Compose
 import           Groot.CLI.Service.Events
 import           Groot.CLI.Service.Inspect
+import           Groot.Console
 import           Groot.Core
+import           Groot.Data.Text
+import           Groot.Exception
 
 data ServiceSubCmd =
     ServiceEventsCmd  ServiceEventOpts
@@ -41,10 +49,36 @@ serviceCmds = hsubparser
  <> command "inspect" (info serviceInspectCmd (progDesc "Inspect details of a given service."))
   )
 
+-- Error handlers
+
+handleUndefinedService :: MonadConsole m => UndefinedService -> m ()
+handleUndefinedService (UndefinedService' serviceName manifestFile) =
+  putError $ "Service" <+> (styled yellowStyle serviceName)
+    <+> "has not been defined in compose file:"
+    <+> (styled yellowStyle $ T.pack manifestFile)
+
+handleDeploymentFailed :: MonadConsole m => FailedServiceDeployment -> m ()
+handleDeploymentFailed (FailedServiceDeployment' serviceRef clusterRef reason) =
+  putError $ "Failed to deploy service" <+> (styled yellowStyle $ toText serviceRef)
+    <+> "in cluster" <+> (styled yellowStyle $ toText clusterRef)
+    <> (maybe "" (\x -> " because" <+> (styled yellowStyle x)) reason)
+
+handleDeletionFailed :: MonadConsole m => FailedServiceDeletion -> m ()
+handleDeletionFailed (FailedServiceDeletion' serviceRef clusterRef) =
+  putError $ "Failed to delete service" <+> (styled yellowStyle $ toText serviceRef)
+    <+> "from cluster" <+> (styled yellowStyle $ toText clusterRef)
+
+handleErrors :: GrootIO () -> GrootIO ()
+handleErrors action = catches action [
+    handler _UndefinedService        handleUndefinedService
+  , handler _FailedServiceDeployment handleDeploymentFailed
+  , handler _FailedServiceDeletion   handleDeletionFailed
+  ]
+
 -- run function
 
 runServiceCmd :: ServiceSubCmd -> GrootM IO ()
 runServiceCmd (ServiceEventsCmd eventsOpts)   = runServiceEvents  eventsOpts
-runServiceCmd (ServiceUpCmd     composeOpts)  = runServiceUp      composeOpts
-runServiceCmd (ServiceDeleteCmd composeOpts)  = runServiceDelete  composeOpts
+runServiceCmd (ServiceUpCmd     composeOpts)  = handleErrors $ runServiceUp      composeOpts
+runServiceCmd (ServiceDeleteCmd composeOpts)  = handleErrors $ runServiceDelete  composeOpts
 runServiceCmd (ServiceInspectCmd inspectOpts) = runServiceInspect inspectOpts
