@@ -26,24 +26,31 @@ import           Groot.Internal.PrettyPrint (Doc, defaultIndent, (<+>))
 import qualified Groot.Internal.PrettyPrint as Doc
 import           Groot.Types
 
-data ClusterInspectOpts = ClusterInspectOpts ClusterRef Bool
+data InspectFlag =
+  ShowInstanceAttrs
+  deriving (Eq, Show)
+
+showInstanceAttrsOpt :: Parser InspectFlag
+showInstanceAttrsOpt = Opts.flag' ShowInstanceAttrs
+                     ( Opts.long "show-instance-attrs"
+                    <> Opts.help "displays instance attributes" )
+
+inspectFlagOpts :: Parser [InspectFlag]
+inspectFlagOpts = Opts.many showInstanceAttrsOpt
+
+data ClusterInspectOpts = ClusterInspectOpts ClusterRef [InspectFlag]
   deriving (Eq, Show)
 
 clusterInspectOpts :: Parser ClusterInspectOpts
 clusterInspectOpts = ClusterInspectOpts
                   <$> clusterRefArg
-                  <*> showInstanceAttrsOpt
-
-showInstanceAttrsOpt :: Parser Bool
-showInstanceAttrsOpt = Opts.switch
-                     ( Opts.long "show-instance-attrs"
-                    <> Opts.help "displays instance attributes" )
+                  <*> inspectFlagOpts
 
 clusterRefArg :: Parser ClusterRef
 clusterRefArg = fromString <$> Opts.argument Opts.str (Opts.metavar "CLUSTER_NAME")
 
-pprintCluster :: ECS.Cluster -> [(ECS.ContainerInstance, EC2.Instance)] -> Bool -> Doc
-pprintCluster cluster nodes showInstanceAttrs = Doc.vsep [
+pprintCluster :: ECS.Cluster -> [(ECS.ContainerInstance, EC2.Instance)] -> [InspectFlag] -> Doc
+pprintCluster cluster nodes flags = Doc.vsep [
       Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ cluster ^. ECS.cClusterName
     , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
         Doc.field Doc.status "Status:" <$> cluster ^. ECS.cStatus
@@ -53,7 +60,9 @@ pprintCluster cluster nodes showInstanceAttrs = Doc.vsep [
       , Doc.listField ppInstance "Nodes:" nodes
     ])
   ]
-  where ppInstance :: (ECS.ContainerInstance, EC2.Instance) -> Doc
+  where showInstanceAttrs = elem ShowInstanceAttrs flags
+    
+        ppInstance :: (ECS.ContainerInstance, EC2.Instance) -> Doc
         ppInstance (ecsInst, ec2Inst) = Doc.vsep [
               Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ ecsInst ^. ECS.ciEc2InstanceId
             , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
@@ -75,7 +84,7 @@ pprintCluster cluster nodes showInstanceAttrs = Doc.vsep [
           ]
 
 runClusterInspect :: ClusterInspectOpts -> GrootM IO ()
-runClusterInspect (ClusterInspectOpts clusterRef showInstanceAttrs) = do
+runClusterInspect (ClusterInspectOpts clusterRef flags) = do
   env              <- ask
 
   (cluster, nodes) <- runResourceT . runAWS env $ do
@@ -85,4 +94,4 @@ runClusterInspect (ClusterInspectOpts clusterRef showInstanceAttrs) = do
     fromEc2     <- runConduit $ findEc2Instances ids =$ CL.consume
     return (clus, zip fromCluster fromEc2)
 
-  liftIO . Doc.putDoc $ pprintCluster cluster nodes showInstanceAttrs
+  liftIO . Doc.putDoc $ pprintCluster cluster nodes flags

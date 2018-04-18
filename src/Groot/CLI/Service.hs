@@ -69,7 +69,7 @@ handleDeletionFailed (FailedServiceDeletion' serviceRef clusterRef) =
     <+> "from cluster" <+> (styled yellowStyle $ toText clusterRef)
 
 handleErrors :: GrootIO () -> GrootIO ()
-handleErrors action = catches action [
+handleErrors act = catches act [
     handler _UndefinedService        handleUndefinedService
   , handler _FailedServiceDeployment handleDeploymentFailed
   , handler _FailedServiceDeletion   handleDeletionFailed
