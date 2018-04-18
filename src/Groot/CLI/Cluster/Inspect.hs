@@ -11,6 +11,7 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Reader
 import           Data.Conduit
 import qualified Data.Conduit.List          as CL
+import qualified Data.HashMap.Lazy          as Map
 import           Data.Maybe
 import           Data.Monoid
 import           Data.String
@@ -49,7 +50,7 @@ clusterInspectOpts = ClusterInspectOpts
 clusterRefArg :: Parser ClusterRef
 clusterRefArg = fromString <$> Opts.argument Opts.str (Opts.metavar "CLUSTER_NAME")
 
-pprintCluster :: ECS.Cluster -> [(ECS.ContainerInstance, EC2.Instance)] -> [InspectFlag] -> Doc
+pprintCluster :: ECS.Cluster -> [(ECS.ContainerInstance, Maybe EC2.Instance)] -> [InspectFlag] -> Doc
 pprintCluster cluster nodes flags = Doc.vsep [
       Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ cluster ^. ECS.cClusterName
     , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
@@ -61,14 +62,14 @@ pprintCluster cluster nodes flags = Doc.vsep [
     ])
   ]
   where showInstanceAttrs = elem ShowInstanceAttrs flags
-    
-        ppInstance :: (ECS.ContainerInstance, EC2.Instance) -> Doc
+
+        ppInstance :: (ECS.ContainerInstance, Maybe EC2.Instance) -> Doc
         ppInstance (ecsInst, ec2Inst) = Doc.vsep [
               Doc.bold . Doc.dullblue $ maybe mempty Doc.pretty $ ecsInst ^. ECS.ciEc2InstanceId
             , Doc.indent defaultIndent (Doc.vsep $ catMaybes [
                 Doc.field Doc.status "Status:" <$> ecsInst ^. ECS.ciStatus
               , Doc.field' "Connected:" <$> ecsInst ^. ECS.ciAgentConnected
-              , Doc.field' "Private IP:" <$> ec2Inst ^. EC2.insPrivateIPAddress
+              , Doc.field' "Private IP:" <$> (ec2Inst >>= view EC2.insPrivateIPAddress)
               , Doc.field' "Running Tasks:" <$> ecsInst ^. ECS.ciRunningTasksCount
               , Doc.field' "Pending Tasks:" <$> ecsInst ^. ECS.ciPendingTasksCount
               , Doc.field Doc.defaultTime "Registered At:" <$> ecsInst ^. ECS.ciRegisteredAt
@@ -92,6 +93,11 @@ runClusterInspect (ClusterInspectOpts clusterRef flags) = do
     fromCluster <- runConduit $ fetchInstances clusterRef =$ CL.consume
     ids         <- pure $ fmap EC2InstanceId $ catMaybes $ (view ECS.ciEc2InstanceId) <$> fromCluster
     fromEc2     <- runConduit $ findEc2Instances ids =$ CL.consume
-    return (clus, zip fromCluster fromEc2)
+    return (clus, pairInstances fromCluster fromEc2)
 
   liftIO . Doc.putDoc $ pprintCluster cluster nodes flags
+
+  where pairInstances :: [ECS.ContainerInstance] -> [EC2.Instance] -> [(ECS.ContainerInstance, Maybe EC2.Instance)]
+        pairInstances ecsInsts ec2Insts =
+          let ec2InstanceMap = Map.fromList $ (\x -> (x ^. EC2.insInstanceId, x)) <$> ec2Insts
+          in fmap (\x -> (x, (flip Map.lookup) ec2InstanceMap =<< (x ^. ECS.ciEc2InstanceId))) ecsInsts
