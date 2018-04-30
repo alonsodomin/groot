@@ -1,5 +1,6 @@
 name:                groot
 version:             0.0.1.0
+category:            AWS,Cloud
 github:              alonsodomin/groot
 author:              A. Alonso Dominguez
 maintainer:          alonso.domin@gmail.com
