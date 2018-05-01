@@ -8,18 +8,12 @@ Groot is a command line application with the purpose of remote managing AWS ECS 
 
 ## Installing
 
-Head over to the [Releases](https://github.com/alonsodomin/groot/releases) and download the binaries for your OS. There are
- pre-built binaries for 64bits Linux, Mac OS and Windows. It gets downloaded as a single binary file, copy into your own machine
- and place it in a folder under your `PATH` environment variable.
-
-For example, for Linux machines:
+You will need `cabal-install` installed in your system, you either get it by installing the package using your favourite
+ package manager or installing the Haskell Platform. Once you have it, just run:
 
 ```
-wget -O groot https://github.com/alonsodomin/groot/releases/download/v0.0.1.0/groot-linux
-mv groot /usr/local/bin/
+cabal install groot
 ```
-
-A more user friendly install process in on the works, someday I could get around to actually finish it.
 
 ## Building From Source
 
