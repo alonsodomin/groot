@@ -42,8 +42,7 @@ Groot supports several sub-commands, use the same `-h` flag to get some help on 
 
 ## Status
 
-Groot is a toy project started to further my knowledge of the Haskell programming language
- at the same time that I was solving a need for a proper tool to perform my most rutinary
+Groot is a toy project started to solve the need for a proper tool to perform my most rutinary
  tasks when managing ECS resources.
 
 Don't expect here the best Haskell code (and I should probably write more tests), if it serves
