@@ -5,7 +5,7 @@
 module Groot.Compose.Service
      ( ServiceComposeM
      , ServiceComposeCfg(..)
-     , RunMode(..)
+     , RunFlag(..)
      , deployService
      , deployServices
      , deleteServices
@@ -27,15 +27,15 @@ import           Groot.Core
 import           Groot.Manifest
 import           Groot.Types
 
-data RunMode = DryRun | Unattended
+data RunFlag = DryRun | Unattended
   deriving (Eq, Show, Enum, Ord)
 
-_DryRun :: Prism' RunMode Bool
+_DryRun :: Prism' RunFlag Bool
 _DryRun = prism (const DryRun) $ \case
   DryRun -> Right True
   x      -> Left x
 
-_Unattended :: Prism' RunMode Bool
+_Unattended :: Prism' RunFlag Bool
 _Unattended = prism (const Unattended) $ \case
   Unattended -> Right True
   x          -> Left x
@@ -44,7 +44,7 @@ data ServiceComposeCfg = ServiceComposeCfg
   { composeManifest :: GrootManifest
   , composeCluster  :: ClusterRef
   , composeServices :: [NamedServiceDeployment]
-  , composeRunMode  :: Maybe RunMode
+  , composeRunFlags :: [RunFlag]
   } deriving (Eq, Show)
 
 interpretServiceComposeM :: Text
@@ -52,14 +52,17 @@ interpretServiceComposeM :: Text
                          -> ServiceComposeCfg
                          -> GrootM IO ()
 interpretServiceComposeM userMsg action cfg =
-  let shouldConfirm   = maybe True (isn't _Unattended) (composeRunMode cfg)
-      isDryRun        = maybe False (\x -> not $ isn't _DryRun x) (composeRunMode cfg)
+  let hasRunFlag flag = flag `elem` (composeRunFlags cfg)
+      shouldConfirm   = not $ hasRunFlag Unattended
+      isDryRun        = hasRunFlag DryRun
       confirmMsg srvs = userMsg <> "\n"
                      <> (T.intercalate "\n" $ T.append "   - " . fst <$> srvs)
                      <> ".\nDo you want to continue? "
-      interpret       = if isDryRun then dryRunServiceCompose else awsServiceCompose
+      interpret       =
+        let execute = if isDryRun then dryRunServiceCompose else awsServiceCompose
+        in execute (composeManifest cfg) action
       performFor srvs =
         if shouldConfirm
-        then askUserToContinue (confirmMsg srvs) $ interpret (composeManifest cfg) action
-        else interpret (composeManifest cfg) action
+        then askUserToContinue (confirmMsg srvs) $ interpret
+        else interpret
   in hoist runResourceT $ performFor (composeServices cfg)
