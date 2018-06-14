@@ -6,6 +6,7 @@ module Groot.Core.Common where
 
 import           Control.Monad.Catch
 import           Control.Monad.Reader
+import Control.Monad.Trans.Control
 import           Control.Monad.Trans.Identity (IdentityT)
 import           Control.Monad.Trans.Maybe    (MaybeT)
 import           Control.Monad.Trans.Resource
@@ -32,7 +33,7 @@ mapGrootM :: (m a -> n b) -> GrootM m a -> GrootM n b
 mapGrootM = mapReaderT
 {-# INLINE mapGrootM #-}
 
-class (MonadBaseControl n m, MonadIO m, MonadCatch m, MonadReader Env m) => MonadGroot n m where
+class (MonadIO m, MonadCatch m, MonadReader Env m) => MonadGroot n m where
   liftGroot :: GrootM n a -> m a
 
 instance MonadGroot IO GrootIO where

@@ -56,10 +56,10 @@ fetchClusters' clusterRefs = do
   return $ res ^. ECS.dcrsClusters
 
 -- |Builds a Conduit with all the clusters available
-fetchClusters :: MonadAWS m => Source m ECS.Cluster
+fetchClusters :: MonadAWS m => ConduitT () ECS.Cluster m ()
 fetchClusters =
   paginate ECS.listClusters
-    =$= CL.concatMapM (\x -> fetchClusters' (ClusterRef <$> x ^. ECS.lcrsClusterARNs))
+    .| CL.concatMapM (\x -> fetchClusters' (ClusterRef <$> x ^. ECS.lcrsClusterARNs))
 
 -- |Tries to find a given cluster by its reference
 findCluster :: MonadAWS m => ClusterRef -> MaybeT m ECS.Cluster

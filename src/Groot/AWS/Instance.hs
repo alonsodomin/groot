@@ -41,34 +41,35 @@ fetchInstanceBatch instanceRefs clusterRef =
   in handleClusterNotFoundException clusterRef fetch
 
 -- |Builds a Conduit with all the task instances in a given cluster
-fetchInstances :: MonadAWS m => ClusterRef -> Source m ECS.ContainerInstance
+fetchInstances :: MonadAWS m => ClusterRef -> ConduitT () ECS.ContainerInstance m ()
 fetchInstances cref@(ClusterRef ref) =
-  handleClusterNotFoundException cref (paginate (ECS.lciCluster ?~ ref $ ECS.listContainerInstances))
-    =$= CL.concatMapM (\x -> fetchInstanceBatch (ContainerInstanceRef <$> x ^. ECS.lcirsContainerInstanceARNs) cref)
+  --handleClusterNotFoundException cref (paginate (ECS.lciCluster ?~ ref $ ECS.listContainerInstances))
+  paginate (ECS.lciCluster ?~ ref $ ECS.listContainerInstances)
+    .| CL.concatMapM (\x -> fetchInstanceBatch (ContainerInstanceRef <$> x ^. ECS.lcirsContainerInstanceARNs) cref)
 
-fetchInstancesC :: MonadAWS m => [ContainerInstanceRef] -> Conduit ClusterRef m ECS.ContainerInstance
+fetchInstancesC :: MonadAWS m => [ContainerInstanceRef] -> ConduitT ClusterRef ECS.ContainerInstance m ()
 fetchInstancesC instances =
-  awaitForever (\cref -> yieldM $ fetchInstanceBatch instances cref) =$= CL.concat
+  awaitForever (\cref -> yieldM $ fetchInstanceBatch instances cref) .| CL.concat
 
 -- |Builds a Conduit with all the task instances from all the clusters
-fetchAllInstances :: MonadAWS m => Source m ECS.ContainerInstance
+fetchAllInstances :: MonadAWS m => ConduitT () ECS.ContainerInstance m ()
 fetchAllInstances =
   let fetchAllInstancesC = awaitForever (\cref -> toProducer $ fetchInstances cref)
   in fetchClusters
-     =$= CL.mapMaybe clusterName
-     =$= fetchAllInstancesC
+     .| CL.mapMaybe clusterName
+     .| fetchAllInstancesC
 
 -- |Efficiently obtain all task instances whilst filtering a given cluster reference
 -- or a set of instance references
-findInstances :: MonadAWS m => [ContainerInstanceRef] -> Maybe ClusterRef -> Source m ECS.ContainerInstance
+findInstances :: MonadAWS m => [ContainerInstanceRef] -> Maybe ClusterRef -> ConduitT () ECS.ContainerInstance m ()
 findInstances instances (Just clusterRef) =
-  yield clusterRef =$= fetchInstancesC instances
+  yield clusterRef .| fetchInstancesC instances
 findInstances instances _ =
-  fetchClusters =$= CL.mapMaybe clusterName =$= fetchInstancesC instances
+  fetchClusters .| CL.mapMaybe clusterName .| fetchInstancesC instances
 
 -- |Same as 'findInstances' but for a single instance reference
 findInstance :: MonadAWS m => ContainerInstanceRef -> Maybe ClusterRef -> MaybeT m ECS.ContainerInstance
-findInstance iref cref = MaybeT . runConduit $ findInstances [iref] cref =$= CL.head
+findInstance iref cref = MaybeT . runConduit $ findInstances [iref] cref .| CL.head
 
 -- |Same as 'findInstance' but will throw an 'InstanceNotFound' in the monad 'm'
 -- in case the given instance reference does not exist
@@ -79,7 +80,7 @@ getInstance iref cref = do
     Just x  -> return x
     Nothing -> throwM $ instanceNotFound iref cref
 
-findEc2Instances :: MonadAWS m => [EC2InstanceId] -> Source m EC2.Instance
+findEc2Instances :: MonadAWS m => [EC2InstanceId] -> ConduitT () EC2.Instance m ()
 findEc2Instances ids = paginate (EC2.diiInstanceIds .~ (toText <$> ids) $ EC2.describeInstances)
-  =$= CL.concatMap (\x -> x ^. EC2.dirsReservations)
-  =$= CL.concatMap (\x -> x ^. EC2.rInstances)
+  .| CL.concatMap (\x -> x ^. EC2.dirsReservations)
+  .| CL.concatMap (\x -> x ^. EC2.rInstances)

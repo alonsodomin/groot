@@ -8,13 +8,10 @@ import           Data.Conduit
 chanSource :: MonadIO m
            => chan
            -> (chan -> STM (Maybe a))
-           -> (chan -> IO ())
            -> Source m a
-chanSource ch reader closer = loop
+chanSource ch reader = loop
   where loop = do
           a <- liftIO . atomically $ reader ch
           case a of
-            Just x  -> yieldOr x close >> loop
+            Just x  -> yield x >> loop
             Nothing -> return ()
-
-        close = liftIO $ closer ch

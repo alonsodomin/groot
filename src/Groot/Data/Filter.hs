@@ -57,11 +57,11 @@ filterM = filterOnM id
 
 filterC :: (Monad m, Filter p)
         => p
-        -> Conduit (FilterItem p) m (FilterItem p)
+        -> ConduitT (FilterItem p) (FilterItem p) m ()
 filterC = filterOnC id
 
 filterOnC :: (Monad m, Filter p)
           => (a -> FilterItem p)
           -> p
-          -> Conduit a m a
+          -> ConduitT a a m ()
 filterOnC f p = CL.filter (\x -> matches p $ f x)
