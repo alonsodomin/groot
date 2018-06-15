@@ -68,7 +68,7 @@ selectServices manifest xs m = traverse selectService xs
               pairUp x = (serviceName,x)
           in pairUp <$> dep
 
-performAction :: Text -> (ServiceComposeCfg -> ServiceComposeM ()) -> ServiceComposeOpts -> GrootM IO ()
+performAction :: Text -> (ServiceComposeCfg -> ServiceComposeM ()) -> ServiceComposeOpts -> GrootIO ()
 performAction userMsg buildComposeAction opts = do
   let manifestFileName = maybe defaultManifestFilePath id $ manifestFile opts
   manifest      <- loadManifest manifestFileName
@@ -85,8 +85,8 @@ doDeleteServices :: ServiceComposeCfg -> ServiceComposeM ()
 doDeleteServices (ServiceComposeCfg _ clusterRef serviceList _) =
   deleteServices clusterRef serviceList
 
-runServiceUp :: ServiceComposeOpts -> GrootM IO ()
+runServiceUp :: ServiceComposeOpts -> GrootIO ()
 runServiceUp = performAction "This will start deployment of the following services:" doDeployServices
 
-runServiceDelete :: ServiceComposeOpts -> GrootM IO ()
+runServiceDelete :: ServiceComposeOpts -> GrootIO ()
 runServiceDelete = performAction "This will delete the following services:" doDeleteServices

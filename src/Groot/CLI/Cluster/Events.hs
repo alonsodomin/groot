@@ -4,12 +4,10 @@ module Groot.CLI.Cluster.Events
      , runClusterEvents
      ) where
 
-import           Control.Monad.Reader
 import           Data.Conduit
 import qualified Data.Conduit.List    as CL
 import           Data.Semigroup       ((<>))
 import           Data.String
-import           Network.AWS
 import           Options.Applicative
 
 import           Groot.CLI.Common
@@ -35,11 +33,10 @@ clusterEventsOpt = ClusterEventOptions
                 <*> eventCountOpt
                 <*> many clusterRefArg
 
-runClusterEvents :: ClusterEventOptions -> GrootM IO ()
+runClusterEvents :: ClusterEventOptions -> GrootIO ()
 runClusterEvents (ClusterEventOptions follow lastN []) = do
-  env <- ask
-  clusterRefs <- runResourceT . runAWS env . sourceToList $ fetchClusters =$= CL.mapMaybe clusterName
+  clusterRefs <- runGrootResource . awsToGrootT . sourceToList $ fetchClusters .| CL.mapMaybe clusterName
   runClusterEvents (ClusterEventOptions follow lastN clusterRefs)
-runClusterEvents (ClusterEventOptions follow lastN clusterRefs) = mapReaderT runResourceT $ do
+runClusterEvents (ClusterEventOptions follow lastN clusterRefs) = runGrootResource $ do
   eventSource <- clusterServiceEventLog clusterRefs follow lastN
   runConduit $ eventSource .| printEventSink

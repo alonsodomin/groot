@@ -48,7 +48,7 @@ listCmds = hsubparser
  <> command "services"  (info listServicesCmd  (progDesc "List services"))
   )
 
-runListCmd :: ListSubCmd -> GrootM IO ()
+runListCmd :: ListSubCmd -> GrootIO ()
 runListCmd (ListClustersCmd clusterId)  = printClusterSummary clusterId
 runListCmd (ListInstancesCmd clusterId) = printInstanceSummary clusterId
 runListCmd (ListTasksCmd opts)          = printTaskSummary opts

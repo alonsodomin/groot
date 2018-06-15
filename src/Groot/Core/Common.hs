@@ -6,8 +6,9 @@ module Groot.Core.Common where
 
 import           Control.Applicative
 import           Control.Monad.Catch
+import           Control.Monad.IO.Unlift
+import           Control.Monad.Morph
 import           Control.Monad.Reader
-import           Control.Monad.Trans.Control
 import           Control.Monad.Trans.Identity (IdentityT)
 import           Control.Monad.Trans.Maybe    (MaybeT)
 import           Control.Monad.Trans.Resource
@@ -20,13 +21,17 @@ type GrootM = GrootT
 
 type GrootAWS = GrootT AWS
 type GrootIO = GrootT IO
+type GrootResource = GrootT (ResourceT IO)
+
+runGrootResource :: GrootResource a -> GrootIO a
+runGrootResource = hoist runResourceT
 
 liftGrootT :: m a -> GrootT m a
 liftGrootT m = GrootT . ReaderT $ const m
 {-# INLINE liftGrootT #-}
 
 mapGrootT :: (m a -> n b) -> GrootT m a -> GrootT n b
-mapGrootT f m = GrootT $ mapReaderT f $ runGrootT m
+mapGrootT f m = GrootT . mapReaderT f $ runGrootT m
 {-# INLINE mapGrootT #-}
 
 mapGrootM :: (m a -> n b) -> GrootT m a -> GrootT n b
@@ -36,6 +41,9 @@ mapGrootM = mapGrootT
 
 instance Functor m => Functor (GrootT m) where
   fmap f = mapGrootT (fmap f)
+
+instance MFunctor GrootT where
+  hoist f m = GrootT . hoist f $ runGrootT m
 
 instance Applicative m => Applicative (GrootT m) where
   pure = liftGrootT . pure
@@ -56,6 +64,9 @@ instance MonadTrans GrootT where
 
 instance MonadIO m => MonadIO (GrootT m) where
   liftIO = lift . liftIO
+
+instance MonadUnliftIO m => MonadUnliftIO (GrootT m) where
+  askUnliftIO = GrootT $ withUnliftIO $ \u -> return (UnliftIO (unliftIO u . runGrootT))
 
 instance MonadThrow m => MonadThrow (GrootT m) where
   throwM = lift . throwM
@@ -79,18 +90,8 @@ awsToGrootT act = GrootT $ do
   env <- ask
   runAWS env act
 
-awsToGrootM :: MonadResource m => AWS a -> GrootT m a
-awsToGrootM = awsToGrootT
-{-# INLINE awsToGrootM #-}
-{-# DEPRECATED awsToGrootM "Use awsToGrootM instead" #-}
-
 awsToGrootT_ :: MonadResource m => AWS a -> GrootT m ()
 awsToGrootT_ aws = (\_ -> pure ()) =<< awsToGrootT aws
-
-awsToGrootM_ :: MonadResource m => AWS a -> GrootT m ()
-awsToGrootM_ = awsToGrootT_
-{-# INLINE awsToGrootM_ #-}
-{-# DEPRECATED awsToGrootM_ "Use awsToGrootT_ instead" #-}
 
 evalGrootT :: Monad m => GrootT m a -> Env -> m a
 evalGrootT m = runReaderT (runGrootT m)

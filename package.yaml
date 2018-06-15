@@ -47,7 +47,9 @@ dependencies:
 - text
 - these
 - time
-- transformers      
+- transformers
+- unliftio
+- unliftio-core
 - unordered-containers               
 - uuid
 - vector

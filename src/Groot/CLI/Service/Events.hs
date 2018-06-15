@@ -9,17 +9,15 @@ module Groot.CLI.Service.Events
      , runServiceEvents
      ) where
 
-import           Control.Monad.Catch
 import           Control.Monad.IO.Class
+import           Control.Monad.Morph
 import           Control.Monad.Reader
-import           Control.Monad.Trans.Control
 import           Control.Monad.Trans.Resource
 import           Data.Conduit
 import           Data.Foldable
 import           Data.List.NonEmpty           (NonEmpty ((:|)), intersperse)
 import           Data.Semigroup               ((<>))
 import           Data.String
-import           Data.Typeable
 import           Network.AWS
 import qualified Network.AWS.ECS              as ECS
 import           Options.Applicative
@@ -54,20 +52,20 @@ serviceEventsOpt = ServiceEventOpts
                <*> eventCountOpt
                <*> serviceRefArgList
 
-fetchEvents :: (Typeable mi, MonadResource mi, MonadBaseControl IO mi, MonadUnliftIO mi, MonadCatch mi, MonadConsole mi, MonadIO mo, Foldable f)
+fetchEvents :: (MonadIO mi, Foldable f)
             => f ContainerServiceCoords
             -> Bool
             -> Int
-            -> GrootM mi (Source mo ECS.ServiceEvent)
+            -> GrootResource (ConduitT () ECS.ServiceEvent mi ())
 fetchEvents coords inf = serviceEventLog (toList coords) inf
 
-runServiceEvents :: ServiceEventOpts -> GrootM IO ()
-runServiceEvents (ServiceEventOpts (Just clusterRef) follow lastN serviceRefs) = mapReaderT runResourceT $ do
+runServiceEvents :: ServiceEventOpts -> GrootIO ()
+runServiceEvents (ServiceEventOpts (Just clusterRef) follow lastN serviceRefs) = runGrootResource $ do
   eventSource <- fetchEvents (fmap (\x -> ContainerServiceCoords x clusterRef) serviceRefs) follow lastN
-  runConduit $ eventSource =$ printEventSink
-runServiceEvents (ServiceEventOpts Nothing follow lastN serviceRefs) = mapReaderT runResourceT $ do
+  runConduit $ eventSource .| printEventSink
+runServiceEvents (ServiceEventOpts Nothing follow lastN serviceRefs) = runGrootResource $ do
   env         <- ask
   putInfo $ "Scanning clusters for services: " <> (fold . intersperse (styleless ", ") $ (styled yellowStyle . toText) <$> serviceRefs)
   coords      <- runAWS env $ findServiceCoords serviceRefs
   eventSource <- fetchEvents coords follow lastN
-  runConduit $ eventSource =$ printEventSink
+  runConduit $ eventSource .| printEventSink

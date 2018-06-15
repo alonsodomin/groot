@@ -52,10 +52,9 @@ summarizeClusters (Just c) = maybeToList <$> do
   cl <- runMaybeT (findCluster c)
   return $ cl >>= summarize
 
-printClusterSummary :: Maybe ClusterRef -> GrootM IO ()
-printClusterSummary x = do
-  env  <- ask
-  desc <- runResourceT . runAWS env $ summarizeClusters x
+printClusterSummary :: Maybe ClusterRef -> GrootIO ()
+printClusterSummary x = runGrootResource $ do
+  desc <- awsToGrootT $ summarizeClusters x
   case desc of
     [] -> putWarn ("No clusters found" :: Text)
     xs -> liftIO $ printTable xs

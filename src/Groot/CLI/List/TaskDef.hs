@@ -67,14 +67,13 @@ summarizeTaskDefs filters =
      .| CL.mapMaybe summarize
      .| CL.consume
 
-printTaskDefsSummary :: ListTaskDefsOpts -> GrootM IO ()
+printTaskDefsSummary :: ListTaskDefsOpts -> GrootIO ()
 printTaskDefsSummary (ListTaskDefsOpts showInactive fam) =
   let statusFilter = if showInactive then [TDFStatus TDSInactive] else []
       familyFilter = maybeToList $ TDFFamily <$> fam
       filters      = statusFilter ++ familyFilter
-  in do
-    env  <- ask
-    desc <- runResourceT . runAWS env $ summarizeTaskDefs filters
+  in runGrootResource $ do
+    desc <- awsToGrootT $ summarizeTaskDefs filters
     case desc of
       [] -> putWarn ("No task definitions found" :: Text)
       xs -> liftIO $ printTable xs

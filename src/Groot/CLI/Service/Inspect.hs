@@ -100,8 +100,8 @@ pprintService service = Doc.vsep [
            , Doc.pretty <$> pc ^. ECS.pcExpression
          ]
 
-runServiceInspect :: ServiceInspectOpts -> GrootM IO ()
-runServiceInspect (ServiceInspectOpts clusterRef serviceRef) = do
+runServiceInspect :: ServiceInspectOpts -> GrootIO ()
+runServiceInspect (ServiceInspectOpts clusterRef serviceRef) = GrootT $ do
   env <- ask
   case clusterRef of
     Nothing -> putInfo $ "Scanning clusters for service " <> (styled yellowStyle $ toText serviceRef)

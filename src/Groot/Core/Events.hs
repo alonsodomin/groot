@@ -15,7 +15,6 @@ import           Control.Concurrent.STM
 import           Control.Concurrent.STM.Delay
 import           Control.Concurrent.STM.TBMChan
 import           Control.Exception.Lens
-import qualified Control.Exception.Lifted       as Lifted
 import           Control.Lens                   hiding (argument)
 import           Control.Monad
 import           Control.Monad.Catch
@@ -34,6 +33,7 @@ import           Data.Time
 import           Data.Typeable
 import           Network.AWS                    hiding (await)
 import qualified Network.AWS.ECS                as ECS
+import qualified UnliftIO                       as Lifted
 
 import           Groot.AWS
 import           Groot.Console
@@ -83,7 +83,6 @@ pollServiceEvents (ContainerServiceCoords serviceRef clusterRef) forvr lastN cha
 
 serviceEventLog :: Typeable mi
                 => MonadResource mi
-                => MonadBaseControl IO mi
                 => MonadUnliftIO mi
                 => MonadCatch mi
                 => MonadReader e mi
@@ -135,7 +134,6 @@ serviceEventLog coords inf lastN = do
 
 clusterServiceEventLog :: Typeable mi
                        => MonadResource mi
-                       => MonadBaseControl IO mi
                        => MonadUnliftIO mi
                        => MonadCatch mi
                        => MonadIO mo

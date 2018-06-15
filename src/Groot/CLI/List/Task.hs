@@ -74,10 +74,9 @@ summarizeTasks opts = sourceToList $ taskSource opts .| annotateTask .| CL.mapMa
         taskSource (ListTaskOpts (Just cid) Nothing)           = fetchTasks cid
         taskSource (ListTaskOpts cref       (Just serviceRef)) = fetchServiceTasks cref serviceRef
 
-printTaskSummary :: ListTaskOpts -> GrootM IO ()
-printTaskSummary opts = do
-  env  <- ask
-  desc <- runResourceT . runAWS env $ summarizeTasks opts
+printTaskSummary :: ListTaskOpts -> GrootIO ()
+printTaskSummary opts = runGrootResource $ do
+  desc <- awsToGrootT $ summarizeTasks opts
   case desc of
     [] -> putWarn ("No tasks found" :: Text)
     xs -> liftIO $ printTable xs

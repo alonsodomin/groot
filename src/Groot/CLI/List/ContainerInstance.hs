@@ -95,10 +95,9 @@ summarizeInstances cId =
   where instanceSource Nothing  = fetchAllInstances
         instanceSource (Just x) = fetchInstances x
 
-printInstanceSummary :: Maybe ClusterRef -> GrootM IO ()
-printInstanceSummary cId = do
-  env  <- ask
-  desc <- runResourceT . runAWS env $ summarizeInstances cId
+printInstanceSummary :: Maybe ClusterRef -> GrootIO ()
+printInstanceSummary cId = runGrootResource $ do
+  desc <- awsToGrootT $ summarizeInstances cId
   case desc of
     [] -> putWarn ("No container instances found" :: Text)
     xs -> liftIO $ printTable xs

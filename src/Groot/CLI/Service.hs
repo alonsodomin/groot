@@ -77,7 +77,7 @@ handleErrors act = catches act [
 
 -- run function
 
-runServiceCmd :: ServiceSubCmd -> GrootM IO ()
+runServiceCmd :: ServiceSubCmd -> GrootIO ()
 runServiceCmd (ServiceEventsCmd eventsOpts)   = runServiceEvents  eventsOpts
 runServiceCmd (ServiceUpCmd     composeOpts)  = handleErrors $ runServiceUp      composeOpts
 runServiceCmd (ServiceDeleteCmd composeOpts)  = handleErrors $ runServiceDelete  composeOpts

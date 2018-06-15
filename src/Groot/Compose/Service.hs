@@ -50,7 +50,7 @@ data ServiceComposeCfg = ServiceComposeCfg
 interpretServiceComposeM :: Text
                          -> ServiceComposeM ()
                          -> ServiceComposeCfg
-                         -> GrootM IO ()
+                         -> GrootIO ()
 interpretServiceComposeM userMsg action cfg =
   let hasRunFlag flag = flag `elem` (composeRunFlags cfg)
       shouldConfirm   = not $ hasRunFlag Unattended
