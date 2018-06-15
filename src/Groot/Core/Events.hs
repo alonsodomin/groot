@@ -37,7 +37,6 @@ import qualified UnliftIO                       as Lifted
 
 import           Groot.AWS
 import           Groot.Console
-import           Groot.Data.Conduit.STM
 import           Groot.Data.Filter
 import           Groot.Data.Text
 import           Groot.Exception

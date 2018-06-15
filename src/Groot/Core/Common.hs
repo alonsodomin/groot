@@ -2,7 +2,17 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Groot.Core.Common where
+module Groot.Core.Common 
+     ( GrootT(..)
+     , GrootIO
+     , GrootResource
+     , MonadGroot(..)
+     , mapGrootT
+     , awsResource
+     , awsResource_
+     , runGrootResource
+     , runGroot
+     ) where
 
 import           Control.Applicative
 import           Control.Monad.Catch
@@ -16,15 +26,9 @@ import           Control.Monad.Trans.State    (StateT)
 import           Network.AWS
 
 newtype GrootT m a = GrootT { runGrootT :: ReaderT Env m a }
-type GrootM = GrootT
-{-# DEPRECATED GrootM "Use GrootT instead" #-}
 
-type GrootAWS = GrootT AWS
 type GrootIO = GrootT IO
 type GrootResource = GrootT (ResourceT IO)
-
-runGrootResource :: GrootResource a -> GrootIO a
-runGrootResource = hoist runResourceT
 
 liftGrootT :: m a -> GrootT m a
 liftGrootT m = GrootT . ReaderT $ const m
@@ -33,11 +37,6 @@ liftGrootT m = GrootT . ReaderT $ const m
 mapGrootT :: (m a -> n b) -> GrootT m a -> GrootT n b
 mapGrootT f m = GrootT . mapReaderT f $ runGrootT m
 {-# INLINE mapGrootT #-}
-
-mapGrootM :: (m a -> n b) -> GrootT m a -> GrootT n b
-mapGrootM = mapGrootT
-{-# INLINE mapGrootM #-}
-{-# DEPRECATED mapGrootM "Use mapGrootT instead" #-}
 
 instance Functor m => Functor (GrootT m) where
   fmap f = mapGrootT (fmap f)
@@ -85,22 +84,23 @@ instance MonadResource m => MonadResource (GrootT m) where
 instance MonadAWS m => MonadAWS (GrootT m) where
   liftAWS = lift . liftAWS
 
-awsToGrootT :: MonadResource m => AWS a -> GrootT m a
-awsToGrootT act = GrootT $ do
+awsResource :: MonadResource m => AWS a -> GrootT m a
+awsResource aws = GrootT $ do
   env <- ask
-  runAWS env act
+  runAWS env aws
+{-# INLINE awsResource #-}
 
-awsToGrootT_ :: MonadResource m => AWS a -> GrootT m ()
-awsToGrootT_ aws = (\_ -> pure ()) =<< awsToGrootT aws
+awsResource_ :: MonadResource m => AWS a -> GrootT m ()
+awsResource_ aws = void $ awsResource aws
+{-# INLINE awsResource_ #-}
 
-evalGrootT :: Monad m => GrootT m a -> Env -> m a
-evalGrootT m = runReaderT (runGrootT m)
-{-# INLINE evalGrootT #-}
+runGrootResource :: GrootResource a -> GrootIO a
+runGrootResource = hoist runResourceT
+{-# INLINE runGrootResource #-}
 
 runGroot :: Monad m => GrootT m a -> Env -> m a
-runGroot = evalGrootT
+runGroot m = runReaderT (runGrootT m)
 {-# INLINE runGroot #-}
-{-# DEPRECATED runGroot "Use evalGrootT instead" #-}
 
 class (MonadIO m, MonadCatch m, MonadReader Env m) => MonadGroot n m where
   liftGroot :: GrootT n a -> m a

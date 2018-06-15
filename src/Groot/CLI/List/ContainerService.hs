@@ -63,7 +63,7 @@ summarizeServices clusterId =
 
 printServiceSummary :: Maybe ClusterRef -> GrootIO ()
 printServiceSummary clusterId = runGrootResource $ do
-  desc <- awsToGrootT $ summarizeServices clusterId
+  desc <- awsResource $ summarizeServices clusterId
   case desc of
     [] -> putWarn ("No services found" :: Text)
     xs -> liftIO $ printTable xs

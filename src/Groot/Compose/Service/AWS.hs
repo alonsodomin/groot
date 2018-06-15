@@ -253,8 +253,7 @@ serviceExists' :: MonadResource m
                -> ClusterRef
                -> GrootT m Bool
 serviceExists' serviceName clusterRef = do
-  env <- ask
-  hoist (runAWS env) $ awsToGrootT $ (maybe False (const True) <$> check)
+  awsResource $ (maybe False (const True) <$> check)
   where foundServices = findService (ContainerServiceRef serviceName) (Just clusterRef)
         check         = runMaybeT $ filterM isActiveContainerService foundServices
 
@@ -332,7 +331,7 @@ removeService' service@(serviceName, _) clusterRef = do
 
   case current of
     Nothing -> throwM $ serviceNotFound csRef (Just clusterRef)
-    Just  c -> do
+    Just  _ -> do
       updateReq <- pure $ ECS.usDesiredCount ?~ 0 $ ECS.usCluster ?~ (toText clusterRef) $ ECS.updateService serviceName
       runAWS env $ send updateReq
       deleteReq <- pure $ deleteServiceReq clusterRef service

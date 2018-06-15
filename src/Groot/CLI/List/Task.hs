@@ -76,7 +76,7 @@ summarizeTasks opts = sourceToList $ taskSource opts .| annotateTask .| CL.mapMa
 
 printTaskSummary :: ListTaskOpts -> GrootIO ()
 printTaskSummary opts = runGrootResource $ do
-  desc <- awsToGrootT $ summarizeTasks opts
+  desc <- awsResource $ summarizeTasks opts
   case desc of
     [] -> putWarn ("No tasks found" :: Text)
     xs -> liftIO $ printTable xs

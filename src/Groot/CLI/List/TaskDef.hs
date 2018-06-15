@@ -73,7 +73,7 @@ printTaskDefsSummary (ListTaskDefsOpts showInactive fam) =
       familyFilter = maybeToList $ TDFFamily <$> fam
       filters      = statusFilter ++ familyFilter
   in runGrootResource $ do
-    desc <- awsToGrootT $ summarizeTaskDefs filters
+    desc <- awsResource $ summarizeTaskDefs filters
     case desc of
       [] -> putWarn ("No task definitions found" :: Text)
       xs -> liftIO $ printTable xs
