@@ -47,7 +47,7 @@ instance HasSummary ECS.Cluster ClusterSummary where
            cInstances = cls ^. ECS.cRegisteredContainerInstancesCount
 
 summarizeClusters :: Maybe ClusterRef -> AWS [ClusterSummary]
-summarizeClusters Nothing  = runConduit $ fetchClusters =$= CL.mapMaybe summarize =$ CL.consume
+summarizeClusters Nothing  = runConduit $ fetchClusters .| CL.mapMaybe summarize .| CL.consume
 summarizeClusters (Just c) = maybeToList <$> do
   cl <- runMaybeT (findCluster c)
   return $ cl >>= summarize

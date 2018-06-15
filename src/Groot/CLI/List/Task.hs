@@ -63,13 +63,13 @@ instance HasSummary TaskAndRelatives TaskSummary where
           tStartedAt  = pure $ maybe "" show $ t ^. ECS.tStartedAt
           tStoppedAt  = pure $ maybe "" show $ t ^. ECS.tStoppedAt
 
-annotateTask :: MonadAWS m => Conduit ECS.Task m TaskAndRelatives
+annotateTask :: MonadAWS m => ConduitT ECS.Task TaskAndRelatives m ()
 annotateTask = CL.mapMaybeM (\t -> runMaybeT $
     (TR t) <$> taskInstance t
   )
 
 summarizeTasks :: ListTaskOpts -> AWS [TaskSummary]
-summarizeTasks opts = sourceToList $ taskSource opts =$= annotateTask =$= CL.mapMaybe summarize
+summarizeTasks opts = sourceToList $ taskSource opts .| annotateTask .| CL.mapMaybe summarize
   where taskSource (ListTaskOpts Nothing    Nothing)           = fetchAllTasks
         taskSource (ListTaskOpts (Just cid) Nothing)           = fetchTasks cid
         taskSource (ListTaskOpts cref       (Just serviceRef)) = fetchServiceTasks cref serviceRef

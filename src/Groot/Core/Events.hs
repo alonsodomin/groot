@@ -26,7 +26,7 @@ import           Control.Monad.Trans.Resource
 import           Control.Monad.Trans.State.Lazy
 import           Data.Conduit
 import qualified Data.Conduit.List              as CL
-import Data.Conduit.TMChan
+import           Data.Conduit.TMChan
 import           Data.Maybe                     (listToMaybe)
 import           Data.Text                      (Text)
 import qualified Data.Text                      as T

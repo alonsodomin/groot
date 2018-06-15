@@ -64,8 +64,8 @@ instance HasSummary ECS.TaskDefinition TaskDefSummary where
 summarizeTaskDefs :: [TaskDefFilter] -> AWS [TaskDefSummary]
 summarizeTaskDefs filters =
   runConduit $ (fetchTaskDefs filters)
-     =$= CL.mapMaybe summarize
-     =$ CL.consume
+     .| CL.mapMaybe summarize
+     .| CL.consume
 
 printTaskDefsSummary :: ListTaskDefsOpts -> GrootM IO ()
 printTaskDefsSummary (ListTaskDefsOpts showInactive fam) =

@@ -4,37 +4,105 @@
 
 module Groot.Core.Common where
 
+import           Control.Applicative
 import           Control.Monad.Catch
 import           Control.Monad.Reader
-import Control.Monad.Trans.Control
+import           Control.Monad.Trans.Control
 import           Control.Monad.Trans.Identity (IdentityT)
 import           Control.Monad.Trans.Maybe    (MaybeT)
 import           Control.Monad.Trans.Resource
 import           Control.Monad.Trans.State    (StateT)
 import           Network.AWS
 
-type GrootM = ReaderT Env
-type GrootAWS = GrootM AWS
-type GrootIO = GrootM IO
+newtype GrootT m a = GrootT { runGrootT :: ReaderT Env m a }
+type GrootM = GrootT
+{-# DEPRECATED GrootM "Use GrootT instead" #-}
 
-awsToGrootM :: (MonadResource m, MonadBaseControl IO m) => AWS a -> GrootM m a
-awsToGrootM act = do
+type GrootAWS = GrootT AWS
+type GrootIO = GrootT IO
+
+liftGrootT :: m a -> GrootT m a
+liftGrootT m = GrootT . ReaderT $ const m
+{-# INLINE liftGrootT #-}
+
+mapGrootT :: (m a -> n b) -> GrootT m a -> GrootT n b
+mapGrootT f m = GrootT $ mapReaderT f $ runGrootT m
+{-# INLINE mapGrootT #-}
+
+mapGrootM :: (m a -> n b) -> GrootT m a -> GrootT n b
+mapGrootM = mapGrootT
+{-# INLINE mapGrootM #-}
+{-# DEPRECATED mapGrootM "Use mapGrootT instead" #-}
+
+instance Functor m => Functor (GrootT m) where
+  fmap f = mapGrootT (fmap f)
+
+instance Applicative m => Applicative (GrootT m) where
+  pure = liftGrootT . pure
+  (GrootT x) <*> (GrootT y) = GrootT $ x <*> y
+
+instance Alternative m => Alternative (GrootT m) where
+  empty = liftGrootT empty
+  m <|> n = GrootT $ (runGrootT m) <|> (runGrootT n)
+
+instance Monad m => Monad (GrootT m) where
+  return = lift . return
+  m >>= f = GrootT $ do
+    a <- runGrootT m
+    runGrootT $ f a
+
+instance MonadTrans GrootT where
+  lift = liftGrootT
+
+instance MonadIO m => MonadIO (GrootT m) where
+  liftIO = lift . liftIO
+
+instance MonadThrow m => MonadThrow (GrootT m) where
+  throwM = lift . throwM
+
+instance MonadCatch m => MonadCatch (GrootT m) where
+  catch m f = GrootT $ catch (runGrootT m) (\x -> runGrootT $ f x)
+
+instance Monad m => MonadReader Env (GrootT m) where
+  ask = GrootT $ ask
+  local f m = GrootT $ local f (runGrootT m)
+  reader = GrootT . reader
+
+instance MonadResource m => MonadResource (GrootT m) where
+  liftResourceT = lift . liftResourceT
+
+instance MonadAWS m => MonadAWS (GrootT m) where
+  liftAWS = lift . liftAWS
+
+awsToGrootT :: MonadResource m => AWS a -> GrootT m a
+awsToGrootT act = GrootT $ do
   env <- ask
   runAWS env act
 
-awsToGrootM_ :: (MonadResource m, MonadBaseControl IO m) => AWS a -> GrootM m ()
-awsToGrootM_ aws = (\_ -> pure ()) =<< awsToGrootM aws
+awsToGrootM :: MonadResource m => AWS a -> GrootT m a
+awsToGrootM = awsToGrootT
+{-# INLINE awsToGrootM #-}
+{-# DEPRECATED awsToGrootM "Use awsToGrootM instead" #-}
 
-runGroot :: (MonadBaseControl IO m, MonadIO m) => GrootM m a -> Env -> m a
-runGroot = runReaderT
+awsToGrootT_ :: MonadResource m => AWS a -> GrootT m ()
+awsToGrootT_ aws = (\_ -> pure ()) =<< awsToGrootT aws
+
+awsToGrootM_ :: MonadResource m => AWS a -> GrootT m ()
+awsToGrootM_ = awsToGrootT_
+{-# INLINE awsToGrootM_ #-}
+{-# DEPRECATED awsToGrootM_ "Use awsToGrootT_ instead" #-}
+
+evalGrootT :: Monad m => GrootT m a -> Env -> m a
+evalGrootT m = runReaderT (runGrootT m)
+{-# INLINE evalGrootT #-}
+
+runGroot :: Monad m => GrootT m a -> Env -> m a
+runGroot = evalGrootT
 {-# INLINE runGroot #-}
-
-mapGrootM :: (m a -> n b) -> GrootM m a -> GrootM n b
-mapGrootM = mapReaderT
-{-# INLINE mapGrootM #-}
+{-# DEPRECATED runGroot "Use evalGrootT instead" #-}
 
 class (MonadIO m, MonadCatch m, MonadReader Env m) => MonadGroot n m where
-  liftGroot :: GrootM n a -> m a
+  liftGroot :: GrootT n a -> m a
 
 instance MonadGroot IO GrootIO where
   liftGroot = id

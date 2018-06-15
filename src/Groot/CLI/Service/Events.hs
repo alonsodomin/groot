@@ -12,6 +12,7 @@ module Groot.CLI.Service.Events
 import           Control.Monad.Catch
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader
+import           Control.Monad.Trans.Control
 import           Control.Monad.Trans.Resource
 import           Data.Conduit
 import           Data.Foldable
@@ -53,7 +54,7 @@ serviceEventsOpt = ServiceEventOpts
                <*> eventCountOpt
                <*> serviceRefArgList
 
-fetchEvents :: (Typeable mi, MonadResource mi, MonadBaseControl IO mi, MonadCatch mi, MonadConsole mi, MonadIO mo, Foldable f)
+fetchEvents :: (Typeable mi, MonadResource mi, MonadBaseControl IO mi, MonadUnliftIO mi, MonadCatch mi, MonadConsole mi, MonadIO mo, Foldable f)
             => f ContainerServiceCoords
             -> Bool
             -> Int

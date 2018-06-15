@@ -91,7 +91,7 @@ instance HasSummary ECS.ContainerInstance InstanceSummary where
 
 summarizeInstances :: Maybe ClusterRef -> AWS [InstanceSummary]
 summarizeInstances cId =
-  sourceToList $ instanceSource cId =$= CL.mapMaybe summarize
+  sourceToList $ instanceSource cId .| CL.mapMaybe summarize
   where instanceSource Nothing  = fetchAllInstances
         instanceSource (Just x) = fetchInstances x
 

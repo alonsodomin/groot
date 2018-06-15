@@ -42,4 +42,4 @@ runClusterEvents (ClusterEventOptions follow lastN []) = do
   runClusterEvents (ClusterEventOptions follow lastN clusterRefs)
 runClusterEvents (ClusterEventOptions follow lastN clusterRefs) = mapReaderT runResourceT $ do
   eventSource <- clusterServiceEventLog clusterRefs follow lastN
-  runConduit $ eventSource =$ printEventSink
+  runConduit $ eventSource .| printEventSink
