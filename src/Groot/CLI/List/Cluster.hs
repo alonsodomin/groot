@@ -10,7 +10,6 @@ module Groot.CLI.List.Cluster
 import           Control.Lens
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
-import           Control.Monad.Trans.Reader
 import           Data.Conduit
 import qualified Data.Conduit.List          as CL
 import           Data.Data

@@ -41,7 +41,7 @@ listTaskOpts = ListTaskOpts
 
 data TaskSummary = TaskSummary
   { taskId     :: String
-  , task       :: String
+  , taskDef    :: String
   , status     :: String
   , cluster    :: String
   , instanceId :: String
