@@ -23,7 +23,6 @@ dependencies:
 - amazonka-core
 - amazonka-autoscaling
 - amazonka-ecs
-- amazonka-ec2
 - attoparsec
 - bytestring
 - conduit
