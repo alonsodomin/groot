@@ -21,7 +21,7 @@ install:
 # Install additional build tools
 #- if [[ ! -x ~/.local/bin/hakyll ]]; then travis_wait 30 stack install hakyll; fi
 # Install dependencies
-- travis_wait 30 stack --no-terminal --install-ghc test --only-dependencies
+- travis_wait 60 stack --no-terminal --install-ghc test --only-dependencies
 
 script:
 - scripts/travis/build.sh
