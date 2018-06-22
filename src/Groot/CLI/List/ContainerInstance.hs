@@ -91,14 +91,13 @@ instance HasSummary ECS.ContainerInstance InstanceSummary where
 
 summarizeInstances :: Maybe ClusterRef -> AWS [InstanceSummary]
 summarizeInstances cId =
-  sourceToList $ instanceSource cId =$= CL.mapMaybe summarize
+  sourceToList $ instanceSource cId .| CL.mapMaybe summarize
   where instanceSource Nothing  = fetchAllInstances
         instanceSource (Just x) = fetchInstances x
 
-printInstanceSummary :: Maybe ClusterRef -> GrootM IO ()
-printInstanceSummary cId = do
-  env  <- ask
-  desc <- runResourceT . runAWS env $ summarizeInstances cId
+printInstanceSummary :: Maybe ClusterRef -> GrootIO ()
+printInstanceSummary cId = runGrootResource $ do
+  desc <- awsResource $ summarizeInstances cId
   case desc of
     [] -> putWarn ("No container instances found" :: Text)
     xs -> liftIO $ printTable xs

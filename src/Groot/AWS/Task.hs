@@ -31,29 +31,28 @@ fetchTaskBatch taskRefs clusterRef =
         return $ res ^. ECS.dtrsTasks
   in handleClusterNotFoundException clusterRef fetch
 
-fetchTasksC :: MonadAWS m => [TaskRef] -> Conduit ClusterRef m ECS.Task
-fetchTasksC tasks = awaitForever (\cref -> yieldM $ fetchTaskBatch tasks cref) =$= CL.concat
+fetchTasksC :: MonadAWS m => [TaskRef] -> ConduitT ClusterRef ECS.Task m ()
+fetchTasksC tasks = awaitForever (\cref -> yieldM $ fetchTaskBatch tasks cref) .| CL.concat
 
-fetchTasks :: MonadAWS m => ClusterRef -> Source m ECS.Task
+fetchTasks :: MonadAWS m => ClusterRef -> ConduitT () ECS.Task m ()
 fetchTasks cref@(ClusterRef ref) =
-  handleClusterNotFoundException cref (paginate (ECS.ltCluster ?~ ref $ ECS.listTasks))
-    =$= CL.concatMapM (\x -> fetchTaskBatch (TaskRef <$> x ^. ECS.ltrsTaskARNs) cref)
+  --handleClusterNotFoundException cref (paginate (ECS.ltCluster ?~ ref $ ECS.listTasks))
+  paginate (ECS.ltCluster ?~ ref $ ECS.listTasks)
+    .| CL.concatMapM (\x -> fetchTaskBatch (TaskRef <$> x ^. ECS.ltrsTaskARNs) cref)
 
-fetchAllTasks :: MonadAWS m => Source m ECS.Task
+fetchAllTasks :: MonadAWS m => ConduitT () ECS.Task m ()
 fetchAllTasks =
   let fetchAllTasksC = awaitForever (\cref -> toProducer $ fetchTasks cref)
   in fetchClusters
-     =$= CL.mapMaybe clusterName
-     =$= fetchAllTasksC
+     .| CL.mapMaybe clusterName
+     .| fetchAllTasksC
 
-findTasks :: MonadAWS m => [TaskRef] -> Maybe ClusterRef -> Source m ECS.Task
-findTasks tasks (Just clusterRef) =
-  yield clusterRef =$= fetchTasksC tasks
-findTasks tasks _ =
-  fetchClusters =$= CL.mapMaybe clusterName =$= fetchTasksC tasks
+findTasks :: MonadAWS m => [TaskRef] -> Maybe ClusterRef -> ConduitT () ECS.Task m ()
+findTasks tasks (Just clusterRef) = yield clusterRef .| fetchTasksC tasks
+findTasks tasks _                 = fetchClusters .| CL.mapMaybe clusterName .| fetchTasksC tasks
 
 findTask :: MonadAWS m => TaskRef -> Maybe ClusterRef -> MaybeT m ECS.Task
-findTask tref cref = MaybeT . runConduit $ findTasks [tref] cref =$= CL.head
+findTask tref cref = MaybeT . runConduit $ findTasks [tref] cref .| CL.head
 
 getTask :: MonadAWS m => TaskRef -> Maybe ClusterRef -> m ECS.Task
 getTask tref cref = do
@@ -62,13 +61,13 @@ getTask tref cref = do
     Just x  -> return x
     Nothing -> throwM $ taskNotFound tref cref
 
-fetchServiceTasks :: MonadAWS m => Maybe ClusterRef -> ContainerServiceRef -> Source m ECS.Task
+fetchServiceTasks :: MonadAWS m => Maybe ClusterRef -> ContainerServiceRef -> ConduitT () ECS.Task m ()
 fetchServiceTasks Nothing sref =
   fetchClusters
-    =$= CL.mapMaybe clusterName
-    =$= awaitForever (\c -> toProducer $ fetchServiceTasks (Just c) sref)
-fetchServiceTasks (Just cref@(ClusterRef cluster)) (ContainerServiceRef service) =
-  catching ECS._ServiceNotFoundException tasks $ \_ -> CL.sourceNull
+    .| CL.mapMaybe clusterName
+    .| awaitForever (\c -> toProducer $ fetchServiceTasks (Just c) sref)
+fetchServiceTasks (Just cref@(ClusterRef cluster)) (ContainerServiceRef service) = tasks
+  --catching ECS._ServiceNotFoundException tasks $ \_ -> CL.sourceNull
   where tasks = paginate (ECS.ltCluster ?~ cluster $ ECS.ltServiceName ?~ service $ ECS.listTasks)
-                =$= CL.map (\x -> TaskRef <$> x ^. ECS.ltrsTaskARNs)
-                =$= awaitForever (\ts -> toProducer $ findTasks ts (Just cref))
+                .| CL.map (\x -> TaskRef <$> x ^. ECS.ltrsTaskARNs)
+                .| awaitForever (\ts -> toProducer $ findTasks ts (Just cref))

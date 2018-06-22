@@ -1,8 +1,15 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Groot.Data.Filter where
+module Groot.Data.Filter
+     ( FilterOp
+     , Filter(..)
+     , filterM
+     , filterOnM
+     , filterC
+     , filterOnC
+     ) where
 
-import           Control.Monad
+import           Control.Monad hiding (filterM)
 import           Data.Conduit
 import qualified Data.Conduit.List     as CL
 import           Data.Functor.Identity
@@ -32,8 +39,8 @@ class Filter a where
   (&&&) :: a -> a -> FilterOp a
   (&&&) x y = And x y
 
-  notP :: a -> FilterOp a
-  notP x = Not x
+  (!!!) :: a -> FilterOp a
+  (!!!) x = Not x
 
 instance Filter a => Filter (FilterOp a) where
   type FilterItem (FilterOp a) = FilterItem a
@@ -48,20 +55,24 @@ filterOnM :: (MonadPlus m, Filter p)
           -> m a                      -- The item to which to apply the filter, wrapped in a Monad
           -> m a                      -- The result after applying the predicate, wrapped in the same Monad
 filterOnM f p = mfilter (\x -> matches p $ f x)
+{-# INLINE filterOnM #-}
 
 filterM :: (MonadPlus m, Filter p)
         => p
         -> m (FilterItem p)
         -> m (FilterItem p)
 filterM = filterOnM id
+{-# INLINE filterM #-}
 
 filterC :: (Monad m, Filter p)
         => p
-        -> Conduit (FilterItem p) m (FilterItem p)
+        -> ConduitT (FilterItem p) (FilterItem p) m ()
 filterC = filterOnC id
+{-# INLINE filterC #-}
 
 filterOnC :: (Monad m, Filter p)
           => (a -> FilterItem p)
           -> p
-          -> Conduit a m a
+          -> ConduitT a a m ()
 filterOnC f p = CL.filter (\x -> matches p $ f x)
+{-# INLINE filterOnC #-}

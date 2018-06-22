@@ -24,7 +24,7 @@ taskDefFromTask tsk = do
   arn <- MaybeT . return $ TaskDefRef <$> tsk ^. ECS.tTaskDefinitionARN
   getTaskDef arn
 
-fetchTaskDefs :: (MonadAWS m, Foldable f) => f TaskDefFilter -> Source m ECS.TaskDefinition
+fetchTaskDefs :: (MonadAWS m, Foldable f) => f TaskDefFilter -> ConduitT () ECS.TaskDefinition m ()
 fetchTaskDefs filters =
   let tds :: TaskDefStatus -> ECS.TaskDefinitionStatus
       tds TDSActive   = ECS.TDSActive
@@ -35,6 +35,6 @@ fetchTaskDefs filters =
       withFilter (TDFStatus s)              = ECS.ltdStatus ?~ (tds s)
 
   in paginate (foldr withFilter ECS.listTaskDefinitions filters)
-     =$= CL.concatMap (view ECS.ltdrsTaskDefinitionARNs)
-     =$= CL.map TaskDefRef
-     =$= CL.mapMaybeM (\x -> runMaybeT (getTaskDef x))
+     .| CL.concatMap (view ECS.ltdrsTaskDefinitionARNs)
+     .| CL.map TaskDefRef
+     .| CL.mapMaybeM (\x -> runMaybeT (getTaskDef x))

@@ -58,42 +58,43 @@ fetchServiceBatch services cref =
         return $ res ^. ECS.dssrsServices
   in handleClusterNotFoundException cref fetch
 
-fetchServices :: MonadAWS m => ClusterRef -> Source m ECS.ContainerService
+fetchServices :: MonadAWS m => ClusterRef -> ConduitT () ECS.ContainerService m ()
 fetchServices clusterRef =
-  handleClusterNotFoundException clusterRef (paginate (ECS.lsCluster ?~ (toText clusterRef) $ ECS.listServices))
-    =$= CL.concatMapM (\x -> fetchServiceBatch (ContainerServiceRef <$> x ^. ECS.lsrsServiceARNs) clusterRef)
+  --handleClusterNotFoundException clusterRef (paginate (ECS.lsCluster ?~ (toText clusterRef) $ ECS.listServices))
+  paginate (ECS.lsCluster ?~ (toText clusterRef) $ ECS.listServices)
+    .| CL.concatMapM (\x -> fetchServiceBatch (ContainerServiceRef <$> x ^. ECS.lsrsServiceARNs) clusterRef)
 
-fetchAllServices :: MonadAWS m => Source m ECS.ContainerService
+fetchAllServices :: MonadAWS m => ConduitT () ECS.ContainerService m ()
 fetchAllServices = fetchClusters
-  =$= CL.mapMaybe clusterName
-  =$= fetchAllServicesC
+  .| CL.mapMaybe clusterName
+  .| fetchAllServicesC
 
 fetchServicesC' :: MonadAWS m
                 => [ContainerServiceRef]
-                -> Conduit ClusterRef m (ClusterRef, ECS.ContainerService)
+                -> ConduitT ClusterRef (ClusterRef, ECS.ContainerService) m ()
 fetchServicesC' services =
   awaitForever (\cref -> yieldM $ do
     servs <- fetchServiceBatch services cref
     return $ map ((,) cref) servs
-  ) =$= CL.concat
+  ) .| CL.concat
 
-fetchAllServicesC :: MonadAWS m => Conduit ClusterRef m ECS.ContainerService
+fetchAllServicesC :: MonadAWS m => ConduitT ClusterRef ECS.ContainerService m ()
 fetchAllServicesC = awaitForever (\cref -> toProducer $ fetchServices cref)
 
 findServices' :: MonadAWS m
               => [ContainerServiceRef]
               -> Maybe ClusterRef
-              -> Source m (ClusterRef, ECS.ContainerService)
+              -> ConduitT () (ClusterRef, ECS.ContainerService) m ()
 findServices' services (Just clusterRef) =
-  yield clusterRef =$= fetchServicesC' services
+  yield clusterRef .| fetchServicesC' services
 findServices' services _ =
-  fetchClusters =$= CL.mapMaybe clusterName =$= fetchServicesC' services
+  fetchClusters .| CL.mapMaybe clusterName .| fetchServicesC' services
 
 findServices :: MonadAWS m
              => [ContainerServiceRef]
              -> Maybe ClusterRef
-             -> Source m ECS.ContainerService
-findServices services cref = findServices' services cref =$= CL.map snd
+             -> ConduitT () ECS.ContainerService m ()
+findServices services cref = findServices' services cref .| CL.map snd
 
 findService :: MonadAWS m
             => ContainerServiceRef
@@ -101,10 +102,10 @@ findService :: MonadAWS m
             -> MaybeT m ECS.ContainerService
 findService sref cref = MaybeT $ extractRequested cref
   where extractRequested (Just _) =
-          runConduit $ findServices' [sref] cref =$= CL.map snd =$= CL.head
+          runConduit $ findServices' [sref] cref .| CL.map snd .| CL.head
         extractRequested _ = do
           found <- sourceToList $ findServices' [sref] Nothing
-                   =$= filterOnC snd (isContainerService sref)
+                   .| filterOnC snd (isContainerService sref)
           if (length found) > 1
           then throwM $ ambiguousServiceName sref (fst <$> found)
           else return $ snd <$> listToMaybe found

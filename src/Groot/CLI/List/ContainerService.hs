@@ -50,21 +50,20 @@ instance HasSummary ServiceAndRelatives ServiceSummary where
           sPending     = service ^. ECS.csPendingCount
           sDesired     = service ^. ECS.csDesiredCount
 
-annotateService :: MonadAWS m => Conduit ECS.ContainerService m ServiceAndRelatives
+annotateService :: MonadAWS m => ConduitT ECS.ContainerService ServiceAndRelatives m ()
 annotateService = CL.mapMaybeM (\s -> runMaybeT $
     (SR s) <$> serviceCluster s
   )
 
 summarizeServices :: Maybe ClusterRef -> AWS [ServiceSummary]
 summarizeServices clusterId =
-  sourceToList $ serviceSource clusterId =$= annotateService =$= CL.mapMaybe summarize
+  sourceToList $ serviceSource clusterId .| annotateService .| CL.mapMaybe summarize
     where serviceSource Nothing    = fetchAllServices
           serviceSource (Just cid) = fetchServices cid
 
-printServiceSummary :: Maybe ClusterRef -> GrootM IO ()
-printServiceSummary clusterId = do
-  env  <- ask
-  desc <- runResourceT . runAWS env $ summarizeServices clusterId
+printServiceSummary :: Maybe ClusterRef -> GrootIO ()
+printServiceSummary clusterId = runGrootResource $ do
+  desc <- awsResource $ summarizeServices clusterId
   case desc of
     [] -> putWarn ("No services found" :: Text)
     xs -> liftIO $ printTable xs

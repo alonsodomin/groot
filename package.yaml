@@ -19,11 +19,11 @@ description: >
 dependencies:
 - base >= 4.7 && < 5
 - aeson
-- amazonka >= 1.5.0 && < 1.6
+- amazonka >= 1.6.0 && < 1.7
 - amazonka-core
 - amazonka-autoscaling
-- amazonka-ecs
 - amazonka-ec2
+- amazonka-ecs
 - attoparsec
 - bytestring
 - conduit
@@ -47,7 +47,9 @@ dependencies:
 - text
 - these
 - time
-- transformers      
+- transformers
+- unliftio
+- unliftio-core
 - unordered-containers               
 - uuid
 - vector

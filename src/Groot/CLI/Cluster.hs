@@ -32,6 +32,6 @@ clusterCmds = hsubparser
 
 -- run function
 
-runClusterCmd :: ClusterSubCmd -> GrootM IO ()
+runClusterCmd :: ClusterSubCmd -> GrootIO ()
 runClusterCmd (ClusterEventsCmd  eventsOpts)  = runClusterEvents  eventsOpts
 runClusterCmd (ClusterInspectCmd inspectOpts) = runClusterInspect inspectOpts

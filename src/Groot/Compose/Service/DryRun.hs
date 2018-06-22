@@ -18,13 +18,12 @@ import           Groot.Compose.Service.Free
 import           Groot.Console
 import           Groot.Core
 import           Groot.Data.Text
-import           Groot.Exception
 import           Groot.Manifest
 import           Groot.Types
 
-registerTask' :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
+registerTask' :: (MonadConsole m, MonadResource m)
               => NamedServiceDeployment
-              -> GrootM m TaskDefId
+              -> GrootT m TaskDefId
 registerTask' (serviceName, _) = do
   putInfo $ "Registering task definition for service " <> styled yellowStyle serviceName
   env  <- ask
@@ -68,10 +67,10 @@ removeService' (serviceName, _) clusterRef =
   putInfo $ "Deletes service named" <+> (styled yellowStyle serviceName)
     <+> "from cluster" <+> (styled yellowStyle $ toText clusterRef)
 
-dryRunServiceCompose :: (MonadConsole m, MonadResource m, MonadBaseControl IO m)
+dryRunServiceCompose :: (MonadConsole m, MonadResource m)
                      => GrootManifest
                      -> ServiceComposeM a
-                     -> GrootM m a
+                     -> GrootT m a
 dryRunServiceCompose _ = foldFree $ \case
   RegisterTask service next ->
     next <$> registerTask' service

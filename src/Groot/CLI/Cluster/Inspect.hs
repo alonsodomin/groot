@@ -84,15 +84,15 @@ pprintCluster cluster nodes flags = Doc.vsep [
             , (\x -> Doc.pretty ("=" :: Text) <+> Doc.pretty x) <$> attr ^. ECS.aValue
           ]
 
-runClusterInspect :: ClusterInspectOpts -> GrootM IO ()
-runClusterInspect (ClusterInspectOpts clusterRef flags) = do
+runClusterInspect :: ClusterInspectOpts -> GrootIO ()
+runClusterInspect (ClusterInspectOpts clusterRef flags) = GrootT $ do
   env              <- ask
 
   (cluster, nodes) <- runResourceT . runAWS env $ do
     clus        <- getCluster clusterRef
-    fromCluster <- runConduit $ fetchInstances clusterRef =$ CL.consume
+    fromCluster <- runConduit $ fetchInstances clusterRef .| CL.consume
     ids         <- pure $ fmap EC2InstanceId $ catMaybes $ (view ECS.ciEc2InstanceId) <$> fromCluster
-    fromEc2     <- runConduit $ findEc2Instances ids =$ CL.consume
+    fromEc2     <- runConduit $ findEc2Instances ids .| CL.consume
     return (clus, pairInstances fromCluster fromEc2)
 
   liftIO . Doc.putDoc $ pprintCluster cluster nodes flags

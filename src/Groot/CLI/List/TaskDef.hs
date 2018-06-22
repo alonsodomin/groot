@@ -64,17 +64,16 @@ instance HasSummary ECS.TaskDefinition TaskDefSummary where
 summarizeTaskDefs :: [TaskDefFilter] -> AWS [TaskDefSummary]
 summarizeTaskDefs filters =
   runConduit $ (fetchTaskDefs filters)
-     =$= CL.mapMaybe summarize
-     =$ CL.consume
+     .| CL.mapMaybe summarize
+     .| CL.consume
 
-printTaskDefsSummary :: ListTaskDefsOpts -> GrootM IO ()
+printTaskDefsSummary :: ListTaskDefsOpts -> GrootIO ()
 printTaskDefsSummary (ListTaskDefsOpts showInactive fam) =
   let statusFilter = if showInactive then [TDFStatus TDSInactive] else []
       familyFilter = maybeToList $ TDFFamily <$> fam
       filters      = statusFilter ++ familyFilter
-  in do
-    env  <- ask
-    desc <- runResourceT . runAWS env $ summarizeTaskDefs filters
+  in runGrootResource $ do
+    desc <- awsResource $ summarizeTaskDefs filters
     case desc of
       [] -> putWarn ("No task definitions found" :: Text)
       xs -> liftIO $ printTable xs
