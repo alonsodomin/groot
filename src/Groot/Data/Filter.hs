@@ -7,6 +7,7 @@ module Groot.Data.Filter
      , filterOnM
      , filterC
      , filterOnC
+     , (&&&), (|||), (!!!)
      ) where
 
 import           Control.Monad hiding (filterM)
@@ -33,14 +34,14 @@ class Filter a where
   maybeMatches :: a -> FilterItem a -> Maybe (FilterItem a)
   maybeMatches p e = runIdentity $ maybeMatchesM p (Identity e)
 
-  (|||) :: a -> a -> FilterOp a
-  (|||) x y = Or x y
+(|||) :: Filter a => a -> a -> FilterOp a
+(|||) x y = Or x y
 
-  (&&&) :: a -> a -> FilterOp a
-  (&&&) x y = And x y
+(&&&) :: Filter a => a -> a -> FilterOp a
+(&&&) x y = And x y
 
-  (!!!) :: a -> FilterOp a
-  (!!!) x = Not x
+(!!!) :: Filter a => a -> FilterOp a
+(!!!) x = Not x
 
 instance Filter a => Filter (FilterOp a) where
   type FilterItem (FilterOp a) = FilterItem a

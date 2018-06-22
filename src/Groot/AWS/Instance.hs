@@ -1,5 +1,6 @@
 module Groot.AWS.Instance
-     ( fetchInstances
+     ( instanceRef
+     , fetchInstances
      , fetchAllInstances
      , findInstances
      , findInstance
@@ -7,9 +8,12 @@ module Groot.AWS.Instance
      , taskInstance
      -- EC2 instances
      , findEc2Instances
+     -- Actions
+     , updateAgent
      ) where
 
 import           Control.Lens
+import Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.Trans.Maybe
 import           Data.Conduit
@@ -22,6 +26,9 @@ import           Groot.AWS.Cluster
 import           Groot.Data.Text
 import           Groot.Exception
 import           Groot.Types
+
+instanceRef :: ECS.ContainerInstance -> Maybe ContainerInstanceRef
+instanceRef inst = ContainerInstanceRef <$> inst ^. ECS.ciContainerInstanceARN
 
 -- |Obtains the instance of a given task
 taskInstance :: MonadAWS m => ECS.Task -> MaybeT m ECS.ContainerInstance
@@ -84,3 +91,6 @@ findEc2Instances :: MonadAWS m => [EC2InstanceId] -> ConduitT () EC2.Instance m 
 findEc2Instances ids = paginate (EC2.diiInstanceIds .~ (toText <$> ids) $ EC2.describeInstances)
   .| CL.concatMap (\x -> x ^. EC2.dirsReservations)
   .| CL.concatMap (\x -> x ^. EC2.rInstances)
+
+updateAgent :: MonadAWS m => ClusterRef -> ContainerInstanceRef -> m ()
+updateAgent cluster inst = void $ send $ ECS.ucaCluster ?~ (toText cluster) $ ECS.updateContainerAgent (toText inst)

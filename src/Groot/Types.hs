@@ -45,6 +45,7 @@ module Groot.Types
      , ContainerInstanceArn
      , arnContainerInstanceId
      , ContainerInstanceRef(..)
+     , canUpdateContainerAgent
      -- EC2 Instance
      , EC2InstanceId (..)
      -- Container Service
@@ -332,6 +333,19 @@ instance ToText ContainerInstanceRef where
 
 instance IsString ContainerInstanceRef where
   fromString = ContainerInstanceRef . T.pack
+
+data ContainerInstanceFilter =
+  CIFAgentStatus ECS.AgentUpdateStatus
+  deriving (Eq, Show)
+
+canUpdateContainerAgent :: FilterOp ContainerInstanceFilter
+canUpdateContainerAgent = (CIFAgentStatus ECS.AUSFailed) ||| (CIFAgentStatus ECS.AUSUpdated)
+
+instance Filter ContainerInstanceFilter where
+  type FilterItem ContainerInstanceFilter = ECS.ContainerInstance
+
+  matches (CIFAgentStatus status) inst =
+    maybe True (== status) $ inst ^. ECS.ciAgentUpdateStatus
 
 -- EC2 Instance
 

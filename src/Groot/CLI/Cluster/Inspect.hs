@@ -85,10 +85,8 @@ pprintCluster cluster nodes flags = Doc.vsep [
           ]
 
 runClusterInspect :: ClusterInspectOpts -> GrootIO ()
-runClusterInspect (ClusterInspectOpts clusterRef flags) = GrootT $ do
-  env              <- ask
-
-  (cluster, nodes) <- runResourceT . runAWS env $ do
+runClusterInspect (ClusterInspectOpts clusterRef flags) = runGrootResource $ do
+  (cluster, nodes) <- awsResource $ do
     clus        <- getCluster clusterRef
     fromCluster <- runConduit $ fetchInstances clusterRef .| CL.consume
     ids         <- pure $ fmap EC2InstanceId $ catMaybes $ (view ECS.ciEc2InstanceId) <$> fromCluster
