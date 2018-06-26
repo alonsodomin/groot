@@ -5,8 +5,8 @@ module Groot.CLI.Cluster.Events
      ) where
 
 import           Data.Conduit
-import qualified Data.Conduit.List    as CL
-import           Data.Semigroup       ((<>))
+import qualified Data.Conduit.List   as CL
+import           Data.Semigroup      ((<>))
 import           Data.String
 import           Options.Applicative
 

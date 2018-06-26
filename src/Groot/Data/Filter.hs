@@ -10,7 +10,7 @@ module Groot.Data.Filter
      , (&&&), (|||), (!!!)
      ) where
 
-import           Control.Monad hiding (filterM)
+import           Control.Monad         hiding (filterM)
 import           Data.Conduit
 import qualified Data.Conduit.List     as CL
 import           Data.Functor.Identity

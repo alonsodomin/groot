@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Groot.Core.Common 
+module Groot.Core.Common
      ( GrootT(..)
      , GrootIO
      , GrootResource

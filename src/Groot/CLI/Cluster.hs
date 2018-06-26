@@ -9,7 +9,7 @@ import           Options.Applicative
 
 import           Groot.CLI.Cluster.Events
 import           Groot.CLI.Cluster.Inspect
-import Groot.CLI.Cluster.Update
+import           Groot.CLI.Cluster.Update
 import           Groot.Core
 
 data ClusterSubCmd =

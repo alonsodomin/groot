@@ -11,16 +11,16 @@ import           Control.Lens
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
 import           Data.Conduit
-import qualified Data.Conduit.List          as CL
+import qualified Data.Conduit.List         as CL
 import           Data.Data
-import           Data.Maybe                 (maybeToList)
-import           Data.Text                  (Text)
-import qualified Data.Text                  as T
+import           Data.Maybe                (maybeToList)
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T
 import           GHC.Generics
 import           Network.AWS
-import qualified Network.AWS.ECS            as ECS
-import           Text.PrettyPrint.Tabulate  (Tabulate, printTable)
-import qualified Text.PrettyPrint.Tabulate  as Tabs
+import qualified Network.AWS.ECS           as ECS
+import           Text.PrettyPrint.Tabulate (Tabulate, printTable)
+import qualified Text.PrettyPrint.Tabulate as Tabs
 
 import           Groot.CLI.List.Common
 import           Groot.Console
