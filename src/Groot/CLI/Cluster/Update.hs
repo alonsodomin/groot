@@ -51,11 +51,11 @@ instanceAgentUpdated = Wait
   }
 
 updateAgentAndWait :: ClusterRef -> ContainerInstanceRef -> GrootResource ()
-updateAgentAndWait clusterRef instanceRef = awsResource_ $ do
-  liftIO . putInfo $ "Updating ECS agent on cluster instance" <+> (styled yellowStyle $ toText instanceRef)
-  updateAgent clusterRef instanceRef
+updateAgentAndWait clusterRef instRef = awsResource_ $ do
+  liftIO . putInfo $ "Updating ECS agent on cluster instance" <+> (styled yellowStyle $ toText instRef)
+  updateAgent clusterRef instRef
   let describeReq = ECS.dciCluster ?~ (toText clusterRef)
-                  $ ECS.dciContainerInstances .~ [(toText instanceRef)]
+                  $ ECS.dciContainerInstances .~ [(toText instRef)]
                   $ ECS.describeContainerInstances
   await instanceAgentUpdated describeReq
 
