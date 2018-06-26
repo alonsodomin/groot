@@ -9,8 +9,8 @@ module Groot.CLI.Cluster.Update
 import           Control.Lens
 import           Control.Monad.IO.Class
 import           Data.Conduit           hiding (await)
+import           Data.Conduit.Async     (runCConduit, (=$=&))
 import qualified Data.Conduit.List      as CL
-import Data.Conduit.Async (runCConduit, (=$=&))
 import           Data.String
 import           Network.AWS
 import qualified Network.AWS.ECS        as ECS
@@ -52,7 +52,7 @@ instanceAgentUpdated = Wait
   }
 
 updateAgentAndWait :: ClusterRef -> ContainerInstanceRef -> GrootResource ()
-updateAgentAndWait clusterRef instRef = 
+updateAgentAndWait clusterRef instRef =
   let updateAction = awsResource_ $ do
         liftIO . putInfo $ "Updating ECS agent on cluster instance" <+> (styled yellowStyle $ toText instRef)
         updateAgent clusterRef instRef
