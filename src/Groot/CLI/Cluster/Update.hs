@@ -10,6 +10,7 @@ import           Control.Lens
 import           Control.Monad.IO.Class
 import           Data.Conduit           hiding (await)
 import qualified Data.Conduit.List      as CL
+import Data.Conduit.Async (runCConduit, (=$=&))
 import           Data.String
 import           Network.AWS
 import qualified Network.AWS.ECS        as ECS
@@ -51,17 +52,26 @@ instanceAgentUpdated = Wait
   }
 
 updateAgentAndWait :: ClusterRef -> ContainerInstanceRef -> GrootResource ()
-updateAgentAndWait clusterRef instRef = awsResource_ $ do
-  liftIO . putInfo $ "Updating ECS agent on cluster instance" <+> (styled yellowStyle $ toText instRef)
-  updateAgent clusterRef instRef
-  let describeReq = ECS.dciCluster ?~ (toText clusterRef)
-                  $ ECS.dciContainerInstances .~ [(toText instRef)]
-                  $ ECS.describeContainerInstances
-  await instanceAgentUpdated describeReq
+updateAgentAndWait clusterRef instRef = 
+  let updateAction = awsResource_ $ do
+        liftIO . putInfo $ "Updating ECS agent on cluster instance" <+> (styled yellowStyle $ toText instRef)
+        updateAgent clusterRef instRef
+        let describeReq = ECS.dciCluster ?~ (toText clusterRef)
+                        $ ECS.dciContainerInstances .~ [(toText instRef)]
+                        $ ECS.describeContainerInstances
+        await instanceAgentUpdated describeReq
+        liftIO . putSuccess $ "ECS agent for instance"
+          <+> (styled yellowStyle $ toText instRef)
+          <+> "successfully updated."
+
+      alreadyUpToDate = liftIO . putSuccess $ "ECS agent for instance"
+                    <+> (styled yellowStyle $ toText instRef)
+                    <+> "is already up to date"
+  in catching ECS._NoUpdateAvailableException updateAction (\_ -> alreadyUpToDate)
 
 runClusterUpdate :: ClusterUpdateOpts -> GrootIO ()
 runClusterUpdate (ClusterUpdateOpts clusterRef) =
-  runGrootResource . runConduit $ instanceStream .| CL.mapM_ (updateAgentAndWait clusterRef)
+  runGrootResource . runCConduit $ instanceStream =$=& CL.mapM_ (updateAgentAndWait clusterRef)
   where instanceStream :: ConduitT () ContainerInstanceRef GrootResource ()
         instanceStream = transPipe awsResource $ fetchInstances clusterRef
           .| filterC canUpdateContainerAgent
