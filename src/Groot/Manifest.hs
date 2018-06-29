@@ -4,7 +4,82 @@
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TemplateHaskell   #-}
 
-module Groot.Manifest where
+module Groot.Manifest
+     ( PortELBLink(..)
+     -- Port Mapping
+     , PortMapping
+     , pmContainerPort
+     , pmElbLink
+     , pmHostPort
+     , pmProtocol
+     -- Volume
+     , Volume
+     , vName
+     , vSourcePath
+     -- MountPoint
+     , MountPoint
+     , mpReadOnly
+     , mpTargetPath
+     , mpVolume
+     -- Memory
+     , AssignedMemory
+     , _AssignedMemory
+     , ReservedMemory
+     , _ReservedMemory
+     , Memory
+     -- Container
+     , Container
+     , cCommand
+     , cCpu
+     , cDnsSearch
+     , cEntryPoint
+     , cEnvironment
+     , cEssential
+     , cExtraHosts
+     , cHostname
+     , cImage
+     , cLabels
+     , cLinks
+     , cLogConfig
+     , cMemory
+     , cMountPoints
+     , cName
+     , cPortMappings
+     , cPriviledged
+     , cUser
+     , cWorkDir
+     -- Deployment Strategy
+     , DeploymentStrategy (..)
+     , defaultDeploymentStrategy
+     -- Deployment Constraints
+     , DeploymentConstraint (..)
+     -- Service Network
+     , ServiceNetwork (..)
+     -- Service Deployment
+     , ServiceDeployment
+     , NamedServiceDeployment
+     , sdContainers
+     , sdDeploymentConstraints
+     , sdDeploymentStrategy
+     , sdDesiredCount
+     , sdNetwork
+     , sdPlacementStrategy
+     , sdServiceRole
+     , sdTaskRole
+     -- Manifest
+     , GrootManifest
+     , gmServices
+     , gmVolumes
+     -- Manifest Exceptions
+     , ManifestException
+     , AsManifestException(..)
+     , ManifestParseError(..)
+     , manifestParseError
+     , handleManifestParseError
+     -- Utilities
+     , defaultManifestFilePath
+     , loadManifest
+     ) where
 
 import           Control.Applicative
 import           Control.Exception.Lens
@@ -13,7 +88,7 @@ import           Control.Monad.Catch       hiding (Handler)
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
 import           Data.Aeson
-import qualified Data.Aeson.Types as JSON
+import qualified Data.Aeson.Types          as JSON
 import           Data.Hashable             (Hashable)
 import           Data.HashMap.Strict       (HashMap)
 import qualified Data.HashMap.Strict       as Map
@@ -196,6 +271,7 @@ data ServiceNetwork =
   | AWSNetwork { _snSubnets :: [Text], _snSecurityGroups :: [Text], _snAssignPublicIP :: Bool }
   deriving (Eq, Show, Generic)
 
+awsNetworkCfgParser :: JSON.Value -> JSON.Parser ServiceNetwork
 awsNetworkCfgParser = withObject "network config" $ \o -> do
   _snSubnets        <- o .: "subnets"
   _snSecurityGroups <- maybe [] id <$> o .:? "security-groups"
