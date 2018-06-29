@@ -51,7 +51,7 @@ serviceDeploymentConf DSTearDown =
 
 createTaskDefinitionReq :: GrootManifest -> NamedServiceDeployment -> ECS.RegisterTaskDefinition
 createTaskDefinitionReq manifest (serviceName, deployment) =
-    ECS.rtdNetworkMode .~ (deployment ^. sdNetworkMode)
+    ECS.rtdNetworkMode .~ (networkMode <$> deployment ^. sdNetwork)
   $ ECS.rtdTaskRoleARN .~ (deployment ^. sdTaskRole)
   $ ECS.rtdContainerDefinitions .~ (containerDef <$> deployment ^. sdContainers)
   $ ECS.rtdVolumes .~ (taskVolume <$> Map.elems (manifest ^. gmVolumes))
@@ -59,6 +59,10 @@ createTaskDefinitionReq manifest (serviceName, deployment) =
   $ ECS.registerTaskDefinition serviceName
   where containerEnv =
           Map.foldrWithKey (\k v acc -> (ECS.kvpName ?~ k $ ECS.kvpValue ?~ v $ ECS.keyValuePair):acc) []
+
+        networkMode BridgeNetwork      = ECS.Bridge
+        networkMode HostNetwork        = ECS.Host
+        networkMode (AWSNetwork _ _ _) = ECS.AWSvpc
 
         containerPort port =
             ECS.pmProtocol .~ (port ^. pmProtocol)
@@ -114,6 +118,7 @@ createServiceReq :: ClusterRef -> NamedServiceDeployment -> TaskDefId -> ECS.Cre
 createServiceReq clusterRef (serviceName, deployment) tdId =
     ECS.cCluster ?~ (toText clusterRef)
   $ ECS.cRole .~ (deployment ^. sdServiceRole)
+  $ ECS.cNetworkConfiguration .~ (deployment ^. sdNetwork >>= serviceNetConfig)
   $ ECS.cLoadBalancers .~ containerLoadBalancers
   $ ECS.cDeploymentConfiguration ?~ (serviceDeploymentConf $ deployment ^. sdDeploymentStrategy)
   $ ECS.cPlacementStrategy .~ (deployment ^. sdPlacementStrategy)
@@ -128,6 +133,15 @@ createServiceReq clusterRef (serviceName, deployment) tdId =
                         ELBNameLink     x -> ECS.lbLoadBalancerName ?~ x
                         TargetGroupLink x -> ECS.lbTargetGroupARN   ?~ x
           in linkElb <$> (pm ^. pmElbLink)
+
+        serviceNetConfig (AWSNetwork subnets securityGroups assignPublicIP) = Just $
+          ECS.ncAwsvpcConfiguration ?~ (
+              ECS.avcSubnets .~ subnets
+            $ ECS.avcSecurityGroups .~ securityGroups
+            $ ECS.avcAssignPublicIP ?~ (if assignPublicIP then ECS.Enabled else ECS.Disabled)
+            $ ECS.awsVPCConfiguration
+          ) $ ECS.networkConfiguration
+        serviceNetConfig _ = Nothing
 
         containerLoadBalancers = catMaybes $ do
           cont <- deployment ^. sdContainers

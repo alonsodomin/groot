@@ -13,6 +13,7 @@ import           Control.Monad.Catch       hiding (Handler)
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
 import           Data.Aeson
+import qualified Data.Aeson.Types as JSON
 import           Data.Hashable             (Hashable)
 import           Data.HashMap.Strict       (HashMap)
 import qualified Data.HashMap.Strict       as Map
@@ -189,13 +190,33 @@ instance FromJSON DeploymentConstraint where
     attrs <- o .: "instance-attrs"
     return $ InstanceAttributesConstraint attrs
 
+data ServiceNetwork =
+    BridgeNetwork
+  | HostNetwork
+  | AWSNetwork { _snSubnets :: [Text], _snSecurityGroups :: [Text], _snAssignPublicIP :: Bool }
+  deriving (Eq, Show, Generic)
+
+awsNetworkCfgParser = withObject "network config" $ \o -> do
+  _snSubnets        <- o .: "subnets"
+  _snSecurityGroups <- maybe [] id <$> o .:? "security-groups"
+  _snAssignPublicIP <- maybe False id <$> o .:? "assign-public-ip"
+  return $ AWSNetwork{..}
+
+instance FromJSON ServiceNetwork where
+  parseJSON = withObject "service network" $ \o -> do
+    networkMode <- (o .: "mode") :: JSON.Parser Text
+    case networkMode of
+      "bridge" -> return BridgeNetwork
+      "host"   -> return HostNetwork
+      "awsvpc" -> o .: "config" >>= awsNetworkCfgParser
+
 data ServiceDeployment = ServiceDeployment
   { _sdTaskRole              :: Maybe Text
   , _sdServiceRole           :: Maybe Text
   , _sdDesiredCount          :: Int
   , _sdDeploymentStrategy    :: DeploymentStrategy
   , _sdContainers            :: [Container]
-  , _sdNetworkMode           :: Maybe ECS.NetworkMode
+  , _sdNetwork               :: Maybe ServiceNetwork
   , _sdDeploymentConstraints :: [DeploymentConstraint]
   , _sdPlacementStrategy     :: [ECS.PlacementStrategy]
   } deriving (Eq, Show, Generic)
@@ -211,7 +232,7 @@ instance FromJSON ServiceDeployment where
     _sdDesiredCount          <- maybe 1 id <$> o .:? "desired-count"
     _sdDeploymentStrategy    <- maybe defaultDeploymentStrategy id <$> o .:? "deployment-strategy"
     _sdContainers            <- o .: "containers"
-    _sdNetworkMode           <- o .:? "network"
+    _sdNetwork               <- o .:? "network"
     _sdDeploymentConstraints <- maybe [] id <$> o .:? "deployment-constraints"
     _sdPlacementStrategy     <- maybe [] id <$> o .:? "placement-strategy"
     return ServiceDeployment{..}
