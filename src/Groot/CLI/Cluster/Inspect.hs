@@ -8,7 +8,6 @@ module Groot.CLI.Cluster.Inspect
 
 import           Control.Lens
 import           Control.Monad.IO.Class
-import           Control.Monad.Trans.Reader
 import           Data.Conduit
 import qualified Data.Conduit.List          as CL
 import qualified Data.HashMap.Lazy          as Map
@@ -16,7 +15,6 @@ import           Data.Maybe
 import           Data.Monoid
 import           Data.String
 import           Data.Text                  (Text)
-import           Network.AWS
 import qualified Network.AWS.EC2            as EC2
 import qualified Network.AWS.ECS            as ECS
 import           Options.Applicative        (Parser)
