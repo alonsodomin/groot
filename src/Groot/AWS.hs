@@ -7,6 +7,7 @@ module Groot.AWS
      , module Groot.AWS.Service
      , module Groot.AWS.Task
      , module Groot.AWS.TaskDef
+     , module Groot.AWS.AutoScaling
      -- Error handlers
      , handleHttpException
      , handleServiceError
@@ -19,6 +20,7 @@ import           Network.AWS
 import           Network.HTTP.Conduit
 import           Network.HTTP.Types.Status
 
+import           Groot.AWS.AutoScaling
 import           Groot.AWS.Cluster
 import           Groot.AWS.Instance
 import           Groot.AWS.Service

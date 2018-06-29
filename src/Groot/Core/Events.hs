@@ -20,7 +20,6 @@ import           Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.Morph
 import           Control.Monad.Reader
-import           Control.Monad.Trans.Control
 import           Control.Monad.Trans.Resource
 import           Control.Monad.Trans.State.Lazy
 import           Data.Conduit
