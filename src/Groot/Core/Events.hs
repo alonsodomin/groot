@@ -34,11 +34,11 @@ import           Network.AWS                    hiding (await)
 import qualified Network.AWS.ECS                as ECS
 import qualified UnliftIO                       as Lifted
 
-import           Groot.Internal.AWS
 import           Groot.Console
 import           Groot.Data.Filter
 import           Groot.Data.Text
 import           Groot.Exception
+import           Groot.Internal.AWS
 import           Groot.Types
 
 formatEventTime :: MonadIO m => UTCTime -> m Text

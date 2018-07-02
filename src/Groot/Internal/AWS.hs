@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Groot.Internal.AWS
-     (
-       module Groot.Internal.AWS.Cluster
+     ( module Groot.Internal.AWS.Cluster
+     , module Groot.Internal.AWS.Images
      , module Groot.Internal.AWS.Instance
      , module Groot.Internal.AWS.Service
      , module Groot.Internal.AWS.Task
@@ -14,20 +14,21 @@ module Groot.Internal.AWS
      ) where
 
 import           Control.Lens
-import           Data.Semigroup            ((<>))
-import qualified Data.Text                 as T
+import           Data.Semigroup                 ((<>))
+import qualified Data.Text                      as T
 import           Network.AWS
 import           Network.HTTP.Conduit
 import           Network.HTTP.Types.Status
 
+import           Groot.Console
+import           Groot.Data.Text
 import           Groot.Internal.AWS.AutoScaling
 import           Groot.Internal.AWS.Cluster
+import           Groot.Internal.AWS.Images
 import           Groot.Internal.AWS.Instance
 import           Groot.Internal.AWS.Service
 import           Groot.Internal.AWS.Task
 import           Groot.Internal.AWS.TaskDef
-import           Groot.Console
-import           Groot.Data.Text
 
 -- AWS Error handlers
 

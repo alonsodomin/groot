@@ -95,8 +95,8 @@ import           Data.UUID            (UUID)
 import qualified Data.UUID            as UUID
 import           GHC.Generics         hiding (to)
 import           Network.AWS
-import qualified Network.AWS.ECS      as ECS
 import qualified Network.AWS.EC2      as EC2
+import qualified Network.AWS.ECS      as ECS
 import           Prelude              hiding (takeWhile)
 
 import           Groot.Data.Filter
@@ -211,7 +211,14 @@ type ImageFilter = Filter ImageFilterPart
 instance IsFilter ImageFilterPart where
   type FilterItem ImageFilterPart = EC2.Image
 
-  matches (IFPVirtualizationType virtualizationType) img = (img ^. EC2.iVirtualizationType) == virtualizationType
+  matches (IFPVirtualizationType virtType) img =
+    (img ^. EC2.iVirtualizationType) == virtType
+  matches (IFPOwnerAlias ownerAlias)       img =
+    maybe False (== ownerAlias) $ img ^. EC2.iImageOwnerAlias
+  matches (IFPArchitecture arch) img =
+    (img ^. EC2.iArchitecture) == arch
+  matches (IFPRootDeviceType rdt) img =
+    (img ^. EC2.iRootDeviceType) == rdt
 
 -- Cluster
 
@@ -361,7 +368,7 @@ data ContainerInstanceFilterPart =
 type ContainerInstanceFilter = Filter ContainerInstanceFilterPart
 
 canUpdateContainerAgent :: ContainerInstanceFilter
-canUpdateContainerAgent = (CIFAgentStatus ECS.AUSFailed) ||| (CIFAgentStatus ECS.AUSUpdated)
+canUpdateContainerAgent = (pure $ CIFAgentStatus ECS.AUSFailed) ||| (pure $ CIFAgentStatus ECS.AUSUpdated)
 
 instance IsFilter ContainerInstanceFilterPart where
   type FilterItem ContainerInstanceFilterPart = ECS.ContainerInstance

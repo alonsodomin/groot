@@ -13,18 +13,18 @@ module Groot.CLI.List.TaskDef
 import           Control.Lens
 import           Control.Monad.IO.Class
 import           Data.Conduit
-import qualified Data.Conduit.List          as CL
+import qualified Data.Conduit.List         as CL
 import           Data.Data
-import           Data.Maybe                 (maybeToList)
-import           Data.Semigroup             ((<>))
-import           Data.Text                  (Text)
-import qualified Data.Text                  as T
+import           Data.Maybe                (maybeToList)
+import           Data.Semigroup            ((<>))
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T
 import           GHC.Generics
 import           Network.AWS
-import qualified Network.AWS.ECS            as ECS
+import qualified Network.AWS.ECS           as ECS
 import           Options.Applicative
-import           Text.PrettyPrint.Tabulate  (Tabulate, printTable)
-import qualified Text.PrettyPrint.Tabulate  as Tabs
+import           Text.PrettyPrint.Tabulate (Tabulate, printTable)
+import qualified Text.PrettyPrint.Tabulate as Tabs
 
 import           Groot.CLI.Common
 import           Groot.CLI.List.Common

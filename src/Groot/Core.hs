@@ -4,8 +4,8 @@ module Groot.Core
      , module Groot.Core.Common
      ) where
 
-import           Groot.Internal.AWS
 import           Groot.Core.Common
+import           Groot.Internal.AWS
 
 -- Tasks
 

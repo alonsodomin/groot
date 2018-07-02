@@ -66,6 +66,9 @@ module Groot.Manifest
      , sdPlacementStrategy
      , sdServiceRole
      , sdTaskRole
+     -- Image Filter
+     , ImageFilterSpec
+     , imageFilter
      -- Manifest
      , GrootManifest
      , gmInstanceGroups
@@ -93,7 +96,6 @@ import qualified Data.Aeson.Types          as JSON
 import           Data.Hashable             (Hashable)
 import           Data.HashMap.Strict       (HashMap)
 import qualified Data.HashMap.Strict       as Map
-import           Data.List.NonEmpty        (NonEmpty)
 import qualified Data.List.NonEmpty        as NEL
 import           Data.Maybe
 import           Data.Semigroup            ((<>))
@@ -109,6 +111,7 @@ import qualified Network.AWS.EC2           as EC2
 import qualified Network.AWS.ECS           as ECS
 
 import           Groot.Console
+import           Groot.Data.Filter
 import           Groot.Data.Text
 import           Groot.Types
 
@@ -331,7 +334,7 @@ instance FromJSON ServiceDeployment where
 parseImageFilterPart :: FromText a => String -> Text -> (a -> ImageFilterPart) -> JSON.Object -> JSON.Parser (Maybe ImageFilterPart)
 parseImageFilterPart errMsg field f o = runMaybeT $ fmap f (MaybeT $ (parseFromText (\i -> errMsg ++ ' ':i)) =<< o .:? field)
 
-newtype ImageFilterSpec = ImageFilterSpec { filterParts :: NonEmpty ImageFilterPart }
+newtype ImageFilterSpec = ImageFilterSpec { imageFilter :: ImageFilter }
   deriving (Eq, Show, Generic)
 
 instance FromJSON ImageFilterSpec where
@@ -341,12 +344,28 @@ instance FromJSON ImageFilterSpec where
     architecture       <- parseImageFilterPart "Invalid architecture:" "architecture" IFPArchitecture o
     rootDeviceType     <- parseImageFilterPart "Invalid device type:" "root-device-type" IFPRootDeviceType o
     case (NEL.nonEmpty $ catMaybes [virtualizationType, ownerAlias, architecture, rootDeviceType]) of
-      Just x  -> return $ ImageFilterSpec x
+      Just x  -> return . ImageFilterSpec $ foldr1 (&&&) (pure <$> x)
       Nothing -> fail "Must have at least one filter element."
+
+data InstanceGroupCapacity = InstanceGroupCapacity
+  { _igcMinimum :: Int
+  , _igcMaximum :: Int
+  , _igcDesired :: Maybe Int
+  } deriving (Eq, Show, Generic)
+
+makeLenses ''InstanceGroupCapacity
+
+instance FromJSON InstanceGroupCapacity where
+  parseJSON = withObject "instance group capacity" $ \o -> do
+    _igcMinimum <- o .: "min"
+    _igcMaximum <- o .: "max"
+    _igcDesired <- o .: "desired"
+    return InstanceGroupCapacity{..}
 
 data InstanceGroup = InstanceGroup
   { _igInstanceType :: EC2.InstanceType
   , _igImage        :: Either Ami ImageFilterSpec
+  , _igCapacity     :: InstanceGroupCapacity
   } deriving (Eq, Show, Generic)
 
 makeLenses ''InstanceGroup

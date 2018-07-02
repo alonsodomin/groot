@@ -18,15 +18,15 @@ import           Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.Trans.Maybe
 import           Data.Conduit
-import qualified Data.Conduit.List         as CL
-import           Data.Maybe                (listToMaybe)
-import           Network.AWS               hiding (await)
+import qualified Data.Conduit.List          as CL
+import           Data.Maybe                 (listToMaybe)
+import           Network.AWS                hiding (await)
 import           Network.AWS.Data.Text
-import qualified Network.AWS.ECS           as ECS
+import qualified Network.AWS.ECS            as ECS
 
-import           Groot.Internal.AWS.Cluster
 import           Groot.Data.Filter
 import           Groot.Exception
+import           Groot.Internal.AWS.Cluster
 import           Groot.Types
 
 serviceCoords :: ECS.ContainerService -> Maybe ContainerServiceCoords

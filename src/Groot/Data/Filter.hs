@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Groot.Data.Filter
-     ( Filter
+     ( Filter(..)
      , IsFilter(..)
      , filterM
      , filterOnM
@@ -28,38 +28,38 @@ class IsFilter a where
   maybeMatches :: a -> FilterItem a -> Maybe (FilterItem a)
   maybeMatches p e = runIdentity $ maybeMatchesM p (Identity e)
 
-(|||) :: IsFilter a => a -> a -> Filter a
+(|||) :: IsFilter a => Filter a -> Filter a -> Filter a
 (|||) x y = Or x y
 
-(&&&) :: IsFilter a => a -> a -> Filter a
+(&&&) :: IsFilter a => Filter a -> Filter a -> Filter a
 (&&&) x y = And x y
 
-(!!!) :: IsFilter a => a -> Filter a
+(!!!) :: IsFilter a => Filter a -> Filter a
 (!!!) x = Not x
 
 data Filter a =
-    Pure a
-  | Or a a
-  | And a a
-  | Not a
+    Single a
+  | Or (Filter a) (Filter a)
+  | And (Filter a) (Filter a)
+  | Not (Filter a)
   deriving (Eq, Show)
 
 instance Functor Filter where
-  fmap f (Pure x)  = Pure (f x)
-  fmap f (Or x y)  = Or (f x) (f y)
-  fmap f (And x y) = And (f x) (f y)
-  fmap f (Not x)   = Not (f x)
+  fmap f (Single x) = Single (f x)
+  fmap f (Or x y)   = Or (fmap f x) (fmap f y)
+  fmap f (And x y)  = And (fmap f x) (fmap f y)
+  fmap f (Not x)    = Not (fmap f x)
 
 instance Applicative Filter where
-  pure x = Pure x
+  pure x = Single x
 
 instance IsFilter a => IsFilter (Filter a) where
   type FilterItem (Filter a) = FilterItem a
 
-  matches (Pure x)  res = matches x res
-  matches (Or x y)  res = (matches x res) || (matches y res)
-  matches (And x y) res = (matches x res) && (matches y res)
-  matches (Not x)   res = not (matches x res)
+  matches (Single x) res = matches x res
+  matches (Or x y)   res = (matches x res) || (matches y res)
+  matches (And x y)  res = (matches x res) && (matches y res)
+  matches (Not x)    res = not (matches x res)
 
 filterOnM :: (MonadPlus m, IsFilter p)
           => (a -> FilterItem p)
