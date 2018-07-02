@@ -24,13 +24,13 @@ taskDefFromTask tsk = do
   arn <- MaybeT . return $ TaskDefRef <$> tsk ^. ECS.tTaskDefinitionARN
   getTaskDef arn
 
-fetchTaskDefs :: (MonadAWS m, Foldable f) => f TaskDefFilter -> ConduitT () ECS.TaskDefinition m ()
+fetchTaskDefs :: (MonadAWS m, Foldable f) => f TaskDefFilterPart -> ConduitT () ECS.TaskDefinition m ()
 fetchTaskDefs filters =
   let tds :: TaskDefStatus -> ECS.TaskDefinitionStatus
       tds TDSActive   = ECS.TDSActive
       tds TDSInactive = ECS.TDSInactive
 
-      withFilter :: TaskDefFilter -> ECS.ListTaskDefinitions -> ECS.ListTaskDefinitions
+      withFilter :: TaskDefFilterPart -> ECS.ListTaskDefinitions -> ECS.ListTaskDefinitions
       withFilter (TDFFamily (TaskFamily f)) = ECS.ltdFamilyPrefix ?~ f
       withFilter (TDFStatus s)              = ECS.ltdStatus ?~ (tds s)
 

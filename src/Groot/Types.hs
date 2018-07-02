@@ -77,7 +77,8 @@ module Groot.Types
      , arnTaskDefFamily
      , arnTaskDefRevision
      , TaskDefStatus(..)
-     , TaskDefFilter(..)
+     , TaskDefFilterPart(..)
+     , TaskDefFilter
      ) where
 
 import           Control.Lens
@@ -259,22 +260,24 @@ instance ToText ClusterStatus where
   toText CSInactive = "INACTIVE"
 
 -- |Filter definition for clusters
-data ClusterFilter =
+data ClusterFilterPart =
     CFRef ClusterRef
   | CFStatus ClusterStatus
   deriving (Eq, Show)
 
+type ClusterFilter = Filter ClusterFilterPart
+
 -- |Cluster filter predicates based on status
 isActiveCluster, isInactiveCluster :: ClusterFilter
-isActiveCluster   = CFStatus CSActive
-isInactiveCluster = CFStatus CSInactive
+isActiveCluster   = pure $ CFStatus CSActive
+isInactiveCluster = pure $ CFStatus CSInactive
 
 -- |Cluster filter based on name or ARN
 clusterHasNameOrArn :: Text -> ClusterFilter
-clusterHasNameOrArn = CFRef . ClusterRef
+clusterHasNameOrArn = pure . CFRef . ClusterRef
 
-instance Filter ClusterFilter where
-  type FilterItem ClusterFilter = ECS.Cluster
+instance IsFilter ClusterFilterPart where
+  type FilterItem ClusterFilterPart = ECS.Cluster
 
   matches (CFRef (ClusterRef txt)) cluster =
        maybe False (== txt) (cluster ^. ECS.cClusterName)
@@ -334,15 +337,17 @@ instance ToText ContainerInstanceRef where
 instance IsString ContainerInstanceRef where
   fromString = ContainerInstanceRef . T.pack
 
-data ContainerInstanceFilter =
+data ContainerInstanceFilterPart =
   CIFAgentStatus ECS.AgentUpdateStatus
   deriving (Eq, Show)
 
-canUpdateContainerAgent :: FilterOp ContainerInstanceFilter
+type ContainerInstanceFilter = Filter ContainerInstanceFilterPart
+
+canUpdateContainerAgent :: ContainerInstanceFilter
 canUpdateContainerAgent = (CIFAgentStatus ECS.AUSFailed) ||| (CIFAgentStatus ECS.AUSUpdated)
 
-instance Filter ContainerInstanceFilter where
-  type FilterItem ContainerInstanceFilter = ECS.ContainerInstance
+instance IsFilter ContainerInstanceFilterPart where
+  type FilterItem ContainerInstanceFilterPart = ECS.ContainerInstance
 
   matches (CIFAgentStatus status) inst =
     maybe True (== status) $ inst ^. ECS.ciAgentUpdateStatus
@@ -417,22 +422,24 @@ data ContainerServiceStatus =
   deriving (Eq, Show, Ord, Enum, Bounded, Data, Generic)
 
 -- |Service filters
-data ContainerServiceFilter =
+data ContainerServiceFilterPart =
     CSFRef ContainerServiceRef
   | CSFStatus ContainerServiceStatus
   deriving (Eq, Show)
 
+type ContainerServiceFilter = Filter ContainerServiceFilterPart
+
 -- |Service filter predicate based on service status
 isActiveContainerService, isInactiveContainerService :: ContainerServiceFilter
-isActiveContainerService   = CSFStatus CSSActive
-isInactiveContainerService = CSFStatus CSSInactive
+isActiveContainerService   = pure $ CSFStatus CSSActive
+isInactiveContainerService = pure $ CSFStatus CSSInactive
 
 -- |Service filter preficate based on service name or ARN
 isContainerService :: ContainerServiceRef -> ContainerServiceFilter
-isContainerService = CSFRef
+isContainerService = pure . CSFRef
 
-instance Filter ContainerServiceFilter where
-  type FilterItem ContainerServiceFilter = ECS.ContainerService
+instance IsFilter ContainerServiceFilterPart where
+  type FilterItem ContainerServiceFilterPart = ECS.ContainerService
 
   matches (CSFStatus CSSActive) serv =
     maybe False (== (T.pack "ACTIVE")) (serv ^. ECS.csStatus)
@@ -591,13 +598,15 @@ data TaskDefStatus =
   deriving (Eq, Show, Ord, Enum, Bounded, Read, Generic, Data)
 
 -- |Task definition filters
-data TaskDefFilter =
+data TaskDefFilterPart =
     TDFFamily TaskFamily
   | TDFStatus TaskDefStatus
   deriving (Eq, Show)
 
-instance Filter TaskDefFilter where
-  type FilterItem TaskDefFilter = ECS.TaskDefinition
+type TaskDefFilter = Filter TaskDefFilterPart
+
+instance IsFilter TaskDefFilterPart where
+  type FilterItem TaskDefFilterPart = ECS.TaskDefinition
 
   matches (TDFFamily (TaskFamily family)) taskDef =
     maybe False (== family) $ taskDef ^. ECS.tdFamily

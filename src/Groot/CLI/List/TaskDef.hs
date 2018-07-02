@@ -7,12 +7,11 @@ module Groot.CLI.List.TaskDef
      ( ListTaskDefsOpts
      , listTaskDefsOpts
      , printTaskDefsSummary
-     , TaskDefFilter(..)
+     , TaskDefFilterPart(..)
      ) where
 
 import           Control.Lens
 import           Control.Monad.IO.Class
-import           Control.Monad.Trans.Reader
 import           Data.Conduit
 import qualified Data.Conduit.List          as CL
 import           Data.Data
@@ -61,7 +60,7 @@ instance HasSummary ECS.TaskDefinition TaskDefSummary where
             where statusAsText ECS.TDSActive   = "Active"
                   statusAsText ECS.TDSInactive = "Inactive"
 
-summarizeTaskDefs :: [TaskDefFilter] -> AWS [TaskDefSummary]
+summarizeTaskDefs :: [TaskDefFilterPart] -> AWS [TaskDefSummary]
 summarizeTaskDefs filters =
   runConduit $ (fetchTaskDefs filters)
      .| CL.mapMaybe summarize
