@@ -328,13 +328,6 @@ instance FromJSON ServiceDeployment where
     _sdPlacementStrategy     <- maybe [] id <$> o .:? "placement-strategy"
     return ServiceDeployment{..}
 
-data ImageFilterPart =
-    IFPVirtualizationType EC2.VirtualizationType
-  | IFPOwnerAlias Text
-  | IFPArchitecture EC2.ArchitectureValues
-  | IFPRootDeviceType EC2.DeviceType
-  deriving (Eq, Show, Generic)
-
 parseImageFilterPart :: FromText a => String -> Text -> (a -> ImageFilterPart) -> JSON.Object -> JSON.Parser (Maybe ImageFilterPart)
 parseImageFilterPart errMsg field f o = runMaybeT $ fmap f (MaybeT $ (parseFromText (\i -> errMsg ++ ' ':i)) =<< o .:? field)
 

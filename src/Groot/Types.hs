@@ -29,6 +29,8 @@ module Groot.Types
      , arnServiceId
      , viewArn
      , Ami (..)
+     , ImageFilterPart(..)
+     , ImageFilter
      -- Cluster
      , ClusterName (..)
      , ClusterArnPath (..)
@@ -94,6 +96,7 @@ import qualified Data.UUID            as UUID
 import           GHC.Generics         hiding (to)
 import           Network.AWS
 import qualified Network.AWS.ECS      as ECS
+import qualified Network.AWS.EC2      as EC2
 import           Prelude              hiding (takeWhile)
 
 import           Groot.Data.Filter
@@ -195,6 +198,20 @@ instance FromText Ami where
 
 instance ToText Ami where
   toText (Ami ident) = T.append "ami-" ident
+
+data ImageFilterPart =
+    IFPVirtualizationType EC2.VirtualizationType
+  | IFPOwnerAlias Text
+  | IFPArchitecture EC2.ArchitectureValues
+  | IFPRootDeviceType EC2.DeviceType
+  deriving (Eq, Show, Generic)
+
+type ImageFilter = Filter ImageFilterPart
+
+instance IsFilter ImageFilterPart where
+  type FilterItem ImageFilterPart = EC2.Image
+
+  matches (IFPVirtualizationType virtualizationType) img = (img ^. EC2.iVirtualizationType) == virtualizationType
 
 -- Cluster
 
