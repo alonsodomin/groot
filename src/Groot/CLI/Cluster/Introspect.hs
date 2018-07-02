@@ -24,4 +24,4 @@ clusterIntrospectOpts = ClusterIntrospectOpts <$> clusterRefArg
 
 runClusterIntrospect :: ClusterIntrospectOpts -> GrootIO ()
 runClusterIntrospect (ClusterIntrospectOpts clusterRef) =
-  runGrootResource . runConduit $ transPipe awsResource (findAutoScalingGroups clusterRef) .| CL.mapM_ (\x -> liftIO . print $ x)
+  runGrootResource . runConduit $ transPipe awsResource (yield clusterRef .| findAutoScalingGroups) .| CL.mapM_ (\x -> liftIO . print $ x)
