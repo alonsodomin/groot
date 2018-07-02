@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Groot.AWS.Cluster
+module Groot.Internal.AWS.Cluster
      ( clusterName
      , clusterExists
      , fetchClusters

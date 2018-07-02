@@ -1,6 +1,5 @@
-module Groot.AWS.Task
-     (
-       fetchTasks
+module Groot.Internal.AWS.Task
+     ( fetchTasks
      , fetchAllTasks
      , fetchServiceTasks
      , findTasks
@@ -17,7 +16,7 @@ import           Network.AWS
 import           Network.AWS.Data.Text
 import qualified Network.AWS.ECS           as ECS
 
-import           Groot.AWS.Cluster
+import           Groot.Internal.AWS.Cluster
 import           Groot.Exception
 import           Groot.Types
 

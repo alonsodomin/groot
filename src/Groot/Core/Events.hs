@@ -34,7 +34,7 @@ import           Network.AWS                    hiding (await)
 import qualified Network.AWS.ECS                as ECS
 import qualified UnliftIO                       as Lifted
 
-import           Groot.AWS
+import           Groot.Internal.AWS
 import           Groot.Console
 import           Groot.Data.Filter
 import           Groot.Data.Text

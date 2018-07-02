@@ -10,7 +10,6 @@ import qualified Data.Conduit.List      as CL
 import           Data.String
 import qualified Options.Applicative    as Opts
 
-import           Groot.AWS
 import           Groot.Core
 import           Groot.Types
 

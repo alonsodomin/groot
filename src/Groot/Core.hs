@@ -1,10 +1,10 @@
 module Groot.Core
      (
-       module Groot.AWS
+       module Groot.Internal.AWS
      , module Groot.Core.Common
      ) where
 
-import           Groot.AWS
+import           Groot.Internal.AWS
 import           Groot.Core.Common
 
 -- Tasks

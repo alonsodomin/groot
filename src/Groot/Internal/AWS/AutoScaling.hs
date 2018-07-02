@@ -1,4 +1,4 @@
-module Groot.AWS.AutoScaling
+module Groot.Internal.AWS.AutoScaling
      ( findAutoScalingGroups
      ) where
 
@@ -10,7 +10,7 @@ import           Network.AWS
 import qualified Network.AWS.AutoScaling as AS
 import qualified Network.AWS.ECS         as ECS
 
-import           Groot.AWS.Instance
+import           Groot.Internal.AWS.Instance
 import           Groot.Types
 
 findAutoScalingGroups :: MonadAWS m => ClusterRef -> ConduitT () AS.AutoScalingGroup m ()

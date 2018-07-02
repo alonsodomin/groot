@@ -19,7 +19,6 @@ import           Network.AWS
 import qualified Network.AWS.ECS            as ECS
 import           Options.Applicative
 
-import           Groot.AWS
 import           Groot.CLI.Common
 import           Groot.Console
 import           Groot.Core

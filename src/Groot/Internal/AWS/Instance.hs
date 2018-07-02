@@ -1,4 +1,4 @@
-module Groot.AWS.Instance
+module Groot.Internal.AWS.Instance
      ( instanceRef
      , fetchInstances
      , fetchAllInstances
@@ -22,7 +22,7 @@ import           Network.AWS
 import qualified Network.AWS.EC2           as EC2
 import qualified Network.AWS.ECS           as ECS
 
-import           Groot.AWS.Cluster
+import           Groot.Internal.AWS.Cluster
 import           Groot.Data.Text
 import           Groot.Exception
 import           Groot.Types

@@ -1,4 +1,4 @@
-module Groot.AWS.TaskDef where
+module Groot.Internal.AWS.TaskDef where
 
 import           Control.Lens
 import           Control.Monad.Trans.Maybe
