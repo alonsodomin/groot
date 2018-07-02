@@ -69,6 +69,15 @@ module Groot.Manifest
      -- Image Filter
      , ImageFilterSpec
      , imageFilter
+     -- Instance Group
+     , InstanceGroupCapacity
+     , igcDesired
+     , igcMaximum
+     , igcMinimum
+     , InstanceGroup
+     , igCapacity
+     , igImage
+     , igInstanceType
      -- Manifest
      , GrootManifest
      , gmInstanceGroups
@@ -383,6 +392,7 @@ instance FromJSON InstanceGroup where
         (Nothing, Just f)   -> pure $ Right f
         _                   -> fail $ "Must provide only one of 'image' or 'image-filter', but not both."
 
+    _igCapacity <- o .: "capacity"
     return InstanceGroup{..}
 
 data GrootManifest = GrootManifest
@@ -445,7 +455,7 @@ handleManifestParseError (ManifestParseError' file reason) =
   putError $ "Could not parse manifest file: " <> (styled blueStyle $ T.pack file) <> "\n"
     <> (styled yellowStyle reason)
 
-loadManifest :: (MonadIO m, MonadConsole m, MonadThrow m) => FilePath -> m GrootManifest
+loadManifest :: (MonadIO m, MonadThrow m) => FilePath -> m GrootManifest
 loadManifest file = do
   parsed <- liftIO $ decodeFileEither file
   case parsed of
