@@ -93,6 +93,9 @@ import qualified Data.Aeson.Types          as JSON
 import           Data.Hashable             (Hashable)
 import           Data.HashMap.Strict       (HashMap)
 import qualified Data.HashMap.Strict       as Map
+import           Data.List.NonEmpty        (NonEmpty)
+import qualified Data.List.NonEmpty        as NEL
+import           Data.Maybe
 import           Data.Semigroup            ((<>))
 import           Data.String
 import           Data.Text                 (Text)
@@ -102,7 +105,7 @@ import           Data.Typeable
 import           Data.Yaml                 (decodeFileEither,
                                             prettyPrintParseException)
 import           GHC.Generics
-import           Network.AWS.EC2           (InstanceType)
+import qualified Network.AWS.EC2           as EC2
 import qualified Network.AWS.ECS           as ECS
 
 import           Groot.Console
@@ -111,6 +114,12 @@ import           Groot.Types
 
 toHashMap :: (Hashable k, Eq k) => (a -> k) -> [a] -> HashMap k a
 toHashMap f xs = Map.fromList $ (\x -> (f x, x)) <$> xs
+
+parseFromText :: (Traversable f, FromText a) => (String -> String) -> f Text -> JSON.Parser (f a)
+parseFromText f input = sequence $ (either (\x -> fail $ f x) pure) . fromText <$> input
+
+parseFromText' :: FromText a => (String -> String) -> Text -> JSON.Parser a
+parseFromText' f input = runIdentity <$> parseFromText f (Identity input)
 
 data PortELBLink =
     ELBNameLink Text
@@ -275,8 +284,8 @@ data ServiceNetwork =
   | AWSNetwork { _snSubnets :: [Text], _snSecurityGroups :: [Text], _snAssignPublicIP :: Bool }
   deriving (Eq, Show, Generic)
 
-awsNetworkCfgParser :: JSON.Value -> JSON.Parser ServiceNetwork
-awsNetworkCfgParser = withObject "network config" $ \o -> do
+awsNetworkCfg :: JSON.Value -> JSON.Parser ServiceNetwork
+awsNetworkCfg = withObject "network config" $ \o -> do
   _snSubnets        <- o .: "subnets"
   _snSecurityGroups <- maybe [] id <$> o .:? "security-groups"
   _snAssignPublicIP <- maybe False id <$> o .:? "assign-public-ip"
@@ -289,7 +298,7 @@ instance FromJSON ServiceNetwork where
       "none"   -> return NoNetwork
       "bridge" -> return BridgeNetwork
       "host"   -> return HostNetwork
-      "awsvpc" -> o .: "config" >>= awsNetworkCfgParser
+      "awsvpc" -> awsNetworkCfg =<< o .: "config"
       _        -> fail $ "Invalid network mode: " ++ (T.unpack networkMode)
 
 data ServiceDeployment = ServiceDeployment
@@ -319,23 +328,49 @@ instance FromJSON ServiceDeployment where
     _sdPlacementStrategy     <- maybe [] id <$> o .:? "placement-strategy"
     return ServiceDeployment{..}
 
+data ImageFilterPart =
+    IFPVirtualizationType EC2.VirtualizationType
+  | IFPOwnerAlias Text
+  | IFPArchitecture EC2.ArchitectureValues
+  | IFPRootDeviceType EC2.DeviceType
+  deriving (Eq, Show, Generic)
+
+parseImageFilterPart :: FromText a => String -> Text -> (a -> ImageFilterPart) -> JSON.Object -> JSON.Parser (Maybe ImageFilterPart)
+parseImageFilterPart errMsg field f o = runMaybeT $ fmap f (MaybeT $ (parseFromText (\i -> errMsg ++ ' ':i)) =<< o .:? field)
+
+newtype ImageFilterSpec = ImageFilterSpec { filterParts :: NonEmpty ImageFilterPart }
+  deriving (Eq, Show, Generic)
+
+instance FromJSON ImageFilterSpec where
+  parseJSON = withObject "image filter" $ \o -> do
+    virtualizationType <- parseImageFilterPart "Invalid virtualization type:" "virtualization-type" IFPVirtualizationType o
+    ownerAlias         <- runMaybeT $ IFPOwnerAlias <$> (MaybeT $ o .:? "owner-alias")
+    architecture       <- parseImageFilterPart "Invalid architecture:" "architecture" IFPArchitecture o
+    rootDeviceType     <- parseImageFilterPart "Invalid device type:" "root-device-type" IFPRootDeviceType o
+    case (NEL.nonEmpty $ catMaybes [virtualizationType, ownerAlias, architecture, rootDeviceType]) of
+      Just x  -> return $ ImageFilterSpec x
+      Nothing -> fail "Must have at least one filter element."
+
 data InstanceGroup = InstanceGroup
-  { _igInstanceType :: InstanceType
-  , _igImage        :: Maybe Ami
+  { _igInstanceType :: EC2.InstanceType
+  , _igImage        :: Either Ami ImageFilterSpec
   } deriving (Eq, Show, Generic)
 
 makeLenses ''InstanceGroup
 
 instance FromJSON InstanceGroup where
   parseJSON = withObject "instance group" $ \o -> do
-    _igInstanceType <- do
-      instanceTypeTxt <- o .: "instance-type"
-      either (fail $ "Invalid instance type: " ++ (T.unpack instanceTypeTxt)) pure $ fromText instanceTypeTxt
+    _igInstanceType <- parseFromText' (\i -> "Invalid instance type: " ++ i) =<< o .: "instance-type"
+
     _igImage <- do
-      imageTxt <- o .:? "image"
-      case imageTxt of
-        Just txt -> either (fail $ "Invalid image: " ++ (T.unpack txt)) (pure . Just) $ fromText txt
-        Nothing  -> pure Nothing
+      imageAmi    <- parseFromText (\i -> "Invalid AMI: " ++ i) =<< o .:? "image"
+      imageFilter <- o .:? "image-filter"
+      case (imageAmi, imageFilter) of
+        (Nothing, Nothing)  -> fail $ "You must provide one of 'image' or 'image-filter'."
+        (Just ami, Nothing) -> pure $ Left ami
+        (Nothing, Just f)   -> pure $ Right f
+        _                   -> fail $ "Must provide only one of 'image' or 'image-filter', but not both."
+
     return InstanceGroup{..}
 
 data GrootManifest = GrootManifest
