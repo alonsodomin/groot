@@ -5,11 +5,10 @@ module Groot.CLI.Cluster.Introspect
      ) where
 
 import           Control.Monad.IO.Class
-import           Data.Conduit
-import qualified Data.Conduit.List      as CL
 import           Data.String
 import qualified Options.Applicative    as Opts
 
+import           Groot.Cluster
 import           Groot.Core
 import           Groot.Types
 
@@ -23,5 +22,6 @@ clusterIntrospectOpts :: Opts.Parser ClusterIntrospectOpts
 clusterIntrospectOpts = ClusterIntrospectOpts <$> clusterRefArg
 
 runClusterIntrospect :: ClusterIntrospectOpts -> GrootIO ()
-runClusterIntrospect (ClusterIntrospectOpts clusterRef) =
-  runGrootResource . runConduit $ transPipe awsResource (yield clusterRef .| findAutoScalingGroups) .| CL.mapM_ (\x -> liftIO . print $ x)
+runClusterIntrospect (ClusterIntrospectOpts clusterRef) = do
+  cluster <- introspectCluster clusterRef
+  liftIO . print $ cluster

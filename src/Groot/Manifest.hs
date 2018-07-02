@@ -69,12 +69,15 @@ module Groot.Manifest
      -- Image Filter
      , ImageFilterSpec
      , imageFilter
+     , defaultImageFilterSpec
      -- Instance Group
      , InstanceGroupCapacity
+     , instanceGroupCapacity
      , igcDesired
      , igcMaximum
      , igcMinimum
      , InstanceGroup
+     , instanceGroup
      , igCapacity
      , igImage
      , igInstanceType
@@ -346,6 +349,9 @@ parseImageFilterPart errMsg field f o = runMaybeT $ fmap f (MaybeT $ (parseFromT
 newtype ImageFilterSpec = ImageFilterSpec { imageFilter :: ImageFilter }
   deriving (Eq, Show, Generic)
 
+defaultImageFilterSpec :: ImageFilterSpec
+defaultImageFilterSpec = undefined
+
 instance FromJSON ImageFilterSpec where
   parseJSON = withObject "image filter" $ \o -> do
     virtualizationType <- parseImageFilterPart "Invalid virtualization type:" "virtualization-type" IFPVirtualizationType o
@@ -362,6 +368,9 @@ data InstanceGroupCapacity = InstanceGroupCapacity
   , _igcDesired :: Maybe Int
   } deriving (Eq, Show, Generic)
 
+instanceGroupCapacity :: Int -> Int -> Maybe Int -> InstanceGroupCapacity
+instanceGroupCapacity = InstanceGroupCapacity
+
 makeLenses ''InstanceGroupCapacity
 
 instance FromJSON InstanceGroupCapacity where
@@ -376,6 +385,9 @@ data InstanceGroup = InstanceGroup
   , _igImage        :: Either Ami ImageFilterSpec
   , _igCapacity     :: InstanceGroupCapacity
   } deriving (Eq, Show, Generic)
+
+instanceGroup :: EC2.InstanceType -> Either Ami ImageFilterSpec -> InstanceGroupCapacity -> InstanceGroup
+instanceGroup = InstanceGroup
 
 makeLenses ''InstanceGroup
 
