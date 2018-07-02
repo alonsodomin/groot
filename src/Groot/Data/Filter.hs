@@ -2,6 +2,7 @@
 
 module Groot.Data.Filter
      ( Filter(..)
+     , toFilter
      , IsFilter(..)
      , filterM
      , filterOnM
@@ -44,14 +45,14 @@ data Filter a =
   | Not (Filter a)
   deriving (Eq, Show)
 
+toFilter :: IsFilter a => a -> Filter a
+toFilter = Single
+
 instance Functor Filter where
   fmap f (Single x) = Single (f x)
   fmap f (Or x y)   = Or (fmap f x) (fmap f y)
   fmap f (And x y)  = And (fmap f x) (fmap f y)
   fmap f (Not x)    = Not (fmap f x)
-
-instance Applicative Filter where
-  pure x = Single x
 
 instance IsFilter a => IsFilter (Filter a) where
   type FilterItem (Filter a) = FilterItem a

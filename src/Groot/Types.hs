@@ -293,12 +293,12 @@ type ClusterFilter = Filter ClusterFilterPart
 
 -- |Cluster filter predicates based on status
 isActiveCluster, isInactiveCluster :: ClusterFilter
-isActiveCluster   = pure $ CFStatus CSActive
-isInactiveCluster = pure $ CFStatus CSInactive
+isActiveCluster   = toFilter $ CFStatus CSActive
+isInactiveCluster = toFilter $ CFStatus CSInactive
 
 -- |Cluster filter based on name or ARN
 clusterHasNameOrArn :: Text -> ClusterFilter
-clusterHasNameOrArn = pure . CFRef . ClusterRef
+clusterHasNameOrArn = toFilter . CFRef . ClusterRef
 
 instance IsFilter ClusterFilterPart where
   type FilterItem ClusterFilterPart = ECS.Cluster
@@ -368,7 +368,7 @@ data ContainerInstanceFilterPart =
 type ContainerInstanceFilter = Filter ContainerInstanceFilterPart
 
 canUpdateContainerAgent :: ContainerInstanceFilter
-canUpdateContainerAgent = (pure $ CIFAgentStatus ECS.AUSFailed) ||| (pure $ CIFAgentStatus ECS.AUSUpdated)
+canUpdateContainerAgent = (toFilter $ CIFAgentStatus ECS.AUSFailed) ||| (toFilter $ CIFAgentStatus ECS.AUSUpdated)
 
 instance IsFilter ContainerInstanceFilterPart where
   type FilterItem ContainerInstanceFilterPart = ECS.ContainerInstance
@@ -455,12 +455,12 @@ type ContainerServiceFilter = Filter ContainerServiceFilterPart
 
 -- |Service filter predicate based on service status
 isActiveContainerService, isInactiveContainerService :: ContainerServiceFilter
-isActiveContainerService   = pure $ CSFStatus CSSActive
-isInactiveContainerService = pure $ CSFStatus CSSInactive
+isActiveContainerService   = toFilter $ CSFStatus CSSActive
+isInactiveContainerService = toFilter $ CSFStatus CSSInactive
 
 -- |Service filter preficate based on service name or ARN
 isContainerService :: ContainerServiceRef -> ContainerServiceFilter
-isContainerService = pure . CSFRef
+isContainerService = toFilter . CSFRef
 
 instance IsFilter ContainerServiceFilterPart where
   type FilterItem ContainerServiceFilterPart = ECS.ContainerService

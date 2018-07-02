@@ -353,7 +353,7 @@ instance FromJSON ImageFilterSpec where
     architecture       <- parseImageFilterPart "Invalid architecture:" "architecture" IFPArchitecture o
     rootDeviceType     <- parseImageFilterPart "Invalid device type:" "root-device-type" IFPRootDeviceType o
     case (NEL.nonEmpty $ catMaybes [virtualizationType, ownerAlias, architecture, rootDeviceType]) of
-      Just x  -> return . ImageFilterSpec $ foldr1 (&&&) (pure <$> x)
+      Just x  -> return . ImageFilterSpec $ foldr1 (&&&) (toFilter <$> x)
       Nothing -> fail "Must have at least one filter element."
 
 data InstanceGroupCapacity = InstanceGroupCapacity
