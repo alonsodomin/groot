@@ -63,6 +63,7 @@ createTaskDefinitionReq manifest (serviceName, deployment) =
         networkMode BridgeNetwork      = ECS.Bridge
         networkMode HostNetwork        = ECS.Host
         networkMode (AWSNetwork _ _ _) = ECS.AWSvpc
+        networkMode NoNetwork          = ECS.None
 
         containerPort port =
             ECS.pmProtocol .~ (port ^. pmProtocol)

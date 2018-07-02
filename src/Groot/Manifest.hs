@@ -68,6 +68,7 @@ module Groot.Manifest
      , sdTaskRole
      -- Manifest
      , GrootManifest
+     , gmInstanceGroups
      , gmServices
      , gmVolumes
      -- Manifest Exceptions
@@ -101,10 +102,12 @@ import           Data.Typeable
 import           Data.Yaml                 (decodeFileEither,
                                             prettyPrintParseException)
 import           GHC.Generics
+import           Network.AWS.EC2           (InstanceType)
 import qualified Network.AWS.ECS           as ECS
 
 import           Groot.Console
 import           Groot.Data.Text
+import           Groot.Types
 
 toHashMap :: (Hashable k, Eq k) => (a -> k) -> [a] -> HashMap k a
 toHashMap f xs = Map.fromList $ (\x -> (f x, x)) <$> xs
@@ -266,7 +269,8 @@ instance FromJSON DeploymentConstraint where
     return $ InstanceAttributesConstraint attrs
 
 data ServiceNetwork =
-    BridgeNetwork
+    NoNetwork
+  | BridgeNetwork
   | HostNetwork
   | AWSNetwork { _snSubnets :: [Text], _snSecurityGroups :: [Text], _snAssignPublicIP :: Bool }
   deriving (Eq, Show, Generic)
@@ -282,9 +286,11 @@ instance FromJSON ServiceNetwork where
   parseJSON = withObject "service network" $ \o -> do
     networkMode <- (o .: "mode") :: JSON.Parser Text
     case networkMode of
+      "none"   -> return NoNetwork
       "bridge" -> return BridgeNetwork
       "host"   -> return HostNetwork
       "awsvpc" -> o .: "config" >>= awsNetworkCfgParser
+      _        -> fail $ "Invalid network mode: " ++ (T.unpack networkMode)
 
 data ServiceDeployment = ServiceDeployment
   { _sdTaskRole              :: Maybe Text
@@ -313,17 +319,38 @@ instance FromJSON ServiceDeployment where
     _sdPlacementStrategy     <- maybe [] id <$> o .:? "placement-strategy"
     return ServiceDeployment{..}
 
+data InstanceGroup = InstanceGroup
+  { _igInstanceType :: InstanceType
+  , _igImage        :: Maybe Ami
+  } deriving (Eq, Show, Generic)
+
+makeLenses ''InstanceGroup
+
+instance FromJSON InstanceGroup where
+  parseJSON = withObject "instance group" $ \o -> do
+    _igInstanceType <- do
+      instanceTypeTxt <- o .: "instance-type"
+      either (fail $ "Invalid instance type: " ++ (T.unpack instanceTypeTxt)) pure $ fromText instanceTypeTxt
+    _igImage <- do
+      imageTxt <- o .:? "image"
+      case imageTxt of
+        Just txt -> either (fail $ "Invalid image: " ++ (T.unpack txt)) (pure . Just) $ fromText txt
+        Nothing  -> pure Nothing
+    return InstanceGroup{..}
+
 data GrootManifest = GrootManifest
-  { _gmServices :: HashMap Text ServiceDeployment
-  , _gmVolumes  :: HashMap Text Volume
+  { _gmInstanceGroups :: HashMap Text InstanceGroup
+  , _gmServices       :: HashMap Text ServiceDeployment
+  , _gmVolumes        :: HashMap Text Volume
   } deriving (Eq, Show, Generic)
 
 makeLenses ''GrootManifest
 
 instance FromJSON GrootManifest where
   parseJSON = withObject "manifest" $ \o -> do
-    _gmServices <- maybe Map.empty id <$> o .:? "services"
-    _gmVolumes  <- maybe Map.empty (toHashMap $ view vName) <$> o .:? "volumes"
+    _gmInstanceGroups <- maybe Map.empty id <$> o .:? "instance-groups"
+    _gmServices       <- maybe Map.empty id <$> o .:? "services"
+    _gmVolumes        <- maybe Map.empty (toHashMap $ view vName) <$> o .:? "volumes"
     return GrootManifest{..}
 
 -- Exceptions
