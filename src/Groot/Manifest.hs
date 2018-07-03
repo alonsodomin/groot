@@ -350,7 +350,13 @@ newtype ImageFilterSpec = ImageFilterSpec { imageFilter :: ImageFilter }
   deriving (Eq, Show, Generic)
 
 defaultImageFilterSpec :: ImageFilterSpec
-defaultImageFilterSpec = undefined
+defaultImageFilterSpec = ImageFilterSpec
+                       $ imageHasName "*-amazon-ecs-optimized"
+                     &&& imageOwnerAlias "amazon"
+                     &&& imageArchitecture EC2.X86_64
+                     &&& imageRootDeviceType EC2.EBS
+                     &&& imageVirtualizationType EC2.HVM
+                     &&& imageState EC2.ISAvailable
 
 instance FromJSON ImageFilterSpec where
   parseJSON = withObject "image filter" $ \o -> do

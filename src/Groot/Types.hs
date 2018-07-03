@@ -31,6 +31,12 @@ module Groot.Types
      , Ami (..)
      , ImageFilterPart(..)
      , ImageFilter
+     , imageHasName
+     , imageVirtualizationType
+     , imageOwnerAlias
+     , imageArchitecture
+     , imageRootDeviceType
+     , imageState
      -- Cluster
      , ClusterName (..)
      , ClusterArnPath (..)
@@ -200,17 +206,39 @@ instance ToText Ami where
   toText (Ami ident) = T.append "ami-" ident
 
 data ImageFilterPart =
-    IFPVirtualizationType EC2.VirtualizationType
+    IFPName Text
+  | IFPVirtualizationType EC2.VirtualizationType
   | IFPOwnerAlias Text
   | IFPArchitecture EC2.ArchitectureValues
   | IFPRootDeviceType EC2.DeviceType
+  | IFPImageState EC2.ImageState
   deriving (Eq, Show, Generic)
 
 type ImageFilter = Filter ImageFilterPart
 
+imageHasName :: Text -> ImageFilter
+imageHasName = toFilter . IFPName
+
+imageVirtualizationType :: EC2.VirtualizationType -> ImageFilter
+imageVirtualizationType = toFilter . IFPVirtualizationType
+
+imageOwnerAlias :: Text -> ImageFilter
+imageOwnerAlias = toFilter . IFPOwnerAlias
+
+imageArchitecture :: EC2.ArchitectureValues -> ImageFilter
+imageArchitecture = toFilter . IFPArchitecture
+
+imageRootDeviceType :: EC2.DeviceType -> ImageFilter
+imageRootDeviceType = toFilter . IFPRootDeviceType
+
+imageState :: EC2.ImageState -> ImageFilter
+imageState = toFilter . IFPImageState
+
 instance IsFilter ImageFilterPart where
   type FilterItem ImageFilterPart = EC2.Image
 
+  matches (IFPName name) img =
+    maybe False (== name) $ img ^. EC2.iName
   matches (IFPVirtualizationType virtType) img =
     (img ^. EC2.iVirtualizationType) == virtType
   matches (IFPOwnerAlias ownerAlias)       img =
@@ -219,6 +247,8 @@ instance IsFilter ImageFilterPart where
     (img ^. EC2.iArchitecture) == arch
   matches (IFPRootDeviceType rdt) img =
     (img ^. EC2.iRootDeviceType) == rdt
+  matches (IFPImageState state) img =
+    (img ^. EC2.iState) == state
 
 -- Cluster
 

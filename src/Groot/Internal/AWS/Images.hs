@@ -24,10 +24,12 @@ findImage amiOrFilter = MaybeT $ do
         filter'' :: ToText a => Text -> a -> EC2.Filter
         filter'' name value = EC2.fValues .~ [toText value] $ EC2.filter' name
 
+        encodeFilterPart (IFPName name)              = filter'' "name"                name
         encodeFilterPart (IFPVirtualizationType vt)  = filter'' "virtualization-type" vt
         encodeFilterPart (IFPOwnerAlias oa)          = filter'' "owner-alias"         oa
         encodeFilterPart (IFPArchitecture arch)      = filter'' "architecture"        arch
         encodeFilterPart (IFPRootDeviceType devType) = filter'' "root-device-type"    devType
+        encodeFilterPart (IFPImageState state)       = filter'' "state"               state
 
         foldFilter :: ImageFilter -> [EC2.Filter]
         foldFilter (Single x) = [encodeFilterPart x]
