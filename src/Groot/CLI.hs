@@ -47,8 +47,8 @@ import           Groot.CLI.Service
 import           Groot.Config
 import           Groot.Console
 import           Groot.Core
-import           Groot.Data.Text
 import           Groot.Exception
+import           Groot.Internal.Data.Text
 import           Groot.Manifest
 
 data CredentialsOpt =

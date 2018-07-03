@@ -124,7 +124,7 @@ import qualified Network.AWS.EC2           as EC2
 import qualified Network.AWS.ECS           as ECS
 
 import           Groot.Console
-import           Groot.Data.Text
+import           Groot.Internal.Data.Text
 import           Groot.Types
 
 toHashMap :: (Hashable k, Eq k) => (a -> k) -> [a] -> HashMap k a

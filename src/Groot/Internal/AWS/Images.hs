@@ -12,7 +12,7 @@ import           Data.Maybe
 import           Network.AWS
 import qualified Network.AWS.EC2           as EC2
 
-import           Groot.Data.Text
+import           Groot.Internal.Data.Text
 import           Groot.Types
 
 findImage :: MonadAWS m => Either Ami (NonEmpty ImageFilterPart) -> MaybeT m EC2.Image

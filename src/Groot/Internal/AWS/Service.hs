@@ -24,9 +24,9 @@ import           Network.AWS                hiding (await)
 import           Network.AWS.Data.Text
 import qualified Network.AWS.ECS            as ECS
 
-import           Groot.Data.Filter
 import           Groot.Exception
 import           Groot.Internal.AWS.Cluster
+import           Groot.Internal.Data.Filter
 import           Groot.Types
 
 serviceCoords :: ECS.ContainerService -> Maybe ContainerServiceCoords

@@ -31,16 +31,16 @@ module Groot.Console
 
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans
-import           Control.Monad.Trans.Identity (IdentityT)
-import           Control.Monad.Trans.Maybe    (MaybeT)
+import           Control.Monad.Trans.Identity    (IdentityT)
+import           Control.Monad.Trans.Maybe       (MaybeT)
 import           Data.Semigroup
-import           Data.Text                    (Text)
-import qualified Data.Text                    as T
-import qualified Data.Text.IO                 as T
+import           Data.Text                       (Text)
+import qualified Data.Text                       as T
+import qualified Data.Text.IO                    as T
 import           System.IO
 
-import           Groot.Data.Text.Display
-import           Groot.Data.Text.Styled       as ST
+import           Groot.Internal.Data.Text.Styled as ST
+import           Groot.Internal.Display
 
 errorText, warnText, infoText, successText, debugText :: StyledText
 errorText   = styled redStyle    "ERROR"

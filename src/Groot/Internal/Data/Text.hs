@@ -12,24 +12,22 @@ Portability : portable
 This module aggregates the main text manipulation functionality needed
 in Groot to operate.
 -}
-module Groot.Data.Text
+module Groot.Internal.Data.Text
      (
        module Network.AWS.Data.Text
-     , module Groot.Data.Text.Display
-     , module Groot.Data.Text.Styled
+     , module Groot.Internal.Data.Text.Styled
      , uuid
      , subparser
      ) where
 
 import           Data.Attoparsec.Text
-import           Data.Text               (Text)
-import qualified Data.Text               as T
-import           Data.UUID               (UUID)
-import qualified Data.UUID               as UUID
-import           Network.AWS.Data.Text   hiding (takeText)
+import           Data.Text                       (Text)
+import qualified Data.Text                       as T
+import           Data.UUID                       (UUID)
+import qualified Data.UUID                       as UUID
+import           Network.AWS.Data.Text           hiding (takeText)
 
-import           Groot.Data.Text.Display
-import           Groot.Data.Text.Styled
+import           Groot.Internal.Data.Text.Styled
 
 -- |Text parser for 'UUID's
 uuid :: Parser UUID

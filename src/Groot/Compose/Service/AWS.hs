@@ -27,9 +27,9 @@ import           Network.AWS.Waiter
 import           Groot.Compose.Service.Free
 import           Groot.Console
 import           Groot.Core
-import           Groot.Data.Filter
-import           Groot.Data.Text
 import           Groot.Exception
+import           Groot.Internal.Data.Filter
+import           Groot.Internal.Data.Text
 import           Groot.Manifest
 import           Groot.Types
 

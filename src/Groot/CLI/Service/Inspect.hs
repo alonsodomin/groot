@@ -22,8 +22,8 @@ import           Options.Applicative
 import           Groot.CLI.Common
 import           Groot.Console
 import           Groot.Core
-import           Groot.Data.Text            (styled, toText, yellowStyle)
 import           Groot.Exception
+import           Groot.Internal.Data.Text   (styled, toText, yellowStyle)
 import           Groot.Internal.PrettyPrint (Doc, defaultIndent, (<+>))
 import qualified Groot.Internal.PrettyPrint as Doc
 import           Groot.Types

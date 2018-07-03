@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Groot.Data.Filter
+module Groot.Internal.Data.Filter
      ( Filter
      , toFilter
      , listToFilter

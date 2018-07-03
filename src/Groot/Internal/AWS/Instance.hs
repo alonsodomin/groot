@@ -22,9 +22,9 @@ import           Network.AWS
 import qualified Network.AWS.EC2            as EC2
 import qualified Network.AWS.ECS            as ECS
 
-import           Groot.Data.Text
 import           Groot.Exception
 import           Groot.Internal.AWS.Cluster
+import           Groot.Internal.Data.Text
 import           Groot.Types
 
 instanceRef :: ECS.ContainerInstance -> Maybe ContainerInstanceRef

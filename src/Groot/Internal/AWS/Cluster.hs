@@ -20,8 +20,8 @@ import           Data.Maybe                (isJust, listToMaybe)
 import           Network.AWS
 import qualified Network.AWS.ECS           as ECS
 
-import           Groot.Data.Text
 import           Groot.Exception
+import           Groot.Internal.Data.Text
 import           Groot.Types
 
 -- |Extracts the cluster name as a 'ClusterRef'

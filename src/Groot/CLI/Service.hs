@@ -17,8 +17,8 @@ import           Groot.CLI.Service.Events
 import           Groot.CLI.Service.Inspect
 import           Groot.Console
 import           Groot.Core
-import           Groot.Data.Text
 import           Groot.Exception
+import           Groot.Internal.Data.Text
 
 data ServiceSubCmd =
     ServiceEventsCmd  ServiceEventOpts
