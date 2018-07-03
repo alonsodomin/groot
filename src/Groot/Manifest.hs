@@ -369,8 +369,9 @@ instance FromJSON ImageFilterSpec where
       Just x  -> return $ ImageFilterSpec x
       Nothing -> fail "Must have at least one filter element."
 
---instance ToJSON ImageFilterSpec where
-
+-- instance ToJSON ImageFilterSpec where
+--   toJSON (ImageFilterSpec filtrs) = undefined
+--     where encodeFilterPart ()
 
 data InstanceGroupCapacity = InstanceGroupCapacity
   { _igcMinimum :: Int
