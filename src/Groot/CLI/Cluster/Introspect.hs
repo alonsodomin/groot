@@ -4,8 +4,11 @@ module Groot.CLI.Cluster.Introspect
      , runClusterIntrospect
      ) where
 
+import           Control.Lens
 import           Control.Monad.IO.Class
+import qualified Data.ByteString.Char8  as BS
 import           Data.String
+import           Data.Yaml
 import qualified Options.Applicative    as Opts
 
 import           Groot.Cluster
@@ -24,4 +27,5 @@ clusterIntrospectOpts = ClusterIntrospectOpts <$> clusterRefArg
 runClusterIntrospect :: ClusterIntrospectOpts -> GrootIO ()
 runClusterIntrospect (ClusterIntrospectOpts clusterRef) = do
   cluster <- introspectCluster clusterRef
-  liftIO . print $ cluster
+  yaml    <- pure . BS.unpack . encode $ cluster ^. clInstanceGroups
+  liftIO . putStrLn $ yaml

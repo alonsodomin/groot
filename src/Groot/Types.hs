@@ -93,6 +93,7 @@ module Groot.Types
 
 import           Control.Lens
 import           Control.Monad              (join)
+import           Data.Aeson
 import           Data.Attoparsec.Text
 import           Data.Data
 import           Data.Monoid
@@ -108,6 +109,7 @@ import qualified Network.AWS.ECS            as ECS
 import           Prelude                    hiding (takeWhile)
 
 import           Groot.Internal.Data.Filter
+import           Groot.Internal.Data.JSON
 import           Groot.Internal.Data.Text
 
 -- | An AWS service identifier, typically used in AWS ARNs
@@ -206,6 +208,12 @@ instance FromText Ami where
 
 instance ToText Ami where
   toText (Ami ident) = T.append "ami-" ident
+
+instance FromJSON Ami where
+  parseJSON = withText "ami" (parseFromText' (\i -> "Invalid AMI: " ++ i))
+
+instance ToJSON Ami where
+  toJSON = toJSON . toText
 
 newtype InstanceType = InstanceType Text
   deriving (Eq, Show, Generic, Data)

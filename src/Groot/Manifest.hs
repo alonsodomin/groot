@@ -99,7 +99,7 @@ module Groot.Manifest
 
 import           Control.Applicative
 import           Control.Exception.Lens
-import           Control.Lens
+import           Control.Lens              hiding ((.=))
 import           Control.Monad.Catch       hiding (Handler)
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
@@ -124,17 +124,12 @@ import qualified Network.AWS.EC2           as EC2
 import qualified Network.AWS.ECS           as ECS
 
 import           Groot.Console
+import           Groot.Internal.Data.JSON
 import           Groot.Internal.Data.Text
 import           Groot.Types
 
 toHashMap :: (Hashable k, Eq k) => (a -> k) -> [a] -> HashMap k a
 toHashMap f xs = Map.fromList $ (\x -> (f x, x)) <$> xs
-
-parseFromText :: (Traversable f, FromText a) => (String -> String) -> f Text -> JSON.Parser (f a)
-parseFromText f input = sequence $ (either (\x -> fail $ f x) pure) . fromText <$> input
-
-parseFromText' :: FromText a => (String -> String) -> Text -> JSON.Parser a
-parseFromText' f input = runIdentity <$> parseFromText f (Identity input)
 
 data PortELBLink =
     ELBNameLink Text
@@ -343,9 +338,6 @@ instance FromJSON ServiceDeployment where
     _sdPlacementStrategy     <- maybe [] id <$> o .:? "placement-strategy"
     return ServiceDeployment{..}
 
-parseImageFilterPart :: FromText a => String -> Text -> (a -> ImageFilterPart) -> JSON.Object -> JSON.Parser (Maybe ImageFilterPart)
-parseImageFilterPart errMsg field f o = runMaybeT $ fmap f (MaybeT $ (parseFromText (\i -> errMsg ++ ' ':i)) =<< o .:? field)
-
 newtype ImageFilterSpec = ImageFilterSpec { imageFilters :: NonEmpty ImageFilterPart }
   deriving (Eq, Show, Generic)
 
@@ -359,19 +351,39 @@ defaultImageFilterSpec = ImageFilterSpec $ NEL.fromList
                        , IFPImageState EC2.ISAvailable
                        ]
 
+parseImageFilterPart :: FromText a => String -> Text -> (a -> ImageFilterPart) -> JSON.Object -> JSON.Parser (Maybe ImageFilterPart)
+parseImageFilterPart errMsg field f o = runMaybeT $ fmap f (MaybeT $ (parseFromText (\i -> errMsg ++ ' ':i)) =<< o .:? field)
+
 instance FromJSON ImageFilterSpec where
   parseJSON = withObject "image filter" $ \o -> do
+    name               <- runMaybeT $ IFPName <$> (MaybeT $ o .:? "name")
     virtualizationType <- parseImageFilterPart "Invalid virtualization type:" "virtualization-type" IFPVirtualizationType o
     ownerAlias         <- runMaybeT $ IFPOwnerAlias <$> (MaybeT $ o .:? "owner-alias")
     architecture       <- parseImageFilterPart "Invalid architecture:" "architecture" IFPArchitecture o
     rootDeviceType     <- parseImageFilterPart "Invalid device type:" "root-device-type" IFPRootDeviceType o
-    case (NEL.nonEmpty $ catMaybes [virtualizationType, ownerAlias, architecture, rootDeviceType]) of
+    imageSt            <- parseImageFilterPart "Invalid image state:" "state" IFPImageState o
+
+    filterParts        <- pure $ catMaybes
+                        [ name
+                        , virtualizationType
+                        , ownerAlias
+                        , architecture
+                        , rootDeviceType
+                        , imageSt
+                        ]
+    case (NEL.nonEmpty filterParts) of
       Just x  -> return $ ImageFilterSpec x
       Nothing -> fail "Must have at least one filter element."
 
--- instance ToJSON ImageFilterSpec where
---   toJSON (ImageFilterSpec filtrs) = undefined
---     where encodeFilterPart ()
+instance ToJSON ImageFilterSpec where
+  toJSON (ImageFilterSpec filtrs) = JSON.Object . Map.fromList $ encodeFilterPart <$> (NEL.toList filtrs)
+    where encodeFilterPart :: ImageFilterPart -> (Text, JSON.Value)
+          encodeFilterPart (IFPName x)               = ("name", toJSON x)
+          encodeFilterPart (IFPVirtualizationType x) = ("virtualization-type", toJSON . toText $ x)
+          encodeFilterPart (IFPOwnerAlias x)         = ("owner-alias", toJSON x)
+          encodeFilterPart (IFPArchitecture x)       = ("architecture", toJSON . toText $ x)
+          encodeFilterPart (IFPRootDeviceType x)     = ("root-device-type", toJSON . toText $ x)
+          encodeFilterPart (IFPImageState x)         = ("state", toJSON . toText $ x)
 
 data InstanceGroupCapacity = InstanceGroupCapacity
   { _igcMinimum :: Int
@@ -391,6 +403,13 @@ instance FromJSON InstanceGroupCapacity where
     _igcDesired <- o .: "desired"
     return InstanceGroupCapacity{..}
 
+instance ToJSON InstanceGroupCapacity where
+  toJSON igc = JSON.object
+    [ "min" .= (igc ^. igcMinimum)
+    , "max" .= (igc ^. igcMaximum)
+    , "desired" .= (igc ^. igcDesired)
+    ]
+
 data InstanceGroup = InstanceGroup
   { _igInstanceType :: InstanceType
   , _igImage        :: Either Ami ImageFilterSpec
@@ -407,7 +426,7 @@ instance FromJSON InstanceGroup where
     _igInstanceType <- InstanceType <$> o .: "instance-type"
 
     _igImage <- do
-      imageAmi    <- parseFromText (\i -> "Invalid AMI: " ++ i) =<< o .:? "image"
+      imageAmi    <- o .:? "image"
       imageFilter <- o .:? "image-filter"
       case (imageAmi, imageFilter) of
         (Nothing, Nothing)  -> fail $ "You must provide one of 'image' or 'image-filter'."
@@ -417,6 +436,15 @@ instance FromJSON InstanceGroup where
 
     _igCapacity <- o .: "capacity"
     return InstanceGroup{..}
+
+instance ToJSON InstanceGroup where
+  toJSON ig = JSON.object
+    [ "instance-type" .= (toText $ ig ^. igInstanceType)
+    , case (ig ^. igImage) of
+      Left ami     -> "image" .= (toText ami)
+      Right filtrs -> "image-filter" .= filtrs
+    , "capacity" .= (ig ^. igCapacity)
+    ]
 
 data GrootManifest = GrootManifest
   { _gmInstanceGroups :: HashMap Text InstanceGroup
