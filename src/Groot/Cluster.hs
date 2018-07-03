@@ -49,7 +49,7 @@ makeLenses ''Cluster
 
 introspectCluster :: ClusterRef -> GrootIO Cluster
 introspectCluster clusterRef = do
-  groups <- runGrootResource . awsResource . runConduit $ yield clusterRef .| findAutoScalingGroups .| instanceGroupMapSink
+  groups <- runGrootResource . awsResource . runConduit $ yield clusterRef .| fetchAutoScalingGroups .| instanceGroupMapSink
   return $ Cluster clusterRef groups
-  where instanceGroupMapSink :: MonadAWS m => ConduitT AS.AutoScalingGroup Void m (HashMap Text InstancesByGroup)
-        instanceGroupMapSink = CL.fold (\m group -> Map.insert (group ^. AS.asgAutoScalingGroupName) (instancesByGroup group) m) Map.empty
+  where -- instanceGroupMapSink :: MonadAWS m => ConduitT AS.AutoScalingGroup Void m (HashMap Text InstancesByGroup)
+        instanceGroupMapSink = CL.map fst .| CL.fold (\m group -> Map.insert (group ^. AS.asgAutoScalingGroupName) (instancesByGroup group) m) Map.empty
