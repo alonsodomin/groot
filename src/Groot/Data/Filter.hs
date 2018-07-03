@@ -1,8 +1,9 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Groot.Data.Filter
-     ( Filter(..)
+     ( Filter
      , toFilter
+     , listToFilter
      , IsFilter(..)
      , filterM
      , filterOnM
@@ -15,6 +16,7 @@ import           Control.Monad         hiding (filterM)
 import           Data.Conduit
 import qualified Data.Conduit.List     as CL
 import           Data.Functor.Identity
+import           Data.List.NonEmpty    (NonEmpty)
 
 class IsFilter a where
   type FilterItem a :: *
@@ -47,6 +49,9 @@ data Filter a =
 
 toFilter :: IsFilter a => a -> Filter a
 toFilter = Single
+
+listToFilter :: IsFilter a => NonEmpty a -> Filter a
+listToFilter parts = foldr1 (&&&) $ toFilter <$> parts
 
 instance Functor Filter where
   fmap f (Single x) = Single (f x)

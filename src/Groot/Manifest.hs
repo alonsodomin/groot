@@ -68,7 +68,7 @@ module Groot.Manifest
      , sdTaskRole
      -- Image Filter
      , ImageFilterSpec
-     , imageFilter
+     , imageFilters
      , defaultImageFilterSpec
      -- Instance Group
      , InstanceGroupCapacity
@@ -108,6 +108,7 @@ import qualified Data.Aeson.Types          as JSON
 import           Data.Hashable             (Hashable)
 import           Data.HashMap.Strict       (HashMap)
 import qualified Data.HashMap.Strict       as Map
+import           Data.List.NonEmpty        (NonEmpty)
 import qualified Data.List.NonEmpty        as NEL
 import           Data.Maybe
 import           Data.Semigroup            ((<>))
@@ -123,7 +124,6 @@ import qualified Network.AWS.EC2           as EC2
 import qualified Network.AWS.ECS           as ECS
 
 import           Groot.Console
-import           Groot.Data.Filter
 import           Groot.Data.Text
 import           Groot.Types
 
@@ -346,17 +346,18 @@ instance FromJSON ServiceDeployment where
 parseImageFilterPart :: FromText a => String -> Text -> (a -> ImageFilterPart) -> JSON.Object -> JSON.Parser (Maybe ImageFilterPart)
 parseImageFilterPart errMsg field f o = runMaybeT $ fmap f (MaybeT $ (parseFromText (\i -> errMsg ++ ' ':i)) =<< o .:? field)
 
-newtype ImageFilterSpec = ImageFilterSpec { imageFilter :: ImageFilter }
+newtype ImageFilterSpec = ImageFilterSpec { imageFilters :: NonEmpty ImageFilterPart }
   deriving (Eq, Show, Generic)
 
 defaultImageFilterSpec :: ImageFilterSpec
-defaultImageFilterSpec = ImageFilterSpec
-                       $ imageHasName "*-amazon-ecs-optimized"
-                     &&& imageOwnerAlias "amazon"
-                     &&& imageArchitecture EC2.X86_64
-                     &&& imageRootDeviceType EC2.EBS
-                     &&& imageVirtualizationType EC2.HVM
-                     &&& imageState EC2.ISAvailable
+defaultImageFilterSpec = ImageFilterSpec $ NEL.fromList
+                       [ IFPName "*-amazon-ecs-optimized"
+                       , IFPOwnerAlias "amazon"
+                       , IFPArchitecture EC2.X86_64
+                       , IFPRootDeviceType EC2.EBS
+                       , IFPVirtualizationType EC2.HVM
+                       , IFPImageState EC2.ISAvailable
+                       ]
 
 instance FromJSON ImageFilterSpec where
   parseJSON = withObject "image filter" $ \o -> do
@@ -365,8 +366,11 @@ instance FromJSON ImageFilterSpec where
     architecture       <- parseImageFilterPart "Invalid architecture:" "architecture" IFPArchitecture o
     rootDeviceType     <- parseImageFilterPart "Invalid device type:" "root-device-type" IFPRootDeviceType o
     case (NEL.nonEmpty $ catMaybes [virtualizationType, ownerAlias, architecture, rootDeviceType]) of
-      Just x  -> return . ImageFilterSpec $ foldr1 (&&&) (toFilter <$> x)
+      Just x  -> return $ ImageFilterSpec x
       Nothing -> fail "Must have at least one filter element."
+
+--instance ToJSON ImageFilterSpec where
+
 
 data InstanceGroupCapacity = InstanceGroupCapacity
   { _igcMinimum :: Int
@@ -387,19 +391,19 @@ instance FromJSON InstanceGroupCapacity where
     return InstanceGroupCapacity{..}
 
 data InstanceGroup = InstanceGroup
-  { _igInstanceType :: EC2.InstanceType
+  { _igInstanceType :: InstanceType
   , _igImage        :: Either Ami ImageFilterSpec
   , _igCapacity     :: InstanceGroupCapacity
   } deriving (Eq, Show, Generic)
 
-instanceGroup :: EC2.InstanceType -> Either Ami ImageFilterSpec -> InstanceGroupCapacity -> InstanceGroup
+instanceGroup :: InstanceType -> Either Ami ImageFilterSpec -> InstanceGroupCapacity -> InstanceGroup
 instanceGroup = InstanceGroup
 
 makeLenses ''InstanceGroup
 
 instance FromJSON InstanceGroup where
   parseJSON = withObject "instance group" $ \o -> do
-    _igInstanceType <- parseFromText' (\i -> "Invalid instance type: " ++ i) =<< o .: "instance-type"
+    _igInstanceType <- InstanceType <$> o .: "instance-type"
 
     _igImage <- do
       imageAmi    <- parseFromText (\i -> "Invalid AMI: " ++ i) =<< o .:? "image"

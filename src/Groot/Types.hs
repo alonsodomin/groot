@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE RecordWildCards      #-}
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -37,6 +38,7 @@ module Groot.Types
      , imageArchitecture
      , imageRootDeviceType
      , imageState
+     , InstanceType(..)
      -- Cluster
      , ClusterName (..)
      , ClusterArnPath (..)
@@ -100,7 +102,7 @@ import qualified Data.Text            as T
 import           Data.UUID            (UUID)
 import qualified Data.UUID            as UUID
 import           GHC.Generics         hiding (to)
-import           Network.AWS
+import           Network.AWS          hiding (InstanceType)
 import qualified Network.AWS.EC2      as EC2
 import qualified Network.AWS.ECS      as ECS
 import           Prelude              hiding (takeWhile)
@@ -205,6 +207,15 @@ instance FromText Ami where
 instance ToText Ami where
   toText (Ami ident) = T.append "ami-" ident
 
+newtype InstanceType = InstanceType Text
+  deriving (Eq, Show, Generic, Data)
+
+instance ToText InstanceType where
+  toText (InstanceType x) = x
+
+instance IsString InstanceType where
+  fromString = InstanceType . T.pack
+
 data ImageFilterPart =
     IFPName Text
   | IFPVirtualizationType EC2.VirtualizationType
@@ -212,7 +223,7 @@ data ImageFilterPart =
   | IFPArchitecture EC2.ArchitectureValues
   | IFPRootDeviceType EC2.DeviceType
   | IFPImageState EC2.ImageState
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Data)
 
 type ImageFilter = Filter ImageFilterPart
 
@@ -412,7 +423,7 @@ newtype EC2InstanceId = EC2InstanceId Text
   deriving (Eq, Show)
 
 instance ToText EC2InstanceId where
-  toText (EC2InstanceId id) = id
+  toText (EC2InstanceId x) = x
 
 -- Container Service
 

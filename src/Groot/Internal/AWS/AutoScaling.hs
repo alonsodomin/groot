@@ -4,11 +4,11 @@ module Groot.Internal.AWS.AutoScaling
      ) where
 
 import           Control.Lens
+import           Control.Monad.Trans.Maybe
 import           Data.Conduit
 import qualified Data.Conduit.List           as CL
+import           Data.Maybe
 import           Data.Text                   (Text)
-import           Control.Monad.Trans.Maybe
-import Data.Maybe
 import           Network.AWS
 import qualified Network.AWS.AutoScaling     as AS
 import qualified Network.AWS.ECS             as ECS
