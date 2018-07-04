@@ -53,6 +53,7 @@ createTaskDefinitionReq :: GrootManifest -> NamedServiceDeployment -> ECS.Regist
 createTaskDefinitionReq manifest (serviceName, deployment) =
     ECS.rtdNetworkMode .~ (networkMode <$> deployment ^. sdNetwork)
   $ ECS.rtdTaskRoleARN .~ (deployment ^. sdTaskRole)
+  $ ECS.rtdExecutionRoleARN .~ (deployment ^. sdExecutionRole)
   $ ECS.rtdContainerDefinitions .~ (containerDef <$> deployment ^. sdContainers)
   $ ECS.rtdVolumes .~ (taskVolume <$> Map.elems (manifest ^. gmVolumes))
   $ ECS.rtdPlacementConstraints .~ (concat $ taskPlacementConstaints <$> deployment ^. sdDeploymentConstraints)
