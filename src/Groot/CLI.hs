@@ -42,6 +42,7 @@ import           System.IO
 
 import           Groot.CLI.Cluster
 import           Groot.CLI.Common
+import           Groot.CLI.Introspect
 import           Groot.CLI.List
 import           Groot.CLI.Service
 import           Groot.Config
@@ -101,6 +102,7 @@ data GrootCmd =
     ClusterCmd ClusterSubCmd
   | ListCmd ListSubCmd
   | ServiceCmd ServiceSubCmd
+  | IntrospectCmd IntrospectOpts
   deriving (Eq, Show)
 
 -- |Groot options for a given execution
@@ -113,13 +115,16 @@ data GrootOpts = GrootOpts
 
 makeLenses ''GrootOpts
 
+introspectCmd :: Parser GrootCmd
+introspectCmd = IntrospectCmd <$> introspectOpts
+
 commands :: Parser GrootCmd
 commands = hsubparser
-   ( command "ls"      (info (ListCmd    <$> listCmds)    (progDesc "List ECS resources"))
-  <> command "cluster" (info (ClusterCmd <$> clusterCmds) (progDesc "Perform cluster related operations"))
-  <> command "service" (info (ServiceCmd <$> serviceCmds) (progDesc "Perform service related operations"))
-  -- <> command "task"    (info (TaskCmd    <$> grootTaskCli)    (progDesc "Manage ECS tasks"))
-    )
+   ( command "ls"         (info (ListCmd    <$> listCmds)    (progDesc "List ECS resources"))
+  <> command "cluster"    (info (ClusterCmd <$> clusterCmds) (progDesc "Perform cluster related operations"))
+  <> command "service"    (info (ServiceCmd <$> serviceCmds) (progDesc "Perform service related operations"))
+  <> command "introspect" (info introspectCmd                (progDesc "Introspect the manifest from a running cluster"))
+  )
 
 -- |Command line parser for all the possible Groot options
 grootOpts :: Parser GrootOpts
@@ -224,10 +229,10 @@ handleExceptions act = catches act [
 
 -- |Runs a Groot command with the given AWS environment
 evalCmd :: GrootCmd -> GrootIO ()
-evalCmd (ClusterCmd opts) = runClusterCmd opts
-evalCmd (ListCmd opts)    = runListCmd opts
-evalCmd (ServiceCmd opts) = runServiceCmd opts
---evalCmd (TaskCmd opts)    = runGrootTask opts
+evalCmd (ClusterCmd opts)    = runClusterCmd opts
+evalCmd (ListCmd opts)       = runListCmd opts
+evalCmd (ServiceCmd opts)    = runServiceCmd opts
+evalCmd (IntrospectCmd opts) = runIntrospect opts
 
 -- |Groot main entry point from the Command line, able to interpret
 -- arguments and parameters passed to it
