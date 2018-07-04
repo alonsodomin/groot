@@ -11,8 +11,8 @@ import           Data.String
 import           Data.Yaml
 import qualified Options.Applicative    as Opts
 
-import           Groot.Cluster
 import           Groot.Core
+import           Groot.Manifest
 import           Groot.Types
 
 data ClusterIntrospectOpts = ClusterIntrospectOpts ClusterRef
@@ -26,6 +26,6 @@ clusterIntrospectOpts = ClusterIntrospectOpts <$> clusterRefArg
 
 runClusterIntrospect :: ClusterIntrospectOpts -> GrootIO ()
 runClusterIntrospect (ClusterIntrospectOpts clusterRef) = do
-  cluster <- introspectCluster clusterRef
-  yaml    <- pure . BS.unpack . encode $ cluster ^. clInstanceGroups
+  manifest <- introspectManifest clusterRef
+  yaml     <- pure . BS.unpack . encode $ manifest
   liftIO . putStrLn $ yaml

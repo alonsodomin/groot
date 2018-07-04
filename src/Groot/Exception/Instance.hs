@@ -5,12 +5,14 @@ module Groot.Exception.Instance where
 import           Control.Exception.Lens
 import           Control.Lens
 import           Control.Monad.Catch    hiding (Handler)
+import           Data.Text              (Text)
 import           Data.Typeable
 import           Groot.Types
 
 data InstanceException =
-    InstanceNotFound InstanceNotFound
-  | DrainingInstance DrainingInstance
+    InstanceNotFound       InstanceNotFound
+  | DrainingInstance       DrainingInstance
+  | InvalidInstanceImageId InvalidInstanceImageId
   deriving (Eq, Show, Typeable)
 
 instance Exception InstanceException
@@ -33,6 +35,14 @@ instance Exception DrainingInstance
 drainingInstance :: ContainerInstanceRef -> SomeException
 drainingInstance = toException . DrainingInstance . DrainingInstance'
 
+data InvalidInstanceImageId = InvalidInstanceImageId' Text
+  deriving (Eq, Show, Typeable)
+
+instance Exception InvalidInstanceImageId
+
+invalidInstanceImageId :: Text -> SomeException
+invalidInstanceImageId = toException . InvalidInstanceImageId . InvalidInstanceImageId'
+
 class AsInstanceException t where
   _InstanceException :: Prism' t InstanceException
   {-# MINIMAL _InstanceException #-}
@@ -42,6 +52,9 @@ class AsInstanceException t where
 
   _DrainingInstance :: Prism' t DrainingInstance
   _DrainingInstance = _InstanceException . _DrainingInstance
+
+  _InvalidInstanceImageId :: Prism' t InvalidInstanceImageId
+  _InvalidInstanceImageId = _InstanceException . _InvalidInstanceImageId
 
 instance AsInstanceException SomeException where
   _InstanceException = exception
@@ -56,3 +69,7 @@ instance AsInstanceException InstanceException where
   _DrainingInstance = prism DrainingInstance $ \case
     DrainingInstance e -> Right e
     x                  -> Left x
+
+  _InvalidInstanceImageId = prism InvalidInstanceImageId $ \case
+    InvalidInstanceImageId e -> Right e
+    x                        -> Left x

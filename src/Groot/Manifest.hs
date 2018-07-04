@@ -95,6 +95,7 @@ module Groot.Manifest
      -- Utilities
      , defaultManifestFilePath
      , loadManifest
+     , introspectManifest
      ) where
 
 import           Control.Applicative
@@ -105,6 +106,8 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
 import           Data.Aeson
 import qualified Data.Aeson.Types          as JSON
+import           Data.Conduit
+import qualified Data.Conduit.List         as CL
 import           Data.Hashable             (Hashable)
 import           Data.HashMap.Strict       (HashMap)
 import qualified Data.HashMap.Strict       as Map
@@ -120,10 +123,13 @@ import           Data.Typeable
 import           Data.Yaml                 (decodeFileEither,
                                             prettyPrintParseException)
 import           GHC.Generics
+import qualified Network.AWS.AutoScaling   as AS
 import qualified Network.AWS.EC2           as EC2
 import qualified Network.AWS.ECS           as ECS
 
 import           Groot.Console
+import           Groot.Core
+import           Groot.Exception
 import           Groot.Internal.Data.JSON
 import           Groot.Internal.Data.Text
 import           Groot.Types
@@ -461,6 +467,11 @@ instance FromJSON GrootManifest where
     _gmVolumes        <- maybe Map.empty (toHashMap $ view vName) <$> o .:? "volumes"
     return GrootManifest{..}
 
+instance ToJSON GrootManifest where
+  toJSON gm = JSON.object
+         [ "instance-groups" .= (gm ^. gmInstanceGroups)
+         ]
+
 -- Exceptions
 
 data ManifestException =
@@ -512,3 +523,21 @@ loadManifest file = do
   case parsed of
     Left err       -> throwM $ manifestParseError file (fromString $ prettyPrintParseException err)
     Right manifest -> return manifest
+
+introspectManifest :: ClusterRef -> GrootIO GrootManifest
+introspectManifest clusterRef = do
+  groups <- runGrootResource . awsResource . runConduit $ yield clusterRef .| fetchAutoScalingGroups .| instanceGroupMapSink
+  return $ GrootManifest { _gmInstanceGroups = groups, _gmServices = Map.empty, _gmVolumes = Map.empty }
+  where instanceGroupMapSink =
+          let insertM m k v = (\x -> Map.insert k x m) <$> v
+          in CL.foldM (\m (g, c) -> insertM m (g ^. AS.asgAutoScalingGroupName) (mkInstanceGroup g c)) Map.empty
+
+        mkInstanceGroup :: MonadThrow m => AS.AutoScalingGroup -> AS.LaunchConfiguration -> m InstanceGroup
+        mkInstanceGroup asg cfg = do
+          ami <- parseImageId $ cfg ^. AS.lcImageId
+          return $ instanceGroup
+            (InstanceType $ cfg ^. AS.lcInstanceType)
+            (Left ami)
+            (instanceGroupCapacity (asg ^. AS.asgMinSize) (asg ^. AS.asgMaxSize) (Just $ asg ^. AS.asgDesiredCapacity))
+          where parseImageId :: MonadThrow m => Text -> m Ami
+                parseImageId imageId = either (\_ -> throwM $ invalidInstanceImageId imageId) pure $ fromText imageId
