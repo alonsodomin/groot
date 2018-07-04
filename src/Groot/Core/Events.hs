@@ -20,7 +20,6 @@ import           Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.Morph
 import           Control.Monad.Reader
-import           Control.Monad.Trans.Control
 import           Control.Monad.Trans.Resource
 import           Control.Monad.Trans.State.Lazy
 import           Data.Conduit
@@ -35,11 +34,12 @@ import           Network.AWS                    hiding (await)
 import qualified Network.AWS.ECS                as ECS
 import qualified UnliftIO                       as Lifted
 
-import           Groot.AWS
 import           Groot.Console
-import           Groot.Data.Filter
-import           Groot.Data.Text
 import           Groot.Exception
+import           Groot.Internal.AWS
+import           Groot.Internal.Data.Filter
+import           Groot.Internal.Data.Text
+import           Groot.Internal.Display
 import           Groot.Types
 
 formatEventTime :: MonadIO m => UTCTime -> m Text

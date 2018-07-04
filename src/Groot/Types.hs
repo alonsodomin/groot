@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE RecordWildCards      #-}
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -29,6 +30,15 @@ module Groot.Types
      , arnServiceId
      , viewArn
      , Ami (..)
+     , ImageFilterPart(..)
+     , ImageFilter
+     , imageHasName
+     , imageVirtualizationType
+     , imageOwnerAlias
+     , imageArchitecture
+     , imageRootDeviceType
+     , imageState
+     , InstanceType(..)
      -- Cluster
      , ClusterName (..)
      , ClusterArnPath (..)
@@ -77,26 +87,30 @@ module Groot.Types
      , arnTaskDefFamily
      , arnTaskDefRevision
      , TaskDefStatus(..)
-     , TaskDefFilter(..)
+     , TaskDefFilterPart(..)
+     , TaskDefFilter
      ) where
 
 import           Control.Lens
-import           Control.Monad        (join)
+import           Control.Monad              (join)
+import           Data.Aeson
 import           Data.Attoparsec.Text
 import           Data.Data
 import           Data.Monoid
 import           Data.String
-import           Data.Text            (Text)
-import qualified Data.Text            as T
-import           Data.UUID            (UUID)
-import qualified Data.UUID            as UUID
-import           GHC.Generics         hiding (to)
-import           Network.AWS
-import qualified Network.AWS.ECS      as ECS
-import           Prelude              hiding (takeWhile)
+import           Data.Text                  (Text)
+import qualified Data.Text                  as T
+import           Data.UUID                  (UUID)
+import qualified Data.UUID                  as UUID
+import           GHC.Generics               hiding (to)
+import           Network.AWS                hiding (InstanceType)
+import qualified Network.AWS.EC2            as EC2
+import qualified Network.AWS.ECS            as ECS
+import           Prelude                    hiding (takeWhile)
 
-import           Groot.Data.Filter
-import           Groot.Data.Text
+import           Groot.Internal.Data.Filter
+import           Groot.Internal.Data.JSON
+import           Groot.Internal.Data.Text
 
 -- | An AWS service identifier, typically used in AWS ARNs
 data ServiceId =
@@ -195,6 +209,66 @@ instance FromText Ami where
 instance ToText Ami where
   toText (Ami ident) = T.append "ami-" ident
 
+instance FromJSON Ami where
+  parseJSON = withText "ami" (parseFromText' (\i -> "Invalid AMI: " ++ i))
+
+instance ToJSON Ami where
+  toJSON = toJSON . toText
+
+newtype InstanceType = InstanceType Text
+  deriving (Eq, Show, Generic, Data)
+
+instance ToText InstanceType where
+  toText (InstanceType x) = x
+
+instance IsString InstanceType where
+  fromString = InstanceType . T.pack
+
+data ImageFilterPart =
+    IFPName Text
+  | IFPVirtualizationType EC2.VirtualizationType
+  | IFPOwnerAlias Text
+  | IFPArchitecture EC2.ArchitectureValues
+  | IFPRootDeviceType EC2.DeviceType
+  | IFPImageState EC2.ImageState
+  deriving (Eq, Show, Generic, Data)
+
+type ImageFilter = Filter ImageFilterPart
+
+imageHasName :: Text -> ImageFilter
+imageHasName = toFilter . IFPName
+
+imageVirtualizationType :: EC2.VirtualizationType -> ImageFilter
+imageVirtualizationType = toFilter . IFPVirtualizationType
+
+imageOwnerAlias :: Text -> ImageFilter
+imageOwnerAlias = toFilter . IFPOwnerAlias
+
+imageArchitecture :: EC2.ArchitectureValues -> ImageFilter
+imageArchitecture = toFilter . IFPArchitecture
+
+imageRootDeviceType :: EC2.DeviceType -> ImageFilter
+imageRootDeviceType = toFilter . IFPRootDeviceType
+
+imageState :: EC2.ImageState -> ImageFilter
+imageState = toFilter . IFPImageState
+
+instance IsFilter ImageFilterPart where
+  type FilterItem ImageFilterPart = EC2.Image
+
+  matches (IFPName name) img =
+    maybe False (== name) $ img ^. EC2.iName
+  matches (IFPVirtualizationType virtType) img =
+    (img ^. EC2.iVirtualizationType) == virtType
+  matches (IFPOwnerAlias ownerAlias)       img =
+    maybe False (== ownerAlias) $ img ^. EC2.iImageOwnerAlias
+  matches (IFPArchitecture arch) img =
+    (img ^. EC2.iArchitecture) == arch
+  matches (IFPRootDeviceType rdt) img =
+    (img ^. EC2.iRootDeviceType) == rdt
+  matches (IFPImageState state) img =
+    (img ^. EC2.iState) == state
+
 -- Cluster
 
 -- |Type describing the cluster name
@@ -259,22 +333,24 @@ instance ToText ClusterStatus where
   toText CSInactive = "INACTIVE"
 
 -- |Filter definition for clusters
-data ClusterFilter =
+data ClusterFilterPart =
     CFRef ClusterRef
   | CFStatus ClusterStatus
   deriving (Eq, Show)
 
+type ClusterFilter = Filter ClusterFilterPart
+
 -- |Cluster filter predicates based on status
 isActiveCluster, isInactiveCluster :: ClusterFilter
-isActiveCluster   = CFStatus CSActive
-isInactiveCluster = CFStatus CSInactive
+isActiveCluster   = toFilter $ CFStatus CSActive
+isInactiveCluster = toFilter $ CFStatus CSInactive
 
 -- |Cluster filter based on name or ARN
 clusterHasNameOrArn :: Text -> ClusterFilter
-clusterHasNameOrArn = CFRef . ClusterRef
+clusterHasNameOrArn = toFilter . CFRef . ClusterRef
 
-instance Filter ClusterFilter where
-  type FilterItem ClusterFilter = ECS.Cluster
+instance IsFilter ClusterFilterPart where
+  type FilterItem ClusterFilterPart = ECS.Cluster
 
   matches (CFRef (ClusterRef txt)) cluster =
        maybe False (== txt) (cluster ^. ECS.cClusterName)
@@ -334,15 +410,17 @@ instance ToText ContainerInstanceRef where
 instance IsString ContainerInstanceRef where
   fromString = ContainerInstanceRef . T.pack
 
-data ContainerInstanceFilter =
+data ContainerInstanceFilterPart =
   CIFAgentStatus ECS.AgentUpdateStatus
   deriving (Eq, Show)
 
-canUpdateContainerAgent :: FilterOp ContainerInstanceFilter
-canUpdateContainerAgent = (CIFAgentStatus ECS.AUSFailed) ||| (CIFAgentStatus ECS.AUSUpdated)
+type ContainerInstanceFilter = Filter ContainerInstanceFilterPart
 
-instance Filter ContainerInstanceFilter where
-  type FilterItem ContainerInstanceFilter = ECS.ContainerInstance
+canUpdateContainerAgent :: ContainerInstanceFilter
+canUpdateContainerAgent = (toFilter $ CIFAgentStatus ECS.AUSFailed) ||| (toFilter $ CIFAgentStatus ECS.AUSUpdated)
+
+instance IsFilter ContainerInstanceFilterPart where
+  type FilterItem ContainerInstanceFilterPart = ECS.ContainerInstance
 
   matches (CIFAgentStatus status) inst =
     maybe True (== status) $ inst ^. ECS.ciAgentUpdateStatus
@@ -353,7 +431,7 @@ newtype EC2InstanceId = EC2InstanceId Text
   deriving (Eq, Show)
 
 instance ToText EC2InstanceId where
-  toText (EC2InstanceId id) = id
+  toText (EC2InstanceId x) = x
 
 -- Container Service
 
@@ -417,22 +495,24 @@ data ContainerServiceStatus =
   deriving (Eq, Show, Ord, Enum, Bounded, Data, Generic)
 
 -- |Service filters
-data ContainerServiceFilter =
+data ContainerServiceFilterPart =
     CSFRef ContainerServiceRef
   | CSFStatus ContainerServiceStatus
   deriving (Eq, Show)
 
+type ContainerServiceFilter = Filter ContainerServiceFilterPart
+
 -- |Service filter predicate based on service status
 isActiveContainerService, isInactiveContainerService :: ContainerServiceFilter
-isActiveContainerService   = CSFStatus CSSActive
-isInactiveContainerService = CSFStatus CSSInactive
+isActiveContainerService   = toFilter $ CSFStatus CSSActive
+isInactiveContainerService = toFilter $ CSFStatus CSSInactive
 
 -- |Service filter preficate based on service name or ARN
 isContainerService :: ContainerServiceRef -> ContainerServiceFilter
-isContainerService = CSFRef
+isContainerService = toFilter . CSFRef
 
-instance Filter ContainerServiceFilter where
-  type FilterItem ContainerServiceFilter = ECS.ContainerService
+instance IsFilter ContainerServiceFilterPart where
+  type FilterItem ContainerServiceFilterPart = ECS.ContainerService
 
   matches (CSFStatus CSSActive) serv =
     maybe False (== (T.pack "ACTIVE")) (serv ^. ECS.csStatus)
@@ -591,13 +671,15 @@ data TaskDefStatus =
   deriving (Eq, Show, Ord, Enum, Bounded, Read, Generic, Data)
 
 -- |Task definition filters
-data TaskDefFilter =
+data TaskDefFilterPart =
     TDFFamily TaskFamily
   | TDFStatus TaskDefStatus
   deriving (Eq, Show)
 
-instance Filter TaskDefFilter where
-  type FilterItem TaskDefFilter = ECS.TaskDefinition
+type TaskDefFilter = Filter TaskDefFilterPart
+
+instance IsFilter TaskDefFilterPart where
+  type FilterItem TaskDefFilterPart = ECS.TaskDefinition
 
   matches (TDFFamily (TaskFamily family)) taskDef =
     maybe False (== family) $ taskDef ^. ECS.tdFamily

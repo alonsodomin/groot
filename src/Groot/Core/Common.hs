@@ -7,6 +7,7 @@ module Groot.Core.Common
      , GrootIO
      , GrootResource
      , MonadGroot(..)
+     , noop
      , mapGrootT
      , awsResource
      , awsResource_
@@ -29,6 +30,10 @@ newtype GrootT m a = GrootT { runGrootT :: ReaderT Env m a }
 
 type GrootIO = GrootT IO
 type GrootResource = GrootT (ResourceT IO)
+
+noop :: Applicative m => GrootT m ()
+noop = liftGrootT $ pure ()
+{-# INLINE noop #-}
 
 liftGrootT :: m a -> GrootT m a
 liftGrootT m = GrootT . ReaderT $ const m

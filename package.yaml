@@ -68,7 +68,8 @@ library:
   exposed-modules:
   - Groot.CLI
   - Groot.Console
-  - Groot.Data.Text
+  - Groot.Internal.Data.Filter
+  - Groot.Internal.Data.Text
   - Groot.Types
 
 executable:

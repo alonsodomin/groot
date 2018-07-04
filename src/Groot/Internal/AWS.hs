@@ -1,31 +1,34 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Groot.AWS
-     (
-       module Groot.AWS.Cluster
-     , module Groot.AWS.Instance
-     , module Groot.AWS.Service
-     , module Groot.AWS.Task
-     , module Groot.AWS.TaskDef
+module Groot.Internal.AWS
+     ( module Groot.Internal.AWS.Cluster
+     , module Groot.Internal.AWS.Images
+     , module Groot.Internal.AWS.Instance
+     , module Groot.Internal.AWS.Service
+     , module Groot.Internal.AWS.Task
+     , module Groot.Internal.AWS.TaskDef
+     , module Groot.Internal.AWS.AutoScaling
      -- Error handlers
      , handleHttpException
      , handleServiceError
      ) where
 
 import           Control.Lens
-import           Data.Semigroup            ((<>))
-import qualified Data.Text                 as T
+import           Data.Semigroup                 ((<>))
+import qualified Data.Text                      as T
 import           Network.AWS
 import           Network.HTTP.Conduit
 import           Network.HTTP.Types.Status
 
-import           Groot.AWS.Cluster
-import           Groot.AWS.Instance
-import           Groot.AWS.Service
-import           Groot.AWS.Task
-import           Groot.AWS.TaskDef
 import           Groot.Console
-import           Groot.Data.Text
+import           Groot.Internal.AWS.AutoScaling
+import           Groot.Internal.AWS.Cluster
+import           Groot.Internal.AWS.Images
+import           Groot.Internal.AWS.Instance
+import           Groot.Internal.AWS.Service
+import           Groot.Internal.AWS.Task
+import           Groot.Internal.AWS.TaskDef
+import           Groot.Internal.Data.Text
 
 -- AWS Error handlers
 

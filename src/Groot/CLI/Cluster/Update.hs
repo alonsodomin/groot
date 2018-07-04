@@ -8,20 +8,20 @@ module Groot.CLI.Cluster.Update
 
 import           Control.Lens
 import           Control.Monad.IO.Class
-import           Data.Conduit           hiding (await)
-import           Data.Conduit.Async     (runCConduit, (=$=&))
-import qualified Data.Conduit.List      as CL
+import           Data.Conduit               hiding (await)
+import           Data.Conduit.Async         (runCConduit, (=$=&))
+import qualified Data.Conduit.List          as CL
 import           Data.String
 import           Network.AWS
-import qualified Network.AWS.ECS        as ECS
+import qualified Network.AWS.ECS            as ECS
 import           Network.AWS.Waiter
-import           Options.Applicative    (Parser)
-import qualified Options.Applicative    as Opts
+import           Options.Applicative        (Parser)
+import qualified Options.Applicative        as Opts
 
 import           Groot.Console
 import           Groot.Core
-import           Groot.Data.Filter
-import           Groot.Data.Text
+import           Groot.Internal.Data.Filter
+import           Groot.Internal.Data.Text
 import           Groot.Types
 
 data ClusterUpdateOpts = ClusterUpdateOpts ClusterRef

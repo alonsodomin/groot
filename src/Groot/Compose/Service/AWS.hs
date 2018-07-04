@@ -27,9 +27,9 @@ import           Network.AWS.Waiter
 import           Groot.Compose.Service.Free
 import           Groot.Console
 import           Groot.Core
-import           Groot.Data.Filter
-import           Groot.Data.Text
 import           Groot.Exception
+import           Groot.Internal.Data.Filter
+import           Groot.Internal.Data.Text
 import           Groot.Manifest
 import           Groot.Types
 
@@ -63,6 +63,7 @@ createTaskDefinitionReq manifest (serviceName, deployment) =
         networkMode BridgeNetwork      = ECS.Bridge
         networkMode HostNetwork        = ECS.Host
         networkMode (AWSNetwork _ _ _) = ECS.AWSvpc
+        networkMode NoNetwork          = ECS.None
 
         containerPort port =
             ECS.pmProtocol .~ (port ^. pmProtocol)

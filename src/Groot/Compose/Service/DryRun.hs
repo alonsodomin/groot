@@ -17,7 +17,7 @@ import           Groot.Compose.Service.AWS    (serviceExists',
 import           Groot.Compose.Service.Free
 import           Groot.Console
 import           Groot.Core
-import           Groot.Data.Text
+import           Groot.Internal.Data.Text
 import           Groot.Manifest
 import           Groot.Types
 

@@ -1,8 +1,10 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Groot.Data.Filter
-     ( FilterOp
-     , Filter(..)
+module Groot.Internal.Data.Filter
+     ( Filter(..)
+     , toFilter
+     , listToFilter
+     , IsFilter(..)
      , filterM
      , filterOnM
      , filterC
@@ -14,14 +16,9 @@ import           Control.Monad         hiding (filterM)
 import           Data.Conduit
 import qualified Data.Conduit.List     as CL
 import           Data.Functor.Identity
+import           Data.List.NonEmpty    (NonEmpty)
 
-data FilterOp a =
-    Or a a
-  | And a a
-  | Not a
-  deriving (Eq, Show)
-
-class Filter a where
+class IsFilter a where
   type FilterItem a :: *
 
   matches :: a -> FilterItem a -> Bool
@@ -34,23 +31,43 @@ class Filter a where
   maybeMatches :: a -> FilterItem a -> Maybe (FilterItem a)
   maybeMatches p e = runIdentity $ maybeMatchesM p (Identity e)
 
-(|||) :: Filter a => a -> a -> FilterOp a
+(|||) :: IsFilter a => Filter a -> Filter a -> Filter a
 (|||) x y = Or x y
 
-(&&&) :: Filter a => a -> a -> FilterOp a
+(&&&) :: IsFilter a => Filter a -> Filter a -> Filter a
 (&&&) x y = And x y
 
-(!!!) :: Filter a => a -> FilterOp a
+(!!!) :: IsFilter a => Filter a -> Filter a
 (!!!) x = Not x
 
-instance Filter a => Filter (FilterOp a) where
-  type FilterItem (FilterOp a) = FilterItem a
+data Filter a =
+    Single a
+  | Or (Filter a) (Filter a)
+  | And (Filter a) (Filter a)
+  | Not (Filter a)
+  deriving (Eq, Show)
 
-  matches (Or x y)  res = (matches x res) || (matches y res)
-  matches (And x y) res = (matches x res) && (matches y res)
-  matches (Not x)   res = not (matches x res)
+toFilter :: IsFilter a => a -> Filter a
+toFilter = Single
 
-filterOnM :: (MonadPlus m, Filter p)
+listToFilter :: IsFilter a => NonEmpty a -> Filter a
+listToFilter parts = foldr1 (&&&) $ toFilter <$> parts
+
+instance Functor Filter where
+  fmap f (Single x) = Single (f x)
+  fmap f (Or x y)   = Or (fmap f x) (fmap f y)
+  fmap f (And x y)  = And (fmap f x) (fmap f y)
+  fmap f (Not x)    = Not (fmap f x)
+
+instance IsFilter a => IsFilter (Filter a) where
+  type FilterItem (Filter a) = FilterItem a
+
+  matches (Single x) res = matches x res
+  matches (Or x y)   res = (matches x res) || (matches y res)
+  matches (And x y)  res = (matches x res) && (matches y res)
+  matches (Not x)    res = not (matches x res)
+
+filterOnM :: (MonadPlus m, IsFilter p)
           => (a -> FilterItem p)
           -> p                        -- The actual predicate
           -> m a                      -- The item to which to apply the filter, wrapped in a Monad
@@ -58,20 +75,20 @@ filterOnM :: (MonadPlus m, Filter p)
 filterOnM f p = mfilter (\x -> matches p $ f x)
 {-# INLINE filterOnM #-}
 
-filterM :: (MonadPlus m, Filter p)
+filterM :: (MonadPlus m, IsFilter p)
         => p
         -> m (FilterItem p)
         -> m (FilterItem p)
 filterM = filterOnM id
 {-# INLINE filterM #-}
 
-filterC :: (Monad m, Filter p)
+filterC :: (Monad m, IsFilter p)
         => p
         -> ConduitT (FilterItem p) (FilterItem p) m ()
 filterC = filterOnC id
 {-# INLINE filterC #-}
 
-filterOnC :: (Monad m, Filter p)
+filterOnC :: (Monad m, IsFilter p)
           => (a -> FilterItem p)
           -> p
           -> ConduitT a a m ()

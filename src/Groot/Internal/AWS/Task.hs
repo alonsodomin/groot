@@ -1,6 +1,5 @@
-module Groot.AWS.Task
-     (
-       fetchTasks
+module Groot.Internal.AWS.Task
+     ( fetchTasks
      , fetchAllTasks
      , fetchServiceTasks
      , findTasks
@@ -12,13 +11,13 @@ import           Control.Lens
 import           Control.Monad.Catch
 import           Control.Monad.Trans.Maybe
 import           Data.Conduit
-import qualified Data.Conduit.List         as CL
+import qualified Data.Conduit.List          as CL
 import           Network.AWS
 import           Network.AWS.Data.Text
-import qualified Network.AWS.ECS           as ECS
+import qualified Network.AWS.ECS            as ECS
 
-import           Groot.AWS.Cluster
 import           Groot.Exception
+import           Groot.Internal.AWS.Cluster
 import           Groot.Types
 
 fetchTaskBatch :: MonadAWS m => [TaskRef] -> ClusterRef -> m [ECS.Task]

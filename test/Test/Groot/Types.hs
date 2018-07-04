@@ -8,11 +8,12 @@ import           Data.Attoparsec.Text
 import           Data.Either
 import qualified Data.Text            as T
 import           Data.Text.Arbitrary
-import           Groot.Data.Text
-import           Groot.Types
 import           Network.AWS.Types
 import           Test.Hspec
 import           Test.QuickCheck
+
+import           Groot.Internal.Data.Text
+import           Groot.Types
 
 -- Arbitrary instances
 

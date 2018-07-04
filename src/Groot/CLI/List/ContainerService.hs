@@ -25,7 +25,7 @@ import qualified Text.PrettyPrint.Tabulate  as Tabs
 import           Groot.CLI.List.Common
 import           Groot.Console
 import           Groot.Core
-import           Groot.Data.Text
+import           Groot.Internal.Data.Text
 import           Groot.Types
 
 data ServiceSummary = ServiceSummary

@@ -1,6 +1,5 @@
 module Groot.Exception
-     (
-       module Groot.Exception.Cluster
+     ( module Groot.Exception.Cluster
      , module Groot.Exception.Instance
      , module Groot.Exception.Task
      , module Groot.Exception.TaskDef

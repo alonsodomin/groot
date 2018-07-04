@@ -26,7 +26,7 @@ import           Groot.CLI.Common
 import           Groot.Console
 import           Groot.Core
 import           Groot.Core.Events
-import           Groot.Data.Text
+import           Groot.Internal.Data.Text
 import           Groot.Types
 
 data ServiceEventOpts = ServiceEventOpts
