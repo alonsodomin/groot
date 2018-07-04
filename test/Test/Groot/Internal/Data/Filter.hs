@@ -1,10 +1,10 @@
-module Test.Groot.Data.Filter where
+module Test.Groot.Internal.Data.Filter where
 
 import           Test.QuickCheck
 import           Test.QuickCheck.Checkers
 import           Test.QuickCheck.Classes
 
-import           Groot.Data.Filter
+import           Groot.Internal.Data.Filter
 
 instance Arbitrary a => Arbitrary (Filter a) where
   arbitrary = frequency [(10, arbitrarySingle), (4, arbitraryAnd), (4, arbitraryOr), (2, arbitraryNot)]

@@ -19,7 +19,7 @@ import           Data.Text              (Text)
 import           Test.Hspec
 
 import           Groot.Console
-import           Groot.Data.Text
+import           Groot.Internal.Data.Text
 
 data ConsoleOp a =
     PutMessage Severity Text a
