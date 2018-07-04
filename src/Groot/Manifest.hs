@@ -62,6 +62,7 @@ module Groot.Manifest
      , sdDeploymentConstraints
      , sdDeploymentStrategy
      , sdDesiredCount
+     , sdExecutionRole
      , sdNetwork
      , sdPlacementStrategy
      , sdServiceRole
@@ -320,6 +321,7 @@ instance FromJSON ServiceNetwork where
 data ServiceDeployment = ServiceDeployment
   { _sdTaskRole              :: Maybe Text
   , _sdServiceRole           :: Maybe Text
+  , _sdExecutionRole         :: Maybe Text
   , _sdDesiredCount          :: Int
   , _sdDeploymentStrategy    :: DeploymentStrategy
   , _sdContainers            :: [Container]
@@ -336,6 +338,7 @@ instance FromJSON ServiceDeployment where
   parseJSON = withObject "service deployment" $ \o -> do
     _sdTaskRole              <- o .:? "task-role"
     _sdServiceRole           <- o .:? "service-role"
+    _sdExecutionRole         <- o .:? "execution-role"
     _sdDesiredCount          <- maybe 1 id <$> o .:? "desired-count"
     _sdDeploymentStrategy    <- maybe defaultDeploymentStrategy id <$> o .:? "deployment-strategy"
     _sdContainers            <- o .: "containers"
