@@ -102,6 +102,7 @@ module Groot.Manifest
 import           Control.Applicative
 import           Control.Exception.Lens
 import           Control.Lens              hiding ((.=))
+import           Control.Monad
 import           Control.Monad.Catch       hiding (Handler)
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
@@ -286,13 +287,20 @@ instance FromJSON DeploymentStrategy where
       _            -> fail $ "Invalid deployment strategy: " ++ (T.unpack txt)
 
 data DeploymentConstraint =
-  InstanceAttributesConstraint (HashMap Text Text)
+    DeployDistinctInstance
+  | DeployOnExpr Text
   deriving (Eq, Show)
 
 instance FromJSON DeploymentConstraint where
-  parseJSON = withObject "deployment constaint" $ \o -> do
-    attrs <- o .: "instance-attrs"
-    return $ InstanceAttributesConstraint attrs
+  parseJSON x = (deployOnDistinct x) <|> (deployOnExpr x)
+    where deployOnDistinct (JSON.String str) =
+            if str == "distinct-instance"
+              then pure DeployDistinctInstance
+              else mzero
+          deployOnDistinct _ = mzero
+
+          deployOnExpr = withObject "deployment constaint" $ \o ->
+            DeployOnExpr <$> o .: "expr"
 
 data ServiceNetwork =
     NoNetwork

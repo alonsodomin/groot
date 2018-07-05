@@ -14,8 +14,8 @@ import           Control.Monad.Free
 import           Control.Monad.Identity
 import           Control.Monad.Reader
 import           Control.Monad.State
-import           Data.Semigroup         ((<>))
-import           Data.Text              (Text)
+import           Data.Semigroup           ((<>))
+import           Data.Text                (Text)
 import           Test.Hspec
 
 import           Groot.Console

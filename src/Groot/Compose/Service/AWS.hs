@@ -56,7 +56,7 @@ createTaskDefinitionReq manifest (serviceName, deployment) =
   $ ECS.rtdExecutionRoleARN .~ (deployment ^. sdExecutionRole)
   $ ECS.rtdContainerDefinitions .~ (containerDef <$> deployment ^. sdContainers)
   $ ECS.rtdVolumes .~ (taskVolume <$> Map.elems (manifest ^. gmVolumes))
-  $ ECS.rtdPlacementConstraints .~ (concat $ taskPlacementConstaints <$> deployment ^. sdDeploymentConstraints)
+  $ ECS.rtdPlacementConstraints .~ (taskPlacementConstaints <$> deployment ^. sdDeploymentConstraints)
   $ ECS.registerTaskDefinition serviceName
   where containerEnv =
           Map.foldrWithKey (\k v acc -> (ECS.kvpName ?~ k $ ECS.kvpValue ?~ v $ ECS.keyValuePair):acc) []
@@ -86,12 +86,12 @@ createTaskDefinitionReq manifest (serviceName, deployment) =
         containerExtraHosts =
           Map.foldrWithKey (\host ip acc -> (ECS.hostEntry host ip):acc) []
 
-        taskPlacementConstaints (InstanceAttributesConstraint attrs) =
-          Map.foldrWithKey (\k v acc -> (attrExpr k v):acc) [] attrs
-          where attrExpr k v =
-                    ECS.tdpcType ?~ ECS.MemberOf
-                  $ ECS.tdpcExpression ?~ (T.concat ["attribute:", k, " == ", v])
-                  $ ECS.taskDefinitionPlacementConstraint
+        taskPlacementConstaints DeployDistinctInstance =
+            ECS.taskDefinitionPlacementConstraint
+        taskPlacementConstaints (DeployOnExpr expr) =
+            ECS.tdpcType ?~ ECS.MemberOf
+          $ ECS.tdpcExpression ?~ expr
+          $ ECS.taskDefinitionPlacementConstraint
 
         containerDef c =
             ECS.cdImage ?~ (c ^. cImage)

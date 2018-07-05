@@ -6,7 +6,7 @@ module Test.Groot.Types
 
 import           Data.Attoparsec.Text
 import           Data.Either
-import qualified Data.Text            as T
+import qualified Data.Text                as T
 import           Data.Text.Arbitrary
 import           Network.AWS.Types
 import           Test.Hspec
