@@ -537,9 +537,13 @@ loadManifest file = do
 
 introspectManifest :: ClusterRef -> GrootIO GrootManifest
 introspectManifest clusterRef = do
-  groups <- runGrootResource . awsResource . runConduit $ yield clusterRef .| fetchAutoScalingGroups .| instanceGroupMapSink
+  groups <- obtainInstanceGroups
   return $ GrootManifest { _gmInstanceGroups = groups, _gmServices = Map.empty, _gmVolumes = Map.empty }
-  where instanceGroupMapSink =
+  where obtainInstanceGroups = runGrootResource . awsResource . runConduit $ yield clusterRef 
+          .| fetchAutoScalingGroups
+          .| instanceGroupMapSink
+    
+        instanceGroupMapSink =
           let insertM m k v = (\x -> Map.insert k x m) <$> v
           in CL.foldM (\m (g, c) -> insertM m (g ^. AS.asgAutoScalingGroupName) (mkInstanceGroup g c)) Map.empty
 
