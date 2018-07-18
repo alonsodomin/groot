@@ -43,11 +43,11 @@ import           Groot.Internal.Data.Text.Styled as ST
 import           Groot.Internal.Display
 
 errorText, warnText, infoText, successText, debugText :: StyledText
-errorText   = styled redStyle    "ERROR"
+errorText   = styled redStyle    "FAIL"
 warnText    = styled yellowStyle "WARN"
 infoText    = styled blueStyle   "INFO"
 successText = styled greenStyle  "DONE"
-debugText   = styled cyanStyle   "DEBUG"
+debugText   = styled cyanStyle   "DBUG"
 
 -- |Severity level of the different output messages
 data Severity = Error | Warn | Info | Success | Debug
