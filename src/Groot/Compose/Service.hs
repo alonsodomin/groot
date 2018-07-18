@@ -9,6 +9,7 @@ module Groot.Compose.Service
      , deployService
      , deployServices
      , deleteServices
+     , replaceServices
      , interpretServiceComposeM
      ) where
 

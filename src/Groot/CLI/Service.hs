@@ -24,6 +24,7 @@ data ServiceSubCmd =
     ServiceEventsCmd  ServiceEventOpts
   | ServiceUpCmd      ServiceComposeOpts
   | ServiceDeleteCmd  ServiceComposeOpts
+  | ServiceReplaceCmd ServiceComposeOpts
   | ServiceInspectCmd ServiceInspectOpts
   deriving (Eq, Show)
 
@@ -38,14 +39,18 @@ serviceUpCmd = ServiceUpCmd <$> serviceComposeOpts
 serviceDeleteCmd :: Parser ServiceSubCmd
 serviceDeleteCmd = ServiceDeleteCmd <$> serviceComposeOpts
 
+serviceReplaceCmd :: Parser ServiceSubCmd
+serviceReplaceCmd = ServiceReplaceCmd <$> serviceComposeOpts
+
 serviceInspectCmd :: Parser ServiceSubCmd
 serviceInspectCmd = ServiceInspectCmd <$> serviceInspectOpts
 
 serviceCmds :: Parser ServiceSubCmd
 serviceCmds = hsubparser
   ( command "events"  (info serviceEventsCmd  (progDesc "Display events of the given services."))
- <> command "up"      (info serviceUpCmd      (progDesc "Deploy services as stated in a service file."))
+ <> command "up"      (info serviceUpCmd      (progDesc "Deploy services as stated in a manifest file."))
  <> command "rm"      (info serviceDeleteCmd  (progDesc "Delete previously deployed services."))
+ <> command "replace" (info serviceReplaceCmd (progDesc "Replace (remove and deploy) services as stated in a manifest file."))
  <> command "inspect" (info serviceInspectCmd (progDesc "Inspect details of a given service."))
   )
 
@@ -81,4 +86,5 @@ runServiceCmd :: ServiceSubCmd -> GrootIO ()
 runServiceCmd (ServiceEventsCmd eventsOpts)   = runServiceEvents  eventsOpts
 runServiceCmd (ServiceUpCmd     composeOpts)  = handleErrors $ runServiceUp      composeOpts
 runServiceCmd (ServiceDeleteCmd composeOpts)  = handleErrors $ runServiceDelete  composeOpts
+runServiceCmd (ServiceReplaceCmd composeOpts) = handleErrors $ runServiceReplace composeOpts
 runServiceCmd (ServiceInspectCmd inspectOpts) = runServiceInspect inspectOpts

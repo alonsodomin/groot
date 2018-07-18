@@ -35,9 +35,18 @@ deployService clusterRef service = do
   else createService service clusterRef taskDefId
 
 deployServices :: Traversable f => ClusterRef -> f NamedServiceDeployment -> ServiceComposeM ()
-deployServices clusterRef = void . traverse (\serv -> deployService clusterRef serv)
+deployServices clusterRef = void . traverse (deployService clusterRef)
 {-# INLINE deployServices #-}
 
 deleteServices :: Traversable f => ClusterRef -> f NamedServiceDeployment -> ServiceComposeM ()
 deleteServices clusterRef = void . traverse (\serv -> removeService serv clusterRef)
 {-# INLINE deleteServices #-}
+
+replaceService :: ClusterRef -> NamedServiceDeployment -> ServiceComposeM ()
+replaceService clusterRef service = do
+  removeService service clusterRef
+  deployService clusterRef service
+
+replaceServices :: Traversable f => ClusterRef -> f NamedServiceDeployment -> ServiceComposeM ()
+replaceServices clusterRef = void . traverse (replaceService clusterRef)
+{-# INLINE replaceServices #-}

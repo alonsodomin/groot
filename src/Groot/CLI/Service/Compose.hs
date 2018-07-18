@@ -5,6 +5,7 @@ module Groot.CLI.Service.Compose
      , serviceComposeOpts
      , runServiceUp
      , runServiceDelete
+     , runServiceReplace
      ) where
 
 import           Control.Lens        hiding (argument)
@@ -85,8 +86,15 @@ doDeleteServices :: ServiceComposeCfg -> ServiceComposeM ()
 doDeleteServices (ServiceComposeCfg _ clusterRef serviceList _) =
   deleteServices clusterRef serviceList
 
+doReplaceServices :: ServiceComposeCfg -> ServiceComposeM ()
+doReplaceServices (ServiceComposeCfg _ clusterRef serviceList _) =
+  replaceServices clusterRef serviceList
+
 runServiceUp :: ServiceComposeOpts -> GrootIO ()
 runServiceUp = performAction "This will start deployment of the following services:" doDeployServices
 
 runServiceDelete :: ServiceComposeOpts -> GrootIO ()
 runServiceDelete = performAction "This will delete the following services:" doDeleteServices
+
+runServiceReplace :: ServiceComposeOpts -> GrootIO ()
+runServiceReplace = performAction "This will replace the following services:" doReplaceServices
