@@ -81,12 +81,9 @@ instance (Monad m, MonadIO m) => MonadConsole m where
       then Nothing
       else Just answer
 
-instance MonadConsole m => MonadConsole (IdentityT m) where
-  putMessage sev txt = lift $ putMessage sev txt
-  askUser = lift . askUser
-instance MonadConsole m => MonadConsole (MaybeT m) where
-  putMessage sev txt = lift $ putMessage sev txt
-  askUser = lift . askUser
+-- instance (MonadTrans n, Monad (n m), Monad m, MonadIO m) => MonadConsole (n m) where
+--   putMessage sev txt = lift $ putMessage sev txt
+--   askUser = lift . askUser
 
 -- |Prompts the user for a 'yes' or 'no' answer
 askUserYN :: MonadConsole m => Bool -> Text -> m Bool

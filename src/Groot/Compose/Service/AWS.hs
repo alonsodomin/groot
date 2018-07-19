@@ -11,7 +11,7 @@ module Groot.Compose.Service.AWS
      ) where
 
 import           Control.Lens
-import           Control.Monad.Free
+import           Control.Monad.Trans.Free
 import           Control.Monad.Morph
 import           Control.Monad.Reader         hiding (filterM)
 import           Control.Monad.Trans.Maybe
@@ -356,8 +356,8 @@ removeService' service@(serviceName, _) clusterRef = do
         Nothing -> throwM $ serviceNotFound csRef (Just clusterRef)
         Just  x -> return x
 
-awsServiceCompose :: (MonadConsole m, MonadResource m, MonadThrow m) => GrootManifest -> ServiceComposeM a -> GrootT m a
-awsServiceCompose manifest = foldFree $ \case
+awsServiceCompose :: (Monad m, MonadConsole n, MonadResource n, MonadThrow n) => GrootManifest -> ServiceComposeT m a -> GrootT n a
+awsServiceCompose manifest = foldFreeT $ \case
   RegisterTask service next ->
     next <$> registerTask' manifest service
   ServiceExists name clusterRef next ->

@@ -5,7 +5,8 @@
 module Groot.Compose.Service.Free where
 
 import           Control.Monad
-import           Control.Monad.Free
+import Control.Monad.Identity
+import           Control.Monad.Trans.Free
 import           Control.Monad.Free.TH
 import           Data.Text             (Text)
 
@@ -23,9 +24,10 @@ data ServiceComposeOp next =
 
 makeFree ''ServiceComposeOp
 
-type ServiceComposeM = Free ServiceComposeOp
+type ServiceComposeT m = FreeT ServiceComposeOp m
+type ServiceComposeM = ServiceComposeT IO
 
-deployService :: ClusterRef -> NamedServiceDeployment -> ServiceComposeM ()
+deployService :: Monad m => ClusterRef -> NamedServiceDeployment -> ServiceComposeT m ()
 deployService clusterRef service = do
   verifyActiveCluster clusterRef
   taskDefId <- registerTask service
@@ -34,11 +36,11 @@ deployService clusterRef service = do
   then updateService service clusterRef taskDefId
   else createService service clusterRef taskDefId
 
-deployServices :: Traversable f => ClusterRef -> f NamedServiceDeployment -> ServiceComposeM ()
-deployServices clusterRef = void . traverse (deployService clusterRef)
+deployServices :: (Monad m, Traversable f) => ClusterRef -> f NamedServiceDeployment -> ServiceComposeT m ()
+deployServices clusterRef = void . traverse (\serv -> deployService clusterRef serv)
 {-# INLINE deployServices #-}
 
-deleteServices :: Traversable f => ClusterRef -> f NamedServiceDeployment -> ServiceComposeM ()
+deleteServices :: (Monad m, Traversable f) => ClusterRef -> f NamedServiceDeployment -> ServiceComposeT m ()
 deleteServices clusterRef = void . traverse (\serv -> removeService serv clusterRef)
 {-# INLINE deleteServices #-}
 
