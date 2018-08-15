@@ -3,6 +3,7 @@
 module Groot.CLI.List.Common where
 
 import qualified Data.Text                as T
+
 import           Groot.Internal.Data.Text
 
 class HasSummary a b where

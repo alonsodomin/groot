@@ -89,6 +89,15 @@ module Groot.Types
      , TaskDefStatus(..)
      , TaskDefFilterPart(..)
      , TaskDefFilter
+     -- Resources
+     , ResourceType(..)
+     , ResourceSummary(..)
+     , resourceType
+     , resourceAllocated
+     , resourceFree
+     , resourceFreeRatio
+     , resourceUsed
+     , resourceUsedRatio
      ) where
 
 import           Control.Lens
@@ -97,6 +106,7 @@ import           Data.Aeson
 import           Data.Attoparsec.Text
 import           Data.Data
 import           Data.Monoid
+import           Data.Ratio
 import           Data.String
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
@@ -106,7 +116,9 @@ import           GHC.Generics               hiding (to)
 import           Network.AWS                hiding (InstanceType)
 import qualified Network.AWS.EC2            as EC2
 import qualified Network.AWS.ECS            as ECS
+import           Numeric
 import           Prelude                    hiding (takeWhile)
+import           Text.PrettyPrint.Tabulate  (CellValueFormatter)
 
 import           Groot.Internal.Data.Filter
 import           Groot.Internal.Data.JSON
@@ -687,3 +699,45 @@ instance IsFilter TaskDefFilterPart where
     maybe False (== ECS.TDSActive) $ taskDef ^. ECS.tdStatus
   matches (TDFStatus TDSInactive) taskDef =
     maybe False (== ECS.TDSInactive) $ taskDef ^. ECS.tdStatus
+
+data ResourceType =
+    Memory
+  | CPU
+  deriving (Eq, Show, Generic, Data)
+
+data ResourceSummary = ResourceSummary
+  { _rType      :: ResourceType
+  , _rUsed      :: Int
+  , _rAllocated :: Int
+  } deriving (Eq, Generic, Data)
+
+resourceType :: Getter ResourceSummary ResourceType
+resourceType = to _rType
+
+resourceAllocated :: Getter ResourceSummary Int
+resourceAllocated = to _rAllocated
+
+resourceFree :: Getter ResourceSummary Int
+resourceFree = to $ \x -> (_rAllocated x) - (_rUsed x)
+
+resourceFreeRatio :: Getter ResourceSummary Rational
+resourceFreeRatio = to $ \x -> (toInteger $ (_rAllocated x) - (_rUsed x)) % (toInteger $ _rAllocated x)
+
+resourceUsed :: Getter ResourceSummary Int
+resourceUsed = to _rUsed
+
+resourceUsedRatio :: Getter ResourceSummary Rational
+resourceUsedRatio = to $ \x -> (toInteger $ _rUsed x) % (toInteger $ _rAllocated x)
+
+instance Show ResourceSummary where
+  show summ = concat [show available, "/", show allocated, " ", units, " ", percent]
+    where units = case (summ ^. resourceType) of
+            Memory -> "mb"
+            CPU    -> "units"
+          available = summ ^. resourceUsed
+          allocated = summ ^. resourceAllocated
+          percent =
+            let pvalue = (fromIntegral available) / (fromIntegral allocated) * 100.0 :: Float
+            in concat ["(", showFFloat (Just 1) pvalue "", " %)"]
+
+instance CellValueFormatter ResourceSummary

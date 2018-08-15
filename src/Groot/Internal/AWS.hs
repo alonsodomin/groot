@@ -8,15 +8,23 @@ module Groot.Internal.AWS
      , module Groot.Internal.AWS.Task
      , module Groot.Internal.AWS.TaskDef
      , module Groot.Internal.AWS.AutoScaling
+     -- Resource summaries
+     , instanceResourceSummary
+     , clusterResourceSummary
      -- Error handlers
      , handleHttpException
      , handleServiceError
      ) where
 
+import           Control.Applicative
 import           Control.Lens
+import           Data.Conduit
+import qualified Data.Conduit.List              as CL
+import           Data.List
 import           Data.Semigroup                 ((<>))
 import qualified Data.Text                      as T
 import           Network.AWS
+import qualified Network.AWS.ECS                as ECS
 import           Network.HTTP.Conduit
 import           Network.HTTP.Types.Status
 
@@ -29,6 +37,34 @@ import           Groot.Internal.AWS.Service
 import           Groot.Internal.AWS.Task
 import           Groot.Internal.AWS.TaskDef
 import           Groot.Internal.Data.Text
+import           Groot.Types
+
+-- Resource Summaries
+
+instanceResourceSummary :: ResourceType -> ECS.ContainerInstance -> Maybe ResourceSummary
+instanceResourceSummary resType inst = (ResourceSummary resType) <$> rUsed <*> rTotal
+  where resName = case resType of
+          Memory -> "MEMORY"
+          CPU    -> "CPU"
+
+        findResource :: [ECS.Resource] -> Maybe Int
+        findResource rs = (view ECS.rIntegerValue) =<< find (\x -> maybe False (== resName) $ x ^. ECS.rName) rs
+
+        rTotal     = findResource $ inst ^. ECS.ciRegisteredResources
+        rRemaining = findResource $ inst ^. ECS.ciRemainingResources
+        rUsed      = liftA2 (-) rTotal rRemaining
+
+clusterResourceSummary :: MonadAWS m => ResourceType -> ECS.Cluster -> m ResourceSummary
+clusterResourceSummary resType cluster = maybe (return emptySummary) id (summarizeResources <$> clusterRef)
+  where clusterRef = clusterName cluster
+        sumSummaries (ResourceSummary _ leftPart leftTotal) (ResourceSummary _ rightPart rightTotal) =
+          ResourceSummary resType (leftPart + rightPart) (leftTotal + rightTotal)
+        emptySummary = ResourceSummary resType 0 0
+
+        summarizeResources :: MonadAWS m => ClusterRef -> m ResourceSummary
+        summarizeResources cref = runConduit $ fetchInstances cref
+          .| CL.mapMaybe (instanceResourceSummary resType)
+          .| CL.fold sumSummaries emptySummary
 
 -- AWS Error handlers
 

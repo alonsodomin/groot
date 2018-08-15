@@ -33,23 +33,38 @@ data ClusterSummary = ClusterSummary
   , runningTasks :: Int
   , pendingTasks :: Int
   , instances    :: Int
+  , memory       :: ResourceSummary
+  , cpu          :: ResourceSummary
   } deriving (Eq, Show, Generic, Data)
 
 instance Tabulate ClusterSummary Tabs.ExpandWhenNested
 
-instance HasSummary ECS.Cluster ClusterSummary where
-  summarize cls = ClusterSummary <$> cName <*> cStatus <*> cRunning <*> cPending <*> cInstances
+data ClusterDetails = ClusterDetails ECS.Cluster ResourceSummary ResourceSummary
+
+instance HasSummary ClusterDetails ClusterSummary where
+  summarize (ClusterDetails cls mem cpu) = ClusterSummary
+       <$> cName <*> cStatus <*> cRunning <*> cPending <*> cInstances <*> (pure mem) <*> (pure cpu)
      where cName      = T.unpack <$> cls ^. ECS.cClusterName
            cStatus    = T.unpack <$> cls ^. ECS.cStatus
            cRunning   = cls ^. ECS.cRunningTasksCount
            cPending   = cls ^. ECS.cPendingTasksCount
            cInstances = cls ^. ECS.cRegisteredContainerInstancesCount
 
+clusterMemory :: ECS.Cluster -> AWS ResourceSummary
+clusterMemory = clusterResourceSummary Memory
+
+clusterCpu :: ECS.Cluster -> AWS ResourceSummary
+clusterCpu = clusterResourceSummary CPU
+
+clusterDetails :: ECS.Cluster -> AWS ClusterDetails
+clusterDetails cluster = (ClusterDetails cluster) <$> (clusterMemory cluster) <*> (clusterCpu cluster)
+
 summarizeClusters :: Maybe ClusterRef -> AWS [ClusterSummary]
-summarizeClusters Nothing  = runConduit $ fetchClusters .| CL.mapMaybe summarize .| CL.consume
+summarizeClusters Nothing  = runConduit $ fetchClusters .| CL.mapM clusterDetails .| CL.mapMaybe summarize .| CL.consume
 summarizeClusters (Just c) = maybeToList <$> do
-  cl <- runMaybeT (findCluster c)
-  return $ cl >>= summarize
+  cl      <- runMaybeT (findCluster c)
+  details <- sequence $ clusterDetails <$> cl
+  return $ details >>= summarize
 
 printClusterSummary :: Maybe ClusterRef -> GrootIO ()
 printClusterSummary x = runGrootResource $ do
