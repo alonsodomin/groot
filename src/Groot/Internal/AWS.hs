@@ -43,28 +43,28 @@ import           Groot.Types
 
 instanceResourceSummary :: ResourceType -> ECS.ContainerInstance -> Maybe ResourceSummary
 instanceResourceSummary resType inst = (ResourceSummary resType) <$> rUsed <*> rTotal
-  where resName = case resType of
-          Memory -> "MEMORY"
-          CPU    -> "CPU"
-
+  where rTotal     = findResource $ inst ^. ECS.ciRegisteredResources
+        rRemaining = findResource $ inst ^. ECS.ciRemainingResources
+        rUsed      = liftA2 (-) rTotal rRemaining
+    
         findResource :: [ECS.Resource] -> Maybe Int
         findResource rs = (view ECS.rIntegerValue) =<< find (\x -> maybe False (== resName) $ x ^. ECS.rName) rs
 
-        rTotal     = findResource $ inst ^. ECS.ciRegisteredResources
-        rRemaining = findResource $ inst ^. ECS.ciRemainingResources
-        rUsed      = liftA2 (-) rTotal rRemaining
+        resName = case resType of
+          Memory -> "MEMORY"
+          CPU    -> "CPU"
 
 clusterResourceSummary :: MonadAWS m => ResourceType -> ECS.Cluster -> m ResourceSummary
 clusterResourceSummary resType cluster = maybe (return emptySummary) id (summarizeResources <$> clusterRef)
-  where clusterRef = clusterName cluster
-        sumSummaries (ResourceSummary _ leftPart leftTotal) (ResourceSummary _ rightPart rightTotal) =
-          ResourceSummary resType (leftPart + rightPart) (leftTotal + rightTotal)
-        emptySummary = ResourceSummary resType 0 0
-
-        summarizeResources :: MonadAWS m => ClusterRef -> m ResourceSummary
+  where summarizeResources :: MonadAWS m => ClusterRef -> m ResourceSummary
         summarizeResources cref = runConduit $ fetchInstances cref
           .| CL.mapMaybe (instanceResourceSummary resType)
           .| CL.fold sumSummaries emptySummary
+    
+        clusterRef = clusterName cluster
+        sumSummaries (ResourceSummary _ leftPart leftTotal) (ResourceSummary _ rightPart rightTotal) =
+          ResourceSummary resType (leftPart + rightPart) (leftTotal + rightTotal)
+        emptySummary = ResourceSummary resType 0 0
 
 -- AWS Error handlers
 
