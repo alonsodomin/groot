@@ -91,6 +91,7 @@ module Groot.Types
      , TaskDefFilter
      -- Resources
      , ResourceType(..)
+     , allResourceTypes
      , ResourceUsage(..)
      , mkResourceUsage
      , ruType
@@ -109,8 +110,9 @@ import           Data.Attoparsec.Text
 import           Data.Data
 import           Data.Hashable              (Hashable)
 import           Data.HashMap.Strict        (HashMap)
-import           Data.Monoid
+import           Data.Monoid                hiding ((<>))
 import           Data.Ratio
+import           Data.Semigroup             (Semigroup, (<>))
 import           Data.String
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
@@ -707,15 +709,22 @@ instance IsFilter TaskDefFilterPart where
 data ResourceType =
     Memory
   | CPU
-  deriving (Eq, Show, Generic, Data)
+  deriving (Eq, Show, Enum, Bounded, Generic, Data)
 
 instance Hashable ResourceType
+
+allResourceTypes :: [ResourceType]
+allResourceTypes = enumFromTo minBound maxBound
 
 data ResourceUsage = ResourceUsage
   { _ruType      :: ResourceType
   , _ruUsed      :: Int
   , _ruAllocated :: Int
   } deriving (Eq, Generic, Data)
+
+instance Semigroup ResourceUsage where
+  (ResourceUsage CPU leftX leftY) <> (ResourceUsage CPU rightX rightY) = ResourceUsage CPU (leftX + rightX) (leftY + rightY)
+  (ResourceUsage Memory leftX leftY) <> (ResourceUsage Memory rightX rightY) = ResourceUsage Memory (leftX + rightX) (leftY + rightY)
 
 mkResourceUsage :: ResourceType -> (Int, Int) -> ResourceUsage
 mkResourceUsage resType (used, alloc) = ResourceUsage resType used alloc

@@ -13,6 +13,7 @@ import           Control.Monad.Trans.Maybe
 import           Data.Conduit
 import qualified Data.Conduit.List         as CL
 import           Data.Data
+import qualified Data.HashMap.Strict       as Map
 import           Data.Maybe                (maybeToList)
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
@@ -50,14 +51,12 @@ instance HasSummary ClusterDetails ClusterSummary where
            cPending   = cls ^. ECS.cPendingTasksCount
            cInstances = cls ^. ECS.cRegisteredContainerInstancesCount
 
-clusterMemory :: ECS.Cluster -> AWS (Maybe ResourceUsage)
-clusterMemory = clusterResourceUsage Memory
-
-clusterCpu :: ECS.Cluster -> AWS (Maybe ResourceUsage)
-clusterCpu = clusterResourceUsage CPU
-
 clusterDetails :: ECS.Cluster -> AWS ClusterDetails
-clusterDetails cluster = (ClusterDetails cluster) <$> (clusterMemory cluster) <*> (clusterCpu cluster)
+clusterDetails cluster =
+  let clusterResources = clusterResourceSummary allResourceTypes cluster
+      memory = (Map.lookup Memory) <$> clusterResources
+      cpu    = (Map.lookup CPU)    <$> clusterResources
+  in (ClusterDetails cluster) <$> memory <*> cpu
 
 summarizeClusters :: Maybe ClusterRef -> AWS [ClusterSummary]
 summarizeClusters Nothing  = runConduit $ fetchClusters .| CL.mapM clusterDetails .| CL.mapMaybe summarize .| CL.consume

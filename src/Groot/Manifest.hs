@@ -473,7 +473,7 @@ instance FromJSON GrootManifest where
   parseJSON = withObject "manifest" $ \o -> do
     _gmInstanceGroups <- maybe Map.empty id <$> o .:? "instance-groups"
     _gmServices       <- maybe Map.empty id <$> o .:? "services"
-    _gmVolumes        <- maybe Map.empty (toHashMap $ view vName) <$> o .:? "volumes"
+    _gmVolumes        <- (Map.map head) <$> maybe Map.empty (groupByKey $ view vName) <$> o .:? "volumes"
     return GrootManifest{..}
 
 instance ToJSON GrootManifest where
