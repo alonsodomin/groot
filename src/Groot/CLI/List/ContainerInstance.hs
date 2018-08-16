@@ -31,8 +31,8 @@ data InstanceSummary = InstanceSummary
   , status        :: String
   , runningTasks  :: Int
   , pendingTasks  :: Int
-  , memory        :: ResourceSummary
-  , cpu           :: ResourceSummary
+  , memory        :: ResourceUsage
+  , cpu           :: ResourceUsage
   , agentVersion  :: String
   , dockerVersion :: String
   } deriving (Eq, Show, Generic, Data)
@@ -46,8 +46,8 @@ instance HasSummary ECS.ContainerInstance InstanceSummary where
           iStatus  = T.unpack <$> inst ^. ECS.ciStatus
           iRunning = inst ^. ECS.ciRunningTasksCount
           iPending = inst ^. ECS.ciPendingTasksCount
-          iMem     = instanceResourceSummary Memory inst
-          iCpu     = instanceResourceSummary CPU inst
+          iMem     = instanceResourceUsage Memory inst
+          iCpu     = instanceResourceUsage CPU inst
           iAgentV  = T.unpack <$> (inst ^. ECS.ciVersionInfo >>= view ECS.viAgentVersion)
           iDockerV = T.unpack <$> (inst ^. ECS.ciVersionInfo >>= view ECS.viDockerVersion)
 

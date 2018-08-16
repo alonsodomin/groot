@@ -33,28 +33,28 @@ data ClusterSummary = ClusterSummary
   , runningTasks :: Int
   , pendingTasks :: Int
   , instances    :: Int
-  , memory       :: ResourceSummary
-  , cpu          :: ResourceSummary
+  , memory       :: ResourceUsage
+  , cpu          :: ResourceUsage
   } deriving (Eq, Show, Generic, Data)
 
 instance Tabulate ClusterSummary Tabs.ExpandWhenNested
 
-data ClusterDetails = ClusterDetails ECS.Cluster ResourceSummary ResourceSummary
+data ClusterDetails = ClusterDetails ECS.Cluster (Maybe ResourceUsage) (Maybe ResourceUsage)
 
 instance HasSummary ClusterDetails ClusterSummary where
   summarize (ClusterDetails cls mem cpu) = ClusterSummary
-       <$> cName <*> cStatus <*> cRunning <*> cPending <*> cInstances <*> (pure mem) <*> (pure cpu)
+       <$> cName <*> cStatus <*> cRunning <*> cPending <*> cInstances <*> mem <*> cpu
      where cName      = T.unpack <$> cls ^. ECS.cClusterName
            cStatus    = T.unpack <$> cls ^. ECS.cStatus
            cRunning   = cls ^. ECS.cRunningTasksCount
            cPending   = cls ^. ECS.cPendingTasksCount
            cInstances = cls ^. ECS.cRegisteredContainerInstancesCount
 
-clusterMemory :: ECS.Cluster -> AWS ResourceSummary
-clusterMemory = clusterResourceSummary Memory
+clusterMemory :: ECS.Cluster -> AWS (Maybe ResourceUsage)
+clusterMemory = clusterResourceUsage Memory
 
-clusterCpu :: ECS.Cluster -> AWS ResourceSummary
-clusterCpu = clusterResourceSummary CPU
+clusterCpu :: ECS.Cluster -> AWS (Maybe ResourceUsage)
+clusterCpu = clusterResourceUsage CPU
 
 clusterDetails :: ECS.Cluster -> AWS ClusterDetails
 clusterDetails cluster = (ClusterDetails cluster) <$> (clusterMemory cluster) <*> (clusterCpu cluster)

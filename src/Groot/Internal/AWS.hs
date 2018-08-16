@@ -9,6 +9,8 @@ module Groot.Internal.AWS
      , module Groot.Internal.AWS.TaskDef
      , module Groot.Internal.AWS.AutoScaling
      -- Resource summaries
+     , instanceResourceUsage
+     , clusterResourceUsage
      , instanceResourceSummary
      , clusterResourceSummary
      -- Error handlers
@@ -18,10 +20,12 @@ module Groot.Internal.AWS
 
 import           Control.Applicative
 import           Control.Lens
+import           Control.Monad.Trans.Maybe
 import           Data.Conduit
 import qualified Data.Conduit.List              as CL
 import           Data.List
-import           Data.Semigroup                 ((<>))
+import           Data.Maybe
+import           Data.Monoid
 import qualified Data.Text                      as T
 import           Network.AWS
 import qualified Network.AWS.ECS                as ECS
@@ -37,16 +41,20 @@ import           Groot.Internal.AWS.Service
 import           Groot.Internal.AWS.Task
 import           Groot.Internal.AWS.TaskDef
 import           Groot.Internal.Data.Text
+import           Groot.Internal.Util
 import           Groot.Types
 
 -- Resource Summaries
 
-instanceResourceSummary :: ResourceType -> ECS.ContainerInstance -> Maybe ResourceSummary
-instanceResourceSummary resType inst = (ResourceSummary resType) <$> rUsed <*> rTotal
+resourceSummary' :: Monad m => (ResourceType -> m (Maybe ResourceUsage)) -> m ResourceSummary
+resourceSummary' f = (toHashMap (view ruType)) . catMaybes <$> traverse f [Memory, CPU]
+
+instanceResourceUsage' :: ResourceType -> ECS.ContainerInstance -> Maybe (Int, Int)
+instanceResourceUsage' resType inst = liftA2 (,) rUsed rTotal
   where rTotal     = findResource $ inst ^. ECS.ciRegisteredResources
         rRemaining = findResource $ inst ^. ECS.ciRemainingResources
         rUsed      = liftA2 (-) rTotal rRemaining
-    
+
         findResource :: [ECS.Resource] -> Maybe Int
         findResource rs = (view ECS.rIntegerValue) =<< find (\x -> maybe False (== resName) $ x ^. ECS.rName) rs
 
@@ -54,17 +62,23 @@ instanceResourceSummary resType inst = (ResourceSummary resType) <$> rUsed <*> r
           Memory -> "MEMORY"
           CPU    -> "CPU"
 
-clusterResourceSummary :: MonadAWS m => ResourceType -> ECS.Cluster -> m ResourceSummary
-clusterResourceSummary resType cluster = maybe (return emptySummary) id (summarizeResources <$> clusterRef)
-  where summarizeResources :: MonadAWS m => ClusterRef -> m ResourceSummary
+instanceResourceUsage :: ResourceType -> ECS.ContainerInstance -> Maybe ResourceUsage
+instanceResourceUsage resType inst = (mkResourceUsage  resType) <$> instanceResourceUsage' resType inst
+
+instanceResourceSummary :: ECS.ContainerInstance -> ResourceSummary
+instanceResourceSummary inst = runIdentity $ resourceSummary' (\x -> Identity $ (flip instanceResourceUsage) inst x)
+
+clusterResourceUsage :: MonadAWS m => ResourceType -> ECS.Cluster -> m (Maybe ResourceUsage)
+clusterResourceUsage resType cluster =
+  runMaybeT $ (fmap (mkResourceUsage resType)) . fmap (mapPair getSum) <$> MaybeT $ sequence (summarizeResources <$> clusterRef)
+  where clusterRef = clusterName cluster
         summarizeResources cref = runConduit $ fetchInstances cref
-          .| CL.mapMaybe (instanceResourceSummary resType)
-          .| CL.fold sumSummaries emptySummary
-    
-        clusterRef = clusterName cluster
-        sumSummaries (ResourceSummary _ leftPart leftTotal) (ResourceSummary _ rightPart rightTotal) =
-          ResourceSummary resType (leftPart + rightPart) (leftTotal + rightTotal)
-        emptySummary = ResourceSummary resType 0 0
+          .| CL.mapMaybe (instanceResourceUsage' resType)
+          .| CL.map (mapPair Sum)
+          .| CL.fold ((<>)) mempty
+
+clusterResourceSummary :: MonadAWS m => ECS.Cluster -> m ResourceSummary
+clusterResourceSummary cluster = resourceSummary' $ (flip clusterResourceUsage) cluster
 
 -- AWS Error handlers
 

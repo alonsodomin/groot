@@ -91,13 +91,15 @@ module Groot.Types
      , TaskDefFilter
      -- Resources
      , ResourceType(..)
-     , ResourceSummary(..)
-     , resourceType
-     , resourceAllocated
-     , resourceFree
-     , resourceFreeRatio
-     , resourceUsed
-     , resourceUsedRatio
+     , ResourceUsage(..)
+     , mkResourceUsage
+     , ruType
+     , ruAllocated
+     , ruFree
+     , ruFreeRatio
+     , ruUsed
+     , ruUsedRatio
+     , ResourceSummary
      ) where
 
 import           Control.Lens
@@ -105,6 +107,8 @@ import           Control.Monad              (join)
 import           Data.Aeson
 import           Data.Attoparsec.Text
 import           Data.Data
+import           Data.Hashable              (Hashable)
+import           Data.HashMap.Strict        (HashMap)
 import           Data.Monoid
 import           Data.Ratio
 import           Data.String
@@ -705,39 +709,46 @@ data ResourceType =
   | CPU
   deriving (Eq, Show, Generic, Data)
 
-data ResourceSummary = ResourceSummary
-  { _rType      :: ResourceType
-  , _rUsed      :: Int
-  , _rAllocated :: Int
+instance Hashable ResourceType
+
+data ResourceUsage = ResourceUsage
+  { _ruType      :: ResourceType
+  , _ruUsed      :: Int
+  , _ruAllocated :: Int
   } deriving (Eq, Generic, Data)
 
-resourceType :: Getter ResourceSummary ResourceType
-resourceType = to _rType
+mkResourceUsage :: ResourceType -> (Int, Int) -> ResourceUsage
+mkResourceUsage resType (used, alloc) = ResourceUsage resType used alloc
 
-resourceAllocated :: Getter ResourceSummary Int
-resourceAllocated = to _rAllocated
+ruType :: Getter ResourceUsage ResourceType
+ruType = to _ruType
 
-resourceFree :: Getter ResourceSummary Int
-resourceFree = to $ \x -> (_rAllocated x) - (_rUsed x)
+ruAllocated :: Getter ResourceUsage Int
+ruAllocated = to _ruAllocated
 
-resourceFreeRatio :: Getter ResourceSummary Rational
-resourceFreeRatio = to $ \x -> (toInteger $ (_rAllocated x) - (_rUsed x)) % (toInteger $ _rAllocated x)
+ruFree :: Getter ResourceUsage Int
+ruFree = to $ \x -> (_ruAllocated x) - (_ruUsed x)
 
-resourceUsed :: Getter ResourceSummary Int
-resourceUsed = to _rUsed
+ruFreeRatio :: Getter ResourceUsage Rational
+ruFreeRatio = to $ \x -> (toInteger $ (_ruAllocated x) - (_ruUsed x)) % (toInteger $ _ruAllocated x)
 
-resourceUsedRatio :: Getter ResourceSummary Rational
-resourceUsedRatio = to $ \x -> (toInteger $ _rUsed x) % (toInteger $ _rAllocated x)
+ruUsed :: Getter ResourceUsage Int
+ruUsed = to _ruUsed
 
-instance Show ResourceSummary where
+ruUsedRatio :: Getter ResourceUsage Rational
+ruUsedRatio = to $ \x -> (toInteger $ _ruUsed x) % (toInteger $ _ruAllocated x)
+
+instance Show ResourceUsage where
   show summ = concat [show available, "/", show allocated, " ", units, " ", percent]
-    where units = case (summ ^. resourceType) of
+    where units = case (summ ^. ruType) of
             Memory -> "mb"
             CPU    -> "units"
-          available = summ ^. resourceUsed
-          allocated = summ ^. resourceAllocated
+          available = summ ^. ruUsed
+          allocated = summ ^. ruAllocated
           percent =
             let pvalue = (fromIntegral available) / (fromIntegral allocated) * 100.0 :: Float
             in concat ["(", showFFloat (Just 1) pvalue "", " %)"]
 
-instance CellValueFormatter ResourceSummary
+instance CellValueFormatter ResourceUsage
+
+type ResourceSummary = HashMap ResourceType ResourceUsage

@@ -134,10 +134,8 @@ import           Groot.Core
 import           Groot.Exception
 import           Groot.Internal.Data.JSON
 import           Groot.Internal.Data.Text
+import           Groot.Internal.Util
 import           Groot.Types
-
-toHashMap :: (Hashable k, Eq k) => (a -> k) -> [a] -> HashMap k a
-toHashMap f xs = Map.fromList $ (\x -> (f x, x)) <$> xs
 
 data PortELBLink =
     ELBNameLink Text
