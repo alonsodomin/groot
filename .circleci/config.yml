@@ -30,10 +30,10 @@ jobs:
           path: ~/.local/bin/groot
           destination: groot
 
-  deployment:
-    hackage:
-      branch: master
-      commands:
-        - ./scripts/setup-hackage.sh
-        - stack sdist
-        - stack upload .
+  # deploy:
+  #   steps:
+  #     - checkout
+  #     - run:
+  #     - ./scripts/setup-hackage.sh
+  #     - stack sdist
+  #     - stack upload .
