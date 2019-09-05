@@ -29,3 +29,11 @@ jobs:
           # Upload test summary for display in Artifacts: https://circleci.com/docs/2.0/artifacts/ 
           path: ~/.local/bin/groot
           destination: groot
+
+  deployment:
+    hackage:
+      branch: master
+      commands:
+        - ./scripts/setup-hackage.sh
+        - stack sdist
+        - stack upload .

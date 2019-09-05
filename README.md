@@ -1,6 +1,6 @@
 # Groot
 
-[![Build Status](https://travis-ci.org/alonsodomin/groot.svg?branch=master)](https://travis-ci.org/alonsodomin/groot)
+[![CircleCI](https://circleci.com/gh/alonsodomin/groot.svg?style=svg)](https://circleci.com/gh/alonsodomin/groot)
 [![Build status](https://ci.appveyor.com/api/projects/status/lljwg88fygttb28i?svg=true)](https://ci.appveyor.com/project/alonsodomin/groot)
 
 Groot is a command line application with the purpose of remote managing AWS ECS Clusters and
