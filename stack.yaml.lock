@@ -18,13 +18,6 @@ packages:
       sha256: 6bd7503e4aa1448cbb96873bac0feac117b0ddf087828570bc518d4ffb53a089
   original:
     hackage: pandoc-citeproc-0.13.0.1
-- completed:
-    hackage: pptable-0.3.0.0@sha256:ebb59dab8a078784d5e0c0c0b07cc22ef687a55eb7f03fb875eb33cfdfce3a30,2498
-    pantry-tree:
-      size: 435
-      sha256: e1c8731dcb7050da9e1314a0ae029a888d6bacd375dc26d89dcf8a302207c6f8
-  original:
-    hackage: pptable-0.3.0.0
 snapshots:
 - completed:
     size: 500539
