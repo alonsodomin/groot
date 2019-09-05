@@ -15,7 +15,7 @@
 # resolver:
 #  name: custom-snapshot
 #  location: "./custom-snapshot.yaml"
-resolver: lts-12.14
+resolver: lts-13.30
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -42,7 +42,6 @@ packages:
 extra-deps:
   - hakyll-4.11.0.0
   - pandoc-citeproc-0.13.0.1
-  - pptable-0.3.0.0
 
 # Override default flag values for local packages and extra-deps
 flags: {}
