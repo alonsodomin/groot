@@ -76,7 +76,7 @@ performAction userMsg buildComposeAction opts = do
   serviceList   <- selectServices manifestFileName (serviceNames opts) $ manifest ^. gmServices
   cfg           <- pure $ ServiceComposeCfg manifest (cluster opts) serviceList (runFlags opts)
   composeAction <- pure $ buildComposeAction cfg
-  interpretServiceComposeM userMsg composeAction cfg
+  runServiceCompose_ userMsg composeAction cfg
 
 doDeployServices :: ServiceComposeCfg -> ServiceComposeM ()
 doDeployServices (ServiceComposeCfg _ clusterRef serviceList _) =

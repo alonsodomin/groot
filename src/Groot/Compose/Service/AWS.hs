@@ -7,7 +7,7 @@
 module Groot.Compose.Service.AWS
      ( serviceExists'
      , verifyActiveCluster'
-     , awsServiceCompose
+     , runServiceCompose
      ) where
 
 import           Control.Lens
@@ -24,7 +24,7 @@ import           Network.AWS
 import qualified Network.AWS.ECS              as ECS
 import           Network.AWS.Waiter
 
-import           Groot.Compose.Service.Free
+import           Groot.Compose.Service.API
 import           Groot.Console
 import           Groot.Core
 import           Groot.Exception
@@ -356,8 +356,8 @@ removeService' service@(serviceName, _) clusterRef = do
         Nothing -> throwM $ serviceNotFound csRef (Just clusterRef)
         Just  x -> return x
 
-awsServiceCompose :: (MonadConsole m, MonadResource m, MonadThrow m) => GrootManifest -> ServiceComposeM a -> GrootT m a
-awsServiceCompose manifest = foldFree $ \case
+runServiceCompose :: (MonadConsole m, MonadResource m, MonadThrow m) => GrootManifest -> ServiceComposeM a -> GrootT m a
+runServiceCompose manifest = foldFree $ \case
   RegisterTask service next ->
     next <$> registerTask' manifest service
   ServiceExists name clusterRef next ->

@@ -3,7 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 
-module Groot.Compose.Service.DryRun (dryRunServiceCompose) where
+module Groot.Compose.Service.DryRun (runServiceCompose) where
 
 import           Control.Monad.Free
 import           Control.Monad.Reader
@@ -14,7 +14,7 @@ import           Network.AWS
 
 import           Groot.Compose.Service.AWS    (serviceExists',
                                                verifyActiveCluster')
-import           Groot.Compose.Service.Free
+import           Groot.Compose.Service.API
 import           Groot.Console
 import           Groot.Core
 import           Groot.Internal.Data.Text
@@ -67,11 +67,11 @@ removeService' (serviceName, _) clusterRef =
   putInfo $ "Deletes service named" <+> (styled yellowStyle serviceName)
     <+> "from cluster" <+> (styled yellowStyle $ toText clusterRef)
 
-dryRunServiceCompose :: (MonadConsole m, MonadResource m)
-                     => GrootManifest
-                     -> ServiceComposeM a
-                     -> GrootT m a
-dryRunServiceCompose _ = foldFree $ \case
+runServiceCompose :: (MonadConsole m, MonadResource m)
+                  => GrootManifest
+                  -> ServiceComposeM a
+                  -> GrootT m a
+runServiceCompose _ = foldFree $ \case
   RegisterTask service next ->
     next <$> registerTask' service
   ServiceExists name clusterRef next ->

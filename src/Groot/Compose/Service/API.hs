@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TemplateHaskell  #-}
 
-module Groot.Compose.Service.Free where
+module Groot.Compose.Service.API where
 
 import           Control.Monad
 import           Control.Monad.Free
