@@ -10,7 +10,6 @@ cabal-dev
 *.spec
 .hpc
 .hsenv
-groot.cabal
 .cabal-sandbox/
 cabal.sandbox.config
 *.prof
