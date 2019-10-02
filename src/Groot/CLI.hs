@@ -17,7 +17,6 @@ features can use some of the more fain grained functions exposed via this module
 module Groot.CLI
      ( GrootOpts
      , GrootCmd
-     , CredentialsOpt
      , loadEnv
      , grootOpts
      , grootCli
@@ -52,33 +51,65 @@ import           Groot.Exception
 import           Groot.Internal.Data.Text
 import           Groot.Manifest
 
-data CredentialsOpt =
-    ProfileOpt (Maybe Text) (Maybe FilePath)
-  | KeysOpt AccessKey SecretKey
-  deriving Eq
+credsOpt :: Parser Credentials
+credsOpt = fromContainer <|> fromSession <|> fromKeys <|> fromEnv <|> fromProfile <|> fromFile <|> (pure Discover)
+  where
+    -- Constructors
+    fromContainer = flag' FromContainer (long "from-container" <> help "Use ECS Container credentials")
+    fromKeys      = FromKeys <$> accessKey <*> secretKey
+    fromSession   = FromSession <$> accessKey <*> secretKey <*> ((SessionToken . fromString) <$> sessionToken)
+    fromProfile   = FromProfile <$> iamProfile
+    fromFile      = FromFile <$> profile <*> file
+    fromEnv       = FromEnv <$> keyEnv <*> secretEnv <*> (optional $ T.pack <$> sessionToken) <*> (optional region)
 
-credsOpt :: Parser CredentialsOpt
-credsOpt =
-  let profile = T.pack <$> strOption
-                ( long "profile"
-                <> short 'p'
-                <> metavar "AWS_PROFILE"
-                <> help "AWS Profile" )
-      accessKey = (AccessKey . fromString) <$> strOption
-                  ( long "accessKey"
-                  <> metavar "ACCESS_KEY"
-                  <> help "AWS Access Key" )
-      secretKey = (SecretKey . fromString) <$> strOption
-                  ( long "secretKey"
-                  <> metavar "SECRET_KEY"
-                  <> help "AWS Secret Key" )
-      file = strOption
-              ( long "creds"
-            <> metavar "CRENDENTIALS_FILE"
-            <> help "AWS Credentials config file" )
-  in let fromProfile = ProfileOpt <$> (optional profile) <*> (optional file)
-         fromKeys    = KeysOpt <$> accessKey <*> secretKey
-      in fromKeys <|> fromProfile
+    -- Individual items
+    profile = T.pack <$> strOption
+            ( long "profile"
+           <> short 'p'
+           <> metavar "AWS_PROFILE"
+           <> help "AWS Profile" )
+
+    iamProfile = T.pack <$> strOption
+           ( long "iam-profile"
+          <> metavar "AWS_IAM_PROFILE"
+          <> help "AWS IAM Profile" )
+
+    accessKey = (AccessKey . fromString) <$> strOption
+              ( long "access-key"
+             <> metavar "ACCESS_KEY"
+             <> help "AWS Access Key" )
+
+    secretKey = (SecretKey . fromString) <$> strOption
+              ( long "secret-key"
+             <> metavar "SECRET_KEY"
+             <> help "AWS Secret Key" )
+
+    sessionToken = strOption
+                 ( long "session-token"
+                <> metavar "SESSION_TOKEN"
+                <> help "AWS Session Token" )
+
+    file = strOption
+         ( long "creds"
+        <> metavar "CRENDENTIALS_FILE"
+        <> help "AWS Credentials config file"
+        <> value "~/.aws/credentials" )
+
+    keyEnv = T.pack <$> strOption
+        ( long "access-key-var"
+       <> metavar "ACCESS_KEY_VAR"
+       <> help "AWS Access Key Environment variable" )
+
+    secretEnv = T.pack <$> strOption
+           ( long "secret-key-var"
+          <> metavar "SECRET_KEY_VAR"
+          <> help "AWS Secret Key Environment variable" )
+
+    region = T.pack <$> strOption
+        ( long "region"
+       <> short 'r'
+       <> metavar "REGION"
+       <> help "AWS Region" )
 
 regionOpt :: Parser Region
 regionOpt = option (attoReadM parser)
@@ -107,7 +138,7 @@ data GrootCmd =
 
 -- |Groot options for a given execution
 data GrootOpts = GrootOpts
-  { _grootCreds  :: CredentialsOpt
+  { _grootCreds  :: Credentials
   , _grootRegion :: Maybe Region
   , _grootDebug  :: Bool
   , _grootCmd    :: GrootCmd
@@ -140,36 +171,11 @@ grootOpts = ( GrootOpts
 -- | Generates the AWS Env from the command line options
 loadEnv :: GrootOpts -> IO Env
 loadEnv opts = do
-  configFile       <- defaultConfigFile
-  (creds, profile) <- buildCreds $ opts ^. grootCreds
-  env              <- newEnv creds
-  setupLogger =<< assignRegion (findRegion configFile profile) env
-    where buildCreds :: CredentialsOpt -> IO (Credentials, Maybe Text)
-          buildCreds (ProfileOpt profile file) = do
-            profileName <- return $ maybe defaultSectionName id profile
-            credsFile   <- maybe defaultCredsFile return file
-            return (FromFile profileName credsFile, Just profileName)
-          buildCreds (KeysOpt accessKey secretKey) =
-            return (FromKeys accessKey secretKey, Nothing)
-
-          findRegion :: FilePath -> Maybe Text -> MaybeT IO Region
-          findRegion confFile profile = regionFromOpts <|> regionFromCfg
-            where regionFromOpts :: MaybeT IO Region
-                  regionFromOpts = MaybeT . return $ opts ^. grootRegion
-
-                  regionFromCfg :: MaybeT IO Region
-                  regionFromCfg = MaybeT $ do
-                    reg <- runExceptT $ regionFromConfig confFile profile
-                    case reg of
-                      Left err -> do
-                        putWarn $ T.pack err
-                        return Nothing
-                      Right r -> return (Just r)
-
-          assignRegion :: MaybeT IO Region -> Env -> IO Env
-          assignRegion r env = do
-            maybeRegion <- runMaybeT r
-            return $ maybe id (\x -> envRegion .~ x) maybeRegion env
+  env <- newEnv $ opts ^. grootCreds
+  assignRegion (opts ^. grootRegion) <$> setupLogger env
+    where assignRegion :: Maybe Region -> Env -> Env
+          assignRegion maybeRegion env =
+            maybe id (\x -> envRegion .~ x) maybeRegion env
 
           setupLogger :: Env -> IO Env
           setupLogger env = if opts ^. grootDebug
