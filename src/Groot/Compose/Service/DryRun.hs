@@ -12,9 +12,9 @@ import           Control.Monad.Trans.Resource
 import           Data.Semigroup               ((<>))
 import           Network.AWS
 
+import           Groot.Compose.Service.API
 import           Groot.Compose.Service.AWS    (serviceExists',
                                                verifyActiveCluster')
-import           Groot.Compose.Service.API
 import           Groot.Console
 import           Groot.Core
 import           Groot.Internal.Data.Text

@@ -58,7 +58,7 @@ summarizeInstances cId =
         instanceSource (Just x) = fetchInstances x
 
 printInstanceSummary :: Maybe ClusterRef -> GrootIO ()
-printInstanceSummary cId = runGrootResource $ do
+printInstanceSummary cId = useResource $ do
   desc <- awsResource $ summarizeInstances cId
   case desc of
     [] -> putWarn ("No container instances found" :: Text)

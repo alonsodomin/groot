@@ -51,7 +51,7 @@ summarizeVolumes :: AWS [VolumeSummary]
 summarizeVolumes = sourceToList $ fetchTaskDefs [] .| CL.concatMap (view ECS.tdVolumes) .| CL.mapMaybe summarize
 
 printVolumesSummary :: ListVolumeOpts -> GrootIO ()
-printVolumesSummary _ = runGrootResource $ do
+printVolumesSummary _ = useResource $ do
   desc <- awsResource $ summarizeVolumes
   case desc of
     [] -> putWarn ("No volumes found" :: Text)

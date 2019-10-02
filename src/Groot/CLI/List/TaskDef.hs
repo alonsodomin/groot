@@ -71,7 +71,7 @@ printTaskDefsSummary (ListTaskDefsOpts showInactive fam) =
   let statusFilter = if showInactive then [TDFStatus TDSInactive] else []
       familyFilter = maybeToList $ TDFFamily <$> fam
       filters      = statusFilter ++ familyFilter
-  in runGrootResource $ do
+  in useResource $ do
     desc <- awsResource $ summarizeTaskDefs filters
     case desc of
       [] -> putWarn ("No task definitions found" :: Text)

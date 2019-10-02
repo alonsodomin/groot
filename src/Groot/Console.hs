@@ -29,6 +29,7 @@ module Groot.Console
      , putDebug
      ) where
 
+import           Control.Monad                   (when)
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans
 import           Control.Monad.Trans.Identity    (IdentityT)
@@ -106,9 +107,8 @@ askUserYN def msg = do
 -- action will be performed in case she answers 'yes' or a synonym.
 askUserToContinue :: MonadConsole m => Text -> m () -> m ()
 askUserToContinue msg cont = do
-  answer <- askUserYN False msg
-  if answer then cont
-  else return ()
+  shouldContinue <- askUserYN False msg
+  when shouldContinue cont
 
 -- |Outputs an 'INFO' message
 putInfo :: (MonadConsole m, Display a) => a -> m ()

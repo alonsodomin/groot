@@ -10,19 +10,19 @@ module Groot.Compose.Service
      , deployServices
      , deleteServices
      , replaceServices
-     , runServiceCompose_
+     , runServiceCompose
      ) where
 
 import           Control.Lens
-import           Control.Monad.Morph
-import           Control.Monad.Trans.Resource
+import           Control.Monad.Catch
+import           Control.Monad.IO.Unlift
 import           Data.Semigroup               ((<>))
 import           Data.Text                    (Text)
 import qualified Data.Text                    as T
 
-import qualified Groot.Compose.Service.AWS as AWS
-import qualified Groot.Compose.Service.DryRun as DryRun
 import           Groot.Compose.Service.API
+import qualified Groot.Compose.Service.AWS    as AWS
+import qualified Groot.Compose.Service.DryRun as DryRun
 import           Groot.Console
 import           Groot.Core
 import           Groot.Manifest
@@ -48,11 +48,12 @@ data ServiceComposeCfg = ServiceComposeCfg
   , composeRunFlags :: [RunFlag]
   } deriving (Eq, Show)
 
-runServiceCompose_ :: Text
-                   -> ServiceComposeM ()
-                   -> ServiceComposeCfg
-                   -> GrootIO ()
-runServiceCompose_ userMsg action cfg =
+runServiceCompose :: (MonadConsole m, MonadUnliftIO m, MonadThrow m)
+                  => Text
+                  -> ServiceComposeM ()
+                  -> ServiceComposeCfg
+                  -> GrootT m ()
+runServiceCompose userMsg action cfg =
   let hasRunFlag flag = flag `elem` (composeRunFlags cfg)
       shouldConfirm   = not $ hasRunFlag Unattended
       isDryRun        = hasRunFlag DryRun
@@ -66,4 +67,4 @@ runServiceCompose_ userMsg action cfg =
         if shouldConfirm
         then askUserToContinue (confirmMsg srvs) $ runInterpreter
         else runInterpreter
-  in hoist runResourceT $ performFor (composeServices cfg)
+  in useResource $ performFor (composeServices cfg)

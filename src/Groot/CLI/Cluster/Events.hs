@@ -35,8 +35,8 @@ clusterEventsOpt = ClusterEventOptions
 
 runClusterEvents :: ClusterEventOptions -> GrootIO ()
 runClusterEvents (ClusterEventOptions follow lastN []) = do
-  clusterRefs <- runGrootResource . awsResource . sourceToList $ fetchClusters .| CL.mapMaybe clusterName
+  clusterRefs <- useResource . awsResource . sourceToList $ fetchClusters .| CL.mapMaybe clusterName
   runClusterEvents (ClusterEventOptions follow lastN clusterRefs)
-runClusterEvents (ClusterEventOptions follow lastN clusterRefs) = runGrootResource $ do
+runClusterEvents (ClusterEventOptions follow lastN clusterRefs) = useResource $ do
   eventSource <- clusterServiceEventLog clusterRefs follow lastN
   runConduit $ eventSource .| printEventSink

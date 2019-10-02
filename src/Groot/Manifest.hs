@@ -537,7 +537,7 @@ introspectManifest :: ClusterRef -> GrootIO GrootManifest
 introspectManifest clusterRef = do
   groups <- obtainInstanceGroups
   return $ GrootManifest { _gmInstanceGroups = groups, _gmServices = Map.empty, _gmVolumes = Map.empty }
-  where obtainInstanceGroups = runGrootResource . awsResource . runConduit $ yield clusterRef
+  where obtainInstanceGroups = useResource . awsResource . runConduit $ yield clusterRef
           .| fetchAutoScalingGroups
           .| instanceGroupMapSink
 

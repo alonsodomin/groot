@@ -51,7 +51,7 @@ instanceAgentUpdated = Wait
     ]
   }
 
-updateAgentAndWait :: ClusterRef -> ContainerInstanceRef -> GrootResource ()
+updateAgentAndWait :: ClusterRef -> ContainerInstanceRef -> GrootIOResource ()
 updateAgentAndWait clusterRef instRef =
   let updateAction = awsResource_ $ do
         liftIO . putInfo $ "Updating ECS agent on cluster instance" <+> (styled yellowStyle $ toText instRef)
@@ -71,8 +71,8 @@ updateAgentAndWait clusterRef instRef =
 
 runClusterUpdate :: ClusterUpdateOpts -> GrootIO ()
 runClusterUpdate (ClusterUpdateOpts clusterRef) =
-  runGrootResource . runCConduit $ instanceStream =$=& CL.mapM_ (updateAgentAndWait clusterRef)
-  where instanceStream :: ConduitT () ContainerInstanceRef GrootResource ()
+  useResource . runCConduit $ instanceStream =$=& CL.mapM_ (updateAgentAndWait clusterRef)
+  where instanceStream :: ConduitT () ContainerInstanceRef GrootIOResource ()
         instanceStream = transPipe awsResource $ fetchInstances clusterRef
           .| filterC canUpdateContainerAgent
           .| CL.mapMaybe instanceRef

@@ -83,7 +83,7 @@ pprintCluster cluster nodes flags = Doc.vsep [
           ]
 
 runClusterInspect :: ClusterInspectOpts -> GrootIO ()
-runClusterInspect (ClusterInspectOpts clusterRef flags) = runGrootResource $ do
+runClusterInspect (ClusterInspectOpts clusterRef flags) = useResource $ do
   (cluster, nodes) <- awsResource $ do
     clus        <- getCluster clusterRef
     fromCluster <- runConduit $ fetchInstances clusterRef .| CL.consume

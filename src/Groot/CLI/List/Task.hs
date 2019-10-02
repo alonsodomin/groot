@@ -75,7 +75,7 @@ summarizeTasks opts = sourceToList $ taskSource opts .| annotateTask .| CL.mapMa
         taskSource (ListTaskOpts cref       (Just serviceRef)) = fetchServiceTasks cref serviceRef
 
 printTaskSummary :: ListTaskOpts -> GrootIO ()
-printTaskSummary opts = runGrootResource $ do
+printTaskSummary opts = useResource $ do
   desc <- awsResource $ summarizeTasks opts
   case desc of
     [] -> putWarn ("No tasks found" :: Text)

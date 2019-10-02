@@ -56,14 +56,14 @@ fetchEvents :: (MonadIO mi, Foldable f)
             => f ContainerServiceCoords
             -> Bool
             -> Int
-            -> GrootResource (ConduitT () ECS.ServiceEvent mi ())
+            -> GrootIOResource (ConduitT () ECS.ServiceEvent mi ())
 fetchEvents coords inf = serviceEventLog (toList coords) inf
 
 runServiceEvents :: ServiceEventOpts -> GrootIO ()
-runServiceEvents (ServiceEventOpts (Just clusterRef) follow lastN serviceRefs) = runGrootResource $ do
+runServiceEvents (ServiceEventOpts (Just clusterRef) follow lastN serviceRefs) = useResource $ do
   eventSource <- fetchEvents (fmap (\x -> ContainerServiceCoords x clusterRef) serviceRefs) follow lastN
   runConduit $ eventSource .| printEventSink
-runServiceEvents (ServiceEventOpts Nothing follow lastN serviceRefs) = runGrootResource $ do
+runServiceEvents (ServiceEventOpts Nothing follow lastN serviceRefs) = useResource $ do
   env         <- ask
   putInfo $ "Scanning clusters for services: " <> (fold . intersperse (styleless ", ") $ (styled yellowStyle . toText) <$> serviceRefs)
   coords      <- runAWS env $ findServiceCoords serviceRefs

@@ -5,13 +5,13 @@
 module Groot.Core.Common
      ( GrootT(..)
      , GrootIO
-     , GrootResource
+     , GrootIOResource
      , MonadGroot(..)
      , noop
      , mapGrootT
      , awsResource
      , awsResource_
-     , runGrootResource
+     , useResource
      , runGroot
      ) where
 
@@ -29,7 +29,7 @@ import           Network.AWS
 newtype GrootT m a = GrootT { runGrootT :: ReaderT Env m a }
 
 type GrootIO = GrootT IO
-type GrootResource = GrootT (ResourceT IO)
+type GrootIOResource = GrootT (ResourceT IO)
 
 noop :: Applicative m => GrootT m ()
 noop = liftGrootT $ pure ()
@@ -99,9 +99,9 @@ awsResource_ :: MonadResource m => AWS a -> GrootT m ()
 awsResource_ aws = void $ awsResource aws
 {-# INLINE awsResource_ #-}
 
-runGrootResource :: GrootResource a -> GrootIO a
-runGrootResource = hoist runResourceT
-{-# INLINE runGrootResource #-}
+useResource :: MonadUnliftIO m => GrootT (ResourceT m) a -> GrootT m a
+useResource = hoist runResourceT
+{-# INLINE useResource #-}
 
 runGroot :: Monad m => GrootT m a -> Env -> m a
 runGroot m = runReaderT (runGrootT m)

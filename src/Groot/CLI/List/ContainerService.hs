@@ -61,7 +61,7 @@ summarizeServices clusterId =
           serviceSource (Just cid) = fetchServices cid
 
 printServiceSummary :: Maybe ClusterRef -> GrootIO ()
-printServiceSummary clusterId = runGrootResource $ do
+printServiceSummary clusterId = useResource $ do
   desc <- awsResource $ summarizeServices clusterId
   case desc of
     [] -> putWarn ("No services found" :: Text)
