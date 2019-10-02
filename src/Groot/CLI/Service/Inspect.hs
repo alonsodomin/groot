@@ -100,12 +100,11 @@ pprintService service = Doc.vsep [
          ]
 
 runServiceInspect :: ServiceInspectOpts -> GrootIO ()
-runServiceInspect (ServiceInspectOpts clusterRef serviceRef) = GrootT $ do
-  env <- ask
+runServiceInspect (ServiceInspectOpts clusterRef serviceRef) = useResource $ do
   case clusterRef of
     Nothing -> putInfo $ "Scanning clusters for service " <> (styled yellowStyle $ toText serviceRef)
     _       -> pure ()
-  xs <- runResourceT . runAWS env $ runMaybeT $ findService serviceRef clusterRef
+  xs <- awsResource $ runMaybeT $ findService serviceRef clusterRef
   case xs of
     Nothing -> throwM $ serviceNotFound serviceRef clusterRef
     Just  s -> liftIO . Doc.putDoc $ pprintService s

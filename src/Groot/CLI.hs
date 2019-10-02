@@ -254,4 +254,4 @@ grootCli =
           <> progDesc "Utility to manage ECS Clusters"
           <> header "groot" )
 
-        mainBlock cmd = runGroot (evalCmd cmd)
+        mainBlock cmd = runGrootT (evalCmd cmd)
