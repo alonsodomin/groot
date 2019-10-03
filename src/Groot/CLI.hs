@@ -39,6 +39,7 @@ import           Options.Applicative
 import           Paths_groot                (version)
 import           System.IO
 
+import           Groot.Auth
 import           Groot.CLI.Cluster
 import           Groot.CLI.Common
 import           Groot.CLI.Introspect
@@ -51,16 +52,43 @@ import           Groot.Exception
 import           Groot.Internal.Data.Text
 import           Groot.Manifest
 
+data CredentialsOpt =
+    CredsContainer
+  | CredsDiscover
+  | CredsExplicit AccessKey SecretKey (Maybe SessionToken)
+  | CredsFile Text FilePath
+  | CredsIamProfile Text
+  | CredsEnvVars Text Text (Maybe Text) (Maybe Text)
+  deriving Eq
+
 credsOpt :: Parser Credentials
-credsOpt = fromContainer <|> fromSession <|> fromKeys <|> fromEnv <|> fromProfile <|> fromFile <|> (pure Discover)
+credsOpt =
+      (asCreds <$> containerCreds)
+  <|> (asCreds <$> explicitCreds)
+  <|> (asCreds <$> iamProfileCreds)
+  <|> (asCreds <$> fileCreds)
+  <|> (asCreds <$> envCreds)
+  <|> (pure Discover)
+
   where
+    -- Mapper from opts to AWS Credentials
+    asCreds :: CredentialsOpt -> Credentials
+    asCreds CredsContainer = FromContainer
+    asCreds (CredsExplicit accessKey secretKey (Just session)) =
+      FromSession accessKey secretKey session
+    asCreds (CredsExplicit accessKey secretKey Nothing) =
+      FromKeys accessKey secretKey
+    asCreds (CredsFile profile file) = FromFile profile file
+    asCreds (CredsIamProfile profile) = FromProfile profile
+    asCreds (CredsEnvVars accessKey secretKey session region) =
+      FromEnv accessKey secretKey session region
+
     -- Constructors
-    fromContainer = flag' FromContainer (long "from-container" <> help "Use ECS Container credentials")
-    fromKeys      = FromKeys <$> accessKey <*> secretKey
-    fromSession   = FromSession <$> accessKey <*> secretKey <*> ((SessionToken . fromString) <$> sessionToken)
-    fromProfile   = FromProfile <$> iamProfile
-    fromFile      = FromFile <$> profile <*> file
-    fromEnv       = FromEnv <$> keyEnv <*> secretEnv <*> (optional $ T.pack <$> sessionToken) <*> (optional region)
+    containerCreds  = flag' CredsContainer (long "from-container" <> help "Use ECS Container credentials")
+    explicitCreds   = CredsExplicit <$>  accessKey <*> secretKey <*> (optional $ (SessionToken . fromString) <$> sessionToken)
+    iamProfileCreds = CredsIamProfile <$> iamProfile
+    fileCreds       = CredsFile <$> profile <*> file
+    envCreds        = CredsEnvVars <$> keyEnv <*> secretEnv <*> (optional $ T.pack <$> sessionToken) <*> (optional region)
 
     -- Individual items
     profile = T.pack <$> strOption
@@ -118,6 +146,24 @@ regionOpt = option (attoReadM parser)
           <> metavar "AWS_REGION"
           <> help "AWS Region identifier" )
 
+roleAuthOpt :: Parser RoleAuth
+roleAuthOpt = RoleAuth <$> roleName <*> mfaDevice <*> mfaCode
+  where
+    mfaDevice = T.pack <$> strOption
+      ( long "mfa-device"
+      <> metavar "MFA_DEVICE"
+      <> help "The serial number (or ARN) of the MFA device" )
+
+    mfaCode = T.pack <$> strOption
+      ( long "mfa-code"
+      <> metavar "MFA_CODE"
+      <> help "The temporary code from the MFA device" )
+
+    roleName = T.pack <$> strOption
+      ( long "role"
+      <> metavar "ROLE_ARN"
+      <> help "Role ARN to be assumed" )
+
 versionInfo :: String
 versionInfo = "groot " ++ (showVersion version)
 
@@ -140,6 +186,7 @@ data GrootCmd =
 data GrootOpts = GrootOpts
   { _grootCreds  :: Credentials
   , _grootRegion :: Maybe Region
+  , _grootRole   :: Maybe RoleAuth
   , _grootDebug  :: Bool
   , _grootCmd    :: GrootCmd
   } deriving Eq
@@ -162,6 +209,7 @@ grootOpts :: Parser GrootOpts
 grootOpts = ( GrootOpts
           <$> credsOpt
           <*> optional regionOpt
+          <*> optional roleAuthOpt
           <*> switch
             ( long "debug"
            <> help "Enable debug mode when running" )
@@ -172,10 +220,16 @@ grootOpts = ( GrootOpts
 loadEnv :: GrootOpts -> IO Env
 loadEnv opts = do
   env <- newEnv $ opts ^. grootCreds
-  assignRegion (opts ^. grootRegion) <$> setupLogger env
+  assignRegion (opts ^. grootRegion) <$> (setupRoleAuth =<< setupLogger env)
     where assignRegion :: Maybe Region -> Env -> Env
           assignRegion maybeRegion env =
             maybe id (\x -> envRegion .~ x) maybeRegion env
+
+          setupRoleAuth :: Env -> IO Env
+          setupRoleAuth env =
+            case opts ^. grootRole of
+              Just roleAuth -> authRole roleAuth env
+              Nothing       -> pure env
 
           setupLogger :: Env -> IO Env
           setupLogger env = if opts ^. grootDebug

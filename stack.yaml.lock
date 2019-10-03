@@ -3,21 +3,7 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages:
-- completed:
-    hackage: hakyll-4.11.0.0@sha256:3ada948c0d2f0bb01cbd9181adba1f9b37857bdd9287186c3143b89453bee791,9964
-    pantry-tree:
-      size: 7475
-      sha256: 250bfe788e6933a9dfcc95c030a4272dfb9f2f982ac25002bf4a256b000c15d8
-  original:
-    hackage: hakyll-4.11.0.0
-- completed:
-    hackage: pandoc-citeproc-0.13.0.1@sha256:7f45aaa1126a7f88f2bcfb1c0c6b3ca017dc6115c7beac6dfe82c75131a5f4ac,7617
-    pantry-tree:
-      size: 21489
-      sha256: 6bd7503e4aa1448cbb96873bac0feac117b0ddf087828570bc518d4ffb53a089
-  original:
-    hackage: pandoc-citeproc-0.13.0.1
+packages: []
 snapshots:
 - completed:
     size: 500539

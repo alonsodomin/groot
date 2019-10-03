@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 32be25b7e92003e10a4282793b5cdf16abb1c35e8a8b55732e06a1754867afdb
+-- hash: f4aa6e0c544eca2223adf892b4ada3e0b8ee1b84a714e8f2725134ec8746a2d2
 
 name:           groot
 version:        0.0.2.0
@@ -36,6 +36,7 @@ library
     , amazonka-core
     , amazonka-ec2
     , amazonka-ecs
+    , amazonka-sts
     , ansi-terminal
     , attoparsec
     , base >=4.7 && <5
@@ -81,6 +82,7 @@ library
       Groot.Internal.Data.Text
       Groot.Types
   other-modules:
+      Groot.Auth
       Groot.CLI.Cluster
       Groot.CLI.Cluster.Events
       Groot.CLI.Cluster.Inspect
@@ -115,6 +117,7 @@ library
       Groot.Exception.Task
       Groot.Exception.TaskDef
       Groot.Internal.AWS
+      Groot.Internal.AWS.Auth
       Groot.Internal.AWS.AutoScaling
       Groot.Internal.AWS.Cluster
       Groot.Internal.AWS.Images
@@ -143,6 +146,7 @@ executable groot
     , amazonka-core
     , amazonka-ec2
     , amazonka-ecs
+    , amazonka-sts
     , attoparsec
     , base >=4.7 && <5
     , bytestring
@@ -193,6 +197,7 @@ test-suite groot-test
     , amazonka-core
     , amazonka-ec2
     , amazonka-ecs
+    , amazonka-sts
     , attoparsec
     , base >=4.7 && <5
     , bytestring

@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Groot.Internal.AWS
-     ( module Groot.Internal.AWS.Cluster
+     ( module Groot.Internal.AWS.Auth
+     , module Groot.Internal.AWS.Cluster
      , module Groot.Internal.AWS.Images
      , module Groot.Internal.AWS.Instance
      , module Groot.Internal.AWS.Service
@@ -33,6 +34,7 @@ import           Network.HTTP.Conduit
 import           Network.HTTP.Types.Status
 
 import           Groot.Console
+import           Groot.Internal.AWS.Auth
 import           Groot.Internal.AWS.AutoScaling
 import           Groot.Internal.AWS.Cluster
 import           Groot.Internal.AWS.Images
