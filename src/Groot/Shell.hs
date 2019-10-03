@@ -6,6 +6,7 @@ import           Options.Applicative
 import           Options.Applicative.Help
 import           System.Exit              (exitSuccess)
 import           System.IO
+import System.Posix.Signals
 
 import           Groot.CLI
 import           Groot.Core
@@ -38,6 +39,7 @@ shellInfo = info grootShellCommand mempty
 
 grootShell :: GrootIO ()
 grootShell = do
+  liftIO $ installHandler keyboardSignal Ignore Nothing
   liftIO $ putStrLn "Welcome to the Groot Shell."
   liftIO $ putStrLn "Type 'help' for a list of available commands"
   loop

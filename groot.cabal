@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 781797f8c2421f06c682a7231f49cb5d131d27c0dbe21aa5716025d84b9d127e
+-- hash: 5011e962f3064c47636a999a21047bb8e76cf0c55505c2c0882afaf6d41aba7e
 
 name:           groot
 version:        0.0.2.0
@@ -69,6 +69,7 @@ library
     , these
     , time
     , transformers
+    , unix
     , unliftio
     , unliftio-core
     , unordered-containers
@@ -175,6 +176,7 @@ executable groot
     , these
     , time
     , transformers
+    , unix
     , unliftio
     , unliftio-core
     , unordered-containers
@@ -230,6 +232,7 @@ test-suite groot-test
     , these
     , time
     , transformers
+    , unix
     , unliftio
     , unliftio-core
     , unordered-containers
