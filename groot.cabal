@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a5e0121c956773a71e7fe5d13475786e2ce99b9b094bb8e33f444a8af678a272
+-- hash: a1fc14c288f5605feffbdc80d8ef2983cb9bd95b6ec4e444f1484e1c3e1d740a
 
 name:           groot
 version:        0.0.2.0
@@ -60,7 +60,6 @@ library
     , prettyprinter
     , prettyprinter-ansi-terminal
     , prettyprinter-compat-ansi-wl-pprint
-    , random
     , resourcet
     , stm
     , stm-chans
@@ -78,6 +77,8 @@ library
     , yaml >=0.11.1.0 && <0.12
   exposed-modules:
       Groot.CLI
+      Groot.Core
+      Groot.Shell
       Groot.Console
       Groot.Internal.Data.Filter
       Groot.Internal.Data.Text
@@ -108,7 +109,6 @@ library
       Groot.Compose.Service.AWS
       Groot.Compose.Service.DryRun
       Groot.Config
-      Groot.Core
       Groot.Core.Common
       Groot.Core.Events
       Groot.Exception
@@ -165,7 +165,7 @@ executable groot
     , mmorph
     , monad-control
     , mtl >=2.2 && <2.3
-    , random
+    , optparse-applicative
     , resourcet
     , stm
     , stm-chans
@@ -219,8 +219,8 @@ test-suite groot-test
     , mmorph
     , monad-control
     , mtl >=2.2 && <2.3
+    , optparse-applicative
     , quickcheck-text
-    , random
     , resourcet
     , stm
     , stm-chans

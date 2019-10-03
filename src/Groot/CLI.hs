@@ -19,8 +19,8 @@ module Groot.CLI
      , GrootCmd
      , loadEnv
      , grootOpts
-     , grootCli
-     , evalCmd
+     , grootCommand
+     , execGrootCmd
      ) where
 
 import           Control.Exception.Lens
@@ -32,11 +32,9 @@ import           Data.Semigroup             ((<>))
 import           Data.String
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
-import           Data.Version               (showVersion)
 import           Network.AWS                hiding (Debug)
 import qualified Network.AWS                as AWS
 import           Options.Applicative
-import           Paths_groot                (version)
 import           System.IO
 
 import           Groot.Auth
@@ -171,16 +169,6 @@ roleAuthOpt = RoleAuth <$> roleName <*> mfaDevice <*> mfaCode <*> sessionName
       <> metavar "SESSION_NAME"
       <> help "Temporary session identifier" )
 
-versionInfo :: String
-versionInfo = "groot " ++ (showVersion version)
-
-versionOpt :: Parser (a -> a)
-versionOpt = infoOption versionInfo $ mconcat [
-    long "version"
-  , short 'v'
-  , help "Show version number"
-  ]
-
 -- |Top level Groot commands
 data GrootCmd =
     ClusterCmd ClusterSubCmd
@@ -195,7 +183,6 @@ data GrootOpts = GrootOpts
   , _grootRegion :: Maybe Region
   , _grootRole   :: Maybe RoleAuth
   , _grootDebug  :: Bool
-  , _grootCmd    :: GrootCmd
   } deriving Eq
 
 makeLenses ''GrootOpts
@@ -203,8 +190,8 @@ makeLenses ''GrootOpts
 introspectCmd :: Parser GrootCmd
 introspectCmd = IntrospectCmd <$> introspectOpts
 
-commands :: Parser GrootCmd
-commands = hsubparser
+grootCommand :: Parser GrootCmd
+grootCommand = hsubparser
    ( command "ls"         (info (ListCmd    <$> listCmds)    (progDesc "List ECS resources"))
   <> command "cluster"    (info (ClusterCmd <$> clusterCmds) (progDesc "Perform cluster related operations"))
   <> command "service"    (info (ServiceCmd <$> serviceCmds) (progDesc "Perform service related operations"))
@@ -213,15 +200,13 @@ commands = hsubparser
 
 -- |Command line parser for all the possible Groot options
 grootOpts :: Parser GrootOpts
-grootOpts = ( GrootOpts
+grootOpts = GrootOpts
           <$> credsOpt
           <*> optional regionOpt
           <*> optional roleAuthOpt
           <*> switch
             ( long "debug"
            <> help "Enable debug mode when running" )
-          <*> commands
-          ) <**> versionOpt
 
 -- | Generates the AWS Env from the command line options
 loadEnv :: GrootOpts -> IO Env
@@ -247,41 +232,41 @@ loadEnv opts = do
 
 -- Groot Error handlers
 
-handleClusterNotFound :: ClusterNotFound -> IO ()
+handleClusterNotFound :: ClusterNotFound -> GrootIO ()
 handleClusterNotFound (ClusterNotFound' clusterRef) =
   putError $ "Could not find cluster " <> (styled yellowStyle $ toText clusterRef)
 
-handleInvalidClusterStatus :: InvalidClusterStatus -> IO ()
+handleInvalidClusterStatus :: InvalidClusterStatus -> GrootIO ()
 handleInvalidClusterStatus (InvalidClusterStatus' clusterRef currentSt desiredSt) =
   putError $ "Can't operate on cluster " <> (styled yellowStyle $ toText clusterRef)
     <> " because it is " <> (styled redStyle $ toText currentSt)
     <> maybe "." (\x -> ", it should be " <> (styled greenStyle $ toText x) <> " to continue.") desiredSt
 
-handleServiceNotFound :: ServiceNotFound -> IO ()
+handleServiceNotFound :: ServiceNotFound -> GrootIO ()
 handleServiceNotFound (ServiceNotFound' serviceRef clusterRef) =
   putError $ "Could not find service " <> (styled yellowStyle $ toText serviceRef) <>
     maybe "" (\x -> " in cluster " <> (styled yellowStyle $ toText x)) clusterRef
 
-handleAmbiguousServiceName :: AmbiguousServiceName -> IO ()
+handleAmbiguousServiceName :: AmbiguousServiceName -> GrootIO ()
 handleAmbiguousServiceName (AmbiguousServiceName' serviceRef clusters) =
   let stringifyClusters = styleless $ "\n - " <> (T.intercalate "\n - " $ toText <$> clusters)
   in putError $ "Service name " <> (styled yellowStyle $ toText serviceRef)
        <> " is ambiguous. It was found in the following clusters:" <> stringifyClusters
 
-handleInactiveService :: InactiveService -> IO ()
+handleInactiveService :: InactiveService -> GrootIO ()
 handleInactiveService (InactiveService' serviceRef clusterRef) =
   putError $ "Service " <> (styled yellowStyle $ toText serviceRef) <> " in cluster "
     <> (styled yellowStyle $ toText $ clusterRef)
     <> " is not active."
 
-handleTaskNotFound :: TaskNotFound -> IO ()
+handleTaskNotFound :: TaskNotFound -> GrootIO ()
 handleTaskNotFound (TaskNotFound' taskRef clusterRef) =
   putError $ "Could not find task " <> (styled yellowStyle $ toText taskRef) <>
     maybe "" (\x -> " in cluster " <> (styled yellowStyle $ toText x)) clusterRef
 
 -- Main Program execution
 
-handleExceptions :: IO () -> IO ()
+handleExceptions :: GrootIO () -> GrootIO ()
 handleExceptions act = catches act [
     handler _TransportError          handleHttpException
   , handler _ServiceError            handleServiceError
@@ -294,25 +279,13 @@ handleExceptions act = catches act [
   , handler _ManifestParseError      handleManifestParseError
   ]
 
--- |Runs a Groot command with the given AWS environment
-evalCmd :: GrootCmd -> GrootIO ()
-evalCmd (ClusterCmd opts)    = runClusterCmd opts
-evalCmd (ListCmd opts)       = runListCmd opts
-evalCmd (ServiceCmd opts)    = runServiceCmd opts
-evalCmd (IntrospectCmd opts) = runIntrospect opts
-
 -- |Groot main entry point from the Command line, able to interpret
 -- arguments and parameters passed to it
-grootCli :: IO ()
-grootCli =
-  prog =<< (execParser cli)
-  where prog opts = do
-          env <- loadEnv opts
-          handleExceptions $ mainBlock (opts ^. grootCmd) env
-
-        cli = info (grootOpts <**> helper)
-          ( fullDesc
-          <> progDesc "Utility to manage ECS Clusters"
-          <> header "groot" )
-
-        mainBlock cmd = runGrootT (evalCmd cmd)
+execGrootCmd :: GrootCmd -> GrootIO ()
+execGrootCmd = handleExceptions . evalCmd
+  where
+    evalCmd :: GrootCmd -> GrootIO ()
+    evalCmd (ClusterCmd opts)    = runClusterCmd opts
+    evalCmd (ListCmd opts)       = runListCmd opts
+    evalCmd (ServiceCmd opts)    = runServiceCmd opts
+    evalCmd (IntrospectCmd opts) = runIntrospect opts

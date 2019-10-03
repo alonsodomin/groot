@@ -40,7 +40,7 @@ dependencies:
 - mmorph
 - monad-control
 - mtl >= 2.2 && < 2.3
-- random
+- optparse-applicative
 - resourcet
 - stm
 - stm-chans
@@ -61,14 +61,15 @@ library:
   source-dirs: src
   dependencies:
   - ansi-terminal
-  - ini
-  - optparse-applicative
+  - ini  
   - prettyprinter
   - prettyprinter-ansi-terminal
   - prettyprinter-compat-ansi-wl-pprint
   - pptable
   exposed-modules:
   - Groot.CLI
+  - Groot.Core
+  - Groot.Shell
   - Groot.Console
   - Groot.Internal.Data.Filter
   - Groot.Internal.Data.Text
