@@ -35,7 +35,7 @@ import           Data.Text.Prettyprint.Doc.Render.Terminal hiding (bold)
 import qualified Data.Text.Prettyprint.Doc.Render.Terminal as NewT
 import           Data.Time
 
-import           Groot.Internal.Data.Text                  hiding ((<+>))
+import           Groot.Internal.Data.Text                  hiding ((<+>), (</>))
 
 type Doc = New.Doc NewT.AnsiStyle
 type SimpleDoc = New.SimpleDocStream NewT.AnsiStyle

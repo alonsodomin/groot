@@ -10,7 +10,6 @@ import           Options.Applicative
 import           Options.Applicative.Help
 import           Paths_groot              (version)
 import           System.Exit              (exitSuccess)
-import           System.IO
 import           System.Posix.Signals
 
 import           Groot.CLI
