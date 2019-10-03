@@ -11,6 +11,7 @@ import           Data.Text                    (Text)
 import qualified Data.Text                    as T
 import           Network.AWS
 
+import           Groot.Console
 import           Groot.Exception
 import           Groot.Internal.AWS
 import           Groot.Internal.Data.Text
@@ -40,9 +41,8 @@ startSession cfg env = handleExceptions env $ do
       mfaCode <- case (cfg ^. saMfaCode) of
         Just token -> pure token
         Nothing -> do
-          putStr "MFA Token: "
-          token <- getLine
-          return . AuthToken $ T.pack token
+          token <- askUser ("MFA Token: " :: Text)
+          return . AuthToken $ maybe T.empty id token
 
       runResourceT $ do
         maybeAuth <- (runAWS env) . runMaybeT $ assumeRole mfaDevice mfaCode roleName sessionName

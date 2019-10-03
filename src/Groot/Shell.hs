@@ -1,7 +1,10 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Groot.Shell (grootShell) where
 
 import           Control.Monad.IO.Class
 import           Data.String
+import qualified Data.Text                as T
 import           Data.Version             (showVersion)
 import           Options.Applicative
 import           Options.Applicative.Help
@@ -11,7 +14,9 @@ import           System.IO
 import           System.Posix.Signals
 
 import           Groot.CLI
+import           Groot.Console            (askUser)
 import           Groot.Core
+import           Groot.Internal.Data.Text
 
 data GrootShellCmd =
     DefaultCmd GrootCmd
@@ -43,6 +48,9 @@ execShellCmd VersionCmd =
 shellInfo :: ParserInfo GrootShellCmd
 shellInfo = info grootShellCommand mempty
 
+prompt :: StyledText
+prompt = styled blueStyle "groot>"
+
 grootShell :: Env -> IO ()
 grootShell env = do
   initShell
@@ -57,10 +65,10 @@ grootShell env = do
 
     loop :: IO ()
     loop = do
-      putStr "groot> "
-      hFlush stdout
-      line <- getLine
-      runCommand $ words line
+      line <- askUser (prompt <> styleless " ")
+      case (T.unpack <$> line) of
+        Just cmd -> runCommand $ words cmd
+        Nothing  -> pure ()
       loop
 
     runCommand :: [String] -> IO ()
