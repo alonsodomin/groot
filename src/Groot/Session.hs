@@ -42,7 +42,7 @@ startSession cfg env = do
           putStr "MFA Token: "
           token <- getLine
           return . AuthToken $ T.pack token
-          
+
       runResourceT $ do
         maybeAuth <- (runAWS env) . runMaybeT $ assumeRole mfaDevice mfaCode roleName sessionName
         case maybeAuth of
