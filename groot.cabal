@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f4aa6e0c544eca2223adf892b4ada3e0b8ee1b84a714e8f2725134ec8746a2d2
+-- hash: a5e0121c956773a71e7fe5d13475786e2ce99b9b094bb8e33f444a8af678a272
 
 name:           groot
 version:        0.0.2.0
@@ -60,6 +60,7 @@ library
     , prettyprinter
     , prettyprinter-ansi-terminal
     , prettyprinter-compat-ansi-wl-pprint
+    , random
     , resourcet
     , stm
     , stm-chans
@@ -164,6 +165,7 @@ executable groot
     , mmorph
     , monad-control
     , mtl >=2.2 && <2.3
+    , random
     , resourcet
     , stm
     , stm-chans
@@ -218,6 +220,7 @@ test-suite groot-test
     , monad-control
     , mtl >=2.2 && <2.3
     , quickcheck-text
+    , random
     , resourcet
     , stm
     , stm-chans

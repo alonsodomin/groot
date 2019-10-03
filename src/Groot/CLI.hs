@@ -51,6 +51,7 @@ import           Groot.Core
 import           Groot.Exception
 import           Groot.Internal.Data.Text
 import           Groot.Manifest
+import           Groot.Types
 
 data CredentialsOpt =
     CredsContainer
@@ -147,22 +148,28 @@ regionOpt = option (attoReadM parser)
           <> help "AWS Region identifier" )
 
 roleAuthOpt :: Parser RoleAuth
-roleAuthOpt = RoleAuth <$> roleName <*> mfaDevice <*> mfaCode
+roleAuthOpt = RoleAuth <$> roleName <*> mfaDevice <*> mfaCode <*> sessionName
   where
-    mfaDevice = T.pack <$> strOption
+    mfaDevice = option (attoReadM parser)
       ( long "mfa-device"
       <> metavar "MFA_DEVICE"
       <> help "The serial number (or ARN) of the MFA device" )
 
-    mfaCode = T.pack <$> strOption
+    mfaCode = fromString <$> strOption
       ( long "mfa-code"
       <> metavar "MFA_CODE"
       <> help "The temporary code from the MFA device" )
 
-    roleName = T.pack <$> strOption
+    roleName :: Parser RoleArn
+    roleName = option (attoReadM parser)
       ( long "role"
       <> metavar "ROLE_ARN"
       <> help "Role ARN to be assumed" )
+
+    sessionName = optional $ T.pack <$> strOption
+      (long "session-name"
+      <> metavar "SESSION_NAME"
+      <> help "Temporary session identifier" )
 
 versionInfo :: String
 versionInfo = "groot " ++ (showVersion version)

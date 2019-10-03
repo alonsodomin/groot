@@ -13,12 +13,14 @@ import           Network.AWS
 
 import qualified Groot.Internal.AWS.Auth      as AWS
 import           Groot.Internal.Data.Text
+import           Groot.Types
 
 data RoleAuth = RoleAuth
-  { _raRoleName  :: Text
-  , _raMfaDevice :: Text
-  , _raMfaCode   :: Text
-  } deriving (Eq, Show)
+  { _raRoleName    :: RoleArn
+  , _raMfaDevice   :: MFADeviceArn
+  , _raMfaCode     :: AuthToken
+  , _raSessionName :: Maybe Text
+  } deriving Eq
 
 makeLenses ''RoleAuth
 
@@ -29,16 +31,11 @@ authRole cfg env = do
 
   where
     authWithMfa :: IO Auth
-    authWithMfa = Auth <$> authToken
+    authWithMfa = Auth <$> do
+      let sessionName = maybe "groot" id $ cfg ^. raSessionName
+      runResourceT $ do
+        maybeAuth <- (runAWS env) . runMaybeT $ AWS.assumeRole (cfg ^. raMfaDevice) (cfg ^. raMfaCode) (cfg ^. raRoleName) sessionName
 
-    authToken :: IO AuthEnv
-    authToken = runResourceT $ do
-      maybeAuth <- runMaybeT $ do
-        sessionAuth <- hoist (runAWS env) $ AWS.mfaAuth (cfg ^. raMfaDevice) (cfg ^. raMfaCode)
-        let sessionEnv = env & envAuth .~ (Auth sessionAuth)
-        token <- MaybeT . pure $ sessionAuth ^. sessionToken
-        hoist (runAWS sessionEnv) $ AWS.assumeRole (cfg ^. raRoleName) (toText token)
-
-      case maybeAuth of
-        Just authEnv -> pure $ authEnv
-        Nothing      -> fail "Could not authenticate"
+        case maybeAuth of
+          Just authEnv -> pure $ authEnv
+          Nothing      -> fail "Could not authenticate"

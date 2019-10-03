@@ -39,6 +39,13 @@ module Groot.Types
      , imageRootDeviceType
      , imageState
      , InstanceType(..)
+     -- Auth
+     , SerialNumber
+     , AuthToken
+     , RoleArn
+     , RoleArnPath
+     , MFADeviceArn
+     , MFADeviceArnPath
      -- Cluster
      , ClusterName (..)
      , ClusterArnPath (..)
@@ -119,7 +126,7 @@ import qualified Data.Text                  as T
 import           Data.UUID                  (UUID)
 import qualified Data.UUID                  as UUID
 import           GHC.Generics               hiding (to)
-import           Network.AWS                hiding (InstanceType)
+import           Network.AWS                hiding (IAM, InstanceType)
 import qualified Network.AWS.EC2            as EC2
 import qualified Network.AWS.ECS            as ECS
 import           Numeric
@@ -135,6 +142,8 @@ data ServiceId =
     AutoScaling
   | ECS
   | EC2
+  | IAM
+  | STS
   deriving (Eq, Show, Generic, Enum, Bounded, Data)
 
 instance FromText ServiceId where
@@ -142,6 +151,8 @@ instance FromText ServiceId where
     "autoscaling" -> pure AutoScaling
     "ecs"         -> pure ECS
     "ec2"         -> pure EC2
+    "iam"         -> pure IAM
+    "sts"         -> pure STS
     e             ->
       fromTextError $ "Failure parsing service id from " <> e
 
@@ -149,6 +160,8 @@ instance ToText ServiceId where
   toText AutoScaling = "autoscaling"
   toText ECS         = "ecs"
   toText EC2         = "ec2"
+  toText IAM         = "iam"
+  toText STS         = "sts"
 
 -- | An AWS account identifier
 newtype AccountId = AccountId Text
@@ -164,7 +177,7 @@ instance ToText AccountId where
 -- a given resource
 data Arn a = Arn
   { _arnServiceId    :: ServiceId
-  , _arnRegion       :: Region
+  , _arnRegion       :: Maybe Region
   , _arnAccountId    :: AccountId
   , _arnResourcePath :: a
   } deriving (Eq, Show, Data, Generic)
@@ -174,7 +187,7 @@ arnServiceId :: forall a. Getter (Arn a) ServiceId
 arnServiceId = to _arnServiceId
 
 -- |Obtain the AWS region from a given 'Arn'
-arnRegion :: forall a. Getter (Arn a) Region
+arnRegion :: forall a. Getter (Arn a) (Maybe Region)
 arnRegion = to _arnRegion
 
 -- |Obtain the 'AccountId' from a given 'Arn'
@@ -190,7 +203,7 @@ instance FromText a => FromText (Arn a) where
     "arn:aws:"
     serviceId <- subparser =<< takeTill (== ':')
     char ':'
-    region    <- subparser =<< takeTill (== ':')
+    region    <- option Nothing (fmap Just $ subparser =<< takeTill (== ':'))
     char ':'
     account   <- takeWhile (/= ':')
     char ':'
@@ -202,7 +215,7 @@ instance ToText a => ToText (Arn a) where
       "arn:aws:"
     , toText service
     , ":"
-    , toText region
+    , maybe T.empty toText region
     , ":"
     , toText account
     , ":"
@@ -286,6 +299,65 @@ instance IsFilter ImageFilterPart where
     (img ^. EC2.iRootDeviceType) == rdt
   matches (IFPImageState state) img =
     (img ^. EC2.iState) == state
+
+-- Auth
+
+newtype SerialNumber = SerialNumber Text
+  deriving (Eq, Show, Data, Generic)
+
+instance IsString SerialNumber where
+  fromString = SerialNumber . T.pack
+
+instance FromText SerialNumber where
+  parser = SerialNumber <$> takeText
+
+instance ToText SerialNumber where
+  toText (SerialNumber txt) = txt
+
+newtype AuthToken = AuthToken Text
+  deriving (Eq, Data, Generic)
+
+instance IsString AuthToken where
+  fromString = AuthToken . T.pack
+
+instance ToText AuthToken where
+  toText (AuthToken value) = value
+
+roleArnPreffix :: Text
+roleArnPreffix = "role/"
+
+newtype RoleArnPath = RoleArnPath Text
+  deriving (Eq, Show, Data, Generic)
+
+instance FromText RoleArnPath where
+  parser = do
+    string roleArnPreffix
+    roleName <- parser
+    return $ RoleArnPath roleName
+
+instance ToText RoleArnPath where
+  toText (RoleArnPath roleName) =
+    T.append roleArnPreffix roleName
+
+type RoleArn = Arn RoleArnPath
+
+mfaDevicePathPrefix :: Text
+mfaDevicePathPrefix = "mfa/"
+
+newtype MFADeviceArnPath = MFADeviceArnPath Text
+  deriving (Eq, Show, Data, Generic)
+
+instance FromText MFADeviceArnPath where
+  parser = do
+    string mfaDevicePathPrefix
+    userName <- parser
+    return $ MFADeviceArnPath userName
+
+instance ToText MFADeviceArnPath where
+  toText (MFADeviceArnPath userName) =
+    T.append mfaDevicePathPrefix userName
+
+type MFADeviceArn = Arn MFADeviceArnPath
 
 -- Cluster
 

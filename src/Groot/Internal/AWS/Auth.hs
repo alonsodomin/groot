@@ -6,6 +6,9 @@ import           Data.Text                 (Text)
 import           Network.AWS
 import qualified Network.AWS.STS           as STS
 
+import           Groot.Internal.Data.Text
+import           Groot.Types
+
 mfaAuth :: MonadAWS m => Text -> Text -> MaybeT m AuthEnv
 mfaAuth serialNumber code = MaybeT $ (view STS.gstrsCredentials) <$> send tokenReq
   where tokenReq =
@@ -13,6 +16,10 @@ mfaAuth serialNumber code = MaybeT $ (view STS.gstrsCredentials) <$> send tokenR
           $ STS.gstTokenCode ?~ code
           $ STS.getSessionToken
 
-assumeRole :: MonadAWS m => Text -> Text -> MaybeT m AuthEnv
-assumeRole roleArn sessionName =
-  MaybeT $ (view STS.arrsCredentials) <$> send (STS.assumeRole roleArn sessionName)
+assumeRole :: MonadAWS m => MFADeviceArn -> AuthToken -> RoleArn -> Text -> MaybeT m AuthEnv
+assumeRole deviceArn token roleArn sessionName =
+  MaybeT $ (view STS.arrsCredentials) <$> send assumeRoleReq
+  where assumeRoleReq =
+            STS.arTokenCode ?~ (toText token)
+          $ STS.arSerialNumber ?~ (toText deviceArn)
+          $ STS.assumeRole (toText roleArn) sessionName
