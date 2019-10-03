@@ -17,6 +17,8 @@ jobs:
       with:
         ghc-version: '8.6.5' # Exact version of ghc to use
         cabal-version: '3.0'
+    - name: Update Cabal
+      run: cabal update
     - name: Install dependencies
       run: cabal install --only-dependencies
     - name: Build
