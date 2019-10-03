@@ -56,13 +56,17 @@ describeARN = hspec $ do
   describe "ARN" $ do
     it "parses a valid ARN" $ do
       let validArn = "arn:aws:ecs:eu-west-1:340721489904:container-instance/b7e184d6-5b5a-4fa8-8fd3-27bd2c4b0988"
-      let expectedARN = Arn ECS Ireland (AccountId "340721489904") (DummyArnPath "container-instance/b7e184d6-5b5a-4fa8-8fd3-27bd2c4b0988")
+      let expectedARN = Arn ECS (Just Ireland) (AccountId "340721489904") (DummyArnPath "container-instance/b7e184d6-5b5a-4fa8-8fd3-27bd2c4b0988")
       parseOnly parser validArn `shouldBe` (Right expectedARN)
+    it "parses arns without region" $ do
+      let givenArn = "arn:aws:iam::340721489904:role/arole"
+      let expected = Arn IAM Nothing (AccountId "340721489904") (RoleArnPath "arole")
+      parseOnly parser givenArn `shouldBe` (Right expected)
     it "fails to parse non-ARNs" $ do
       let invalidArn = "this is not an ARN"
       parseOnly (parser :: Parser DummyArn) invalidArn `shouldSatisfy` isLeft
     it "renders as an URN" $ do
-      let arn = Arn EC2 Oregon (AccountId "340721489904") (DummyArnPath "instance/b7e184d6-5b5a-4fa8-8fd3-27bd2c4b0988")
+      let arn = Arn EC2 (Just Oregon) (AccountId "340721489904") (DummyArnPath "instance/b7e184d6-5b5a-4fa8-8fd3-27bd2c4b0988")
       let expected = "arn:aws:ec2:us-west-2:340721489904:instance/b7e184d6-5b5a-4fa8-8fd3-27bd2c4b0988"
       showText arn `shouldBe` expected
 

@@ -43,9 +43,9 @@ module Groot.Types
      , SerialNumber
      , AuthToken
      , RoleArn
-     , RoleArnPath
+     , RoleArnPath (..)
      , MFADeviceArn
-     , MFADeviceArnPath
+     , MFADeviceArnPath (..)
      -- Cluster
      , ClusterName (..)
      , ClusterArnPath (..)
