@@ -8,7 +8,7 @@ import           Options.Applicative
 import           Paths_groot         (version)
 
 import           Groot.CLI
-import           Groot.Core          (GrootIO, runGrootT, Env)
+import           Groot.Core          (Env, GrootIO, runGrootT)
 import           Groot.Shell
 
 versionInfo :: String

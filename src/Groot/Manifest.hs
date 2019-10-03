@@ -87,12 +87,6 @@ module Groot.Manifest
      , gmInstanceGroups
      , gmServices
      , gmVolumes
-     -- Manifest Exceptions
-     , ManifestException
-     , AsManifestException(..)
-     , ManifestParseError(..)
-     , manifestParseError
-     , handleManifestParseError
      -- Utilities
      , defaultManifestFilePath
      , loadManifest
@@ -100,7 +94,6 @@ module Groot.Manifest
      ) where
 
 import           Control.Applicative
-import           Control.Exception.Lens
 import           Control.Lens              hiding ((.=))
 import           Control.Monad
 import           Control.Monad.Catch       hiding (Handler)
@@ -481,50 +474,12 @@ instance ToJSON GrootManifest where
          [ "instance-groups" .= (gm ^. gmInstanceGroups)
          ]
 
--- Exceptions
-
-data ManifestException =
-  ManifestParseError ManifestParseError
-  deriving (Eq, Show, Typeable)
-
-instance Exception ManifestException
-
-data ManifestParseError = ManifestParseError' FilePath Text
-  deriving (Eq, Show, Typeable)
-
-instance Exception ManifestParseError
-
-manifestParseError :: FilePath -> Text -> SomeException
-manifestParseError file reason =
-  toException . ManifestParseError $ ManifestParseError' file reason
-
-class AsManifestException t where
-  _ManifestException :: Prism' t ManifestException
-  {-# MINIMAL _ManifestException #-}
-
-  _ManifestParseError :: Prism' t ManifestParseError
-  _ManifestParseError = _ManifestException . _ManifestParseError
-
-instance AsManifestException SomeException where
-  _ManifestException = exception
-
-instance AsManifestException ManifestException where
-  _ManifestException = id
-
-  _ManifestParseError = prism ManifestParseError $ \case
-    ManifestParseError x -> Right x
-
 -- Defaults
 
 defaultManifestFilePath :: FilePath
 defaultManifestFilePath = "./groot-manifest.yml"
 
 -- Operations
-
-handleManifestParseError :: MonadConsole m => ManifestParseError -> m ()
-handleManifestParseError (ManifestParseError' file reason) =
-  putError $ "Could not parse manifest file: " <> (styled blueStyle $ T.pack file) <> "\n"
-    <> (styled yellowStyle reason)
 
 loadManifest :: (MonadIO m, MonadThrow m) => FilePath -> m GrootManifest
 loadManifest file = do

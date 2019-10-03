@@ -11,6 +11,7 @@ import           Data.Text                    (Text)
 import qualified Data.Text                    as T
 import           Network.AWS
 
+import           Groot.Exception
 import           Groot.Internal.AWS
 import           Groot.Internal.Data.Text
 import           Groot.Types
@@ -25,7 +26,7 @@ data SessionAuth = SessionAuth
 makeLenses ''SessionAuth
 
 startSession :: SessionAuth -> Env -> IO Env
-startSession cfg env = do
+startSession cfg env = handleExceptions env $ do
   newAuth <- authWithMfa
   return $ env & envAuth .~ newAuth
 

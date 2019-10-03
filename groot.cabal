@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5011e962f3064c47636a999a21047bb8e76cf0c55505c2c0882afaf6d41aba7e
+-- hash: b338a6f41a499ba98a4863d70c03f2a8f034f2440c14d1eed8f700687bee4475
 
 name:           groot
 version:        0.0.2.0
@@ -114,6 +114,7 @@ library
       Groot.Exception
       Groot.Exception.Cluster
       Groot.Exception.Instance
+      Groot.Exception.Manifest
       Groot.Exception.Service
       Groot.Exception.Task
       Groot.Exception.TaskDef

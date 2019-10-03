@@ -13,9 +13,6 @@ module Groot.Internal.AWS
      , instanceResourceUsage
      , instanceResourceSummary
      , clusterResourceSummary
-     -- Error handlers
-     , handleHttpException
-     , handleServiceError
      ) where
 
 import           Control.Applicative
@@ -30,8 +27,6 @@ import           Data.Monoid
 import qualified Data.Text                      as T
 import           Network.AWS
 import qualified Network.AWS.ECS                as ECS
-import           Network.HTTP.Conduit
-import           Network.HTTP.Types.Status
 
 import           Groot.Console
 import           Groot.Internal.AWS.Auth
@@ -82,18 +77,3 @@ clusterResourceSummary rs cluster = maybe (return Map.empty) id $ (summarizeReso
           .| CL.map (mapPair Sum)
           .| CL.map ((,) rt)
 
--- AWS Error handlers
-
-handleHttpException :: MonadConsole m => HttpException -> m ()
-handleHttpException (InvalidUrlException url reason) =
-  putError $ "Url " <> (styled yellowStyle $ toText url) <> " is invalid due to: " <> (styled redStyle $ toText reason)
-handleHttpException (HttpExceptionRequest req _) =
-  putError $ "Could not communicate with " <> (styled yellowStyle $ toText . host $ req) <> "."
-
-handleServiceError :: MonadConsole m => ServiceError -> m ()
-handleServiceError err =
-  let servName  = toText $ err ^. serviceAbbrev
-      statusMsg = toText . statusMessage $ err ^. serviceStatus
-      message   = maybe "" toText $ err ^. serviceMessage
-      styledSt  = styled yellowStyle (T.concat [servName, " ", statusMsg])
-  in putError $ styledSt <+> (styleless message)

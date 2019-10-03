@@ -23,9 +23,7 @@ module Groot.CLI
      , execGrootCmd
      ) where
 
-import           Control.Exception.Lens
 import           Control.Lens
-import           Control.Monad.Catch
 import           Control.Monad.Trans.Except
 import           Control.Monad.Trans.Maybe
 import           Data.Semigroup             ((<>))
@@ -229,59 +227,10 @@ loadEnv opts = do
               return $ env & envLogger .~ lgr
             else return env
 
--- Groot Error handlers
-
-handleClusterNotFound :: ClusterNotFound -> GrootIO ()
-handleClusterNotFound (ClusterNotFound' clusterRef) =
-  putError $ "Could not find cluster " <> (styled yellowStyle $ toText clusterRef)
-
-handleInvalidClusterStatus :: InvalidClusterStatus -> GrootIO ()
-handleInvalidClusterStatus (InvalidClusterStatus' clusterRef currentSt desiredSt) =
-  putError $ "Can't operate on cluster " <> (styled yellowStyle $ toText clusterRef)
-    <> " because it is " <> (styled redStyle $ toText currentSt)
-    <> maybe "." (\x -> ", it should be " <> (styled greenStyle $ toText x) <> " to continue.") desiredSt
-
-handleServiceNotFound :: ServiceNotFound -> GrootIO ()
-handleServiceNotFound (ServiceNotFound' serviceRef clusterRef) =
-  putError $ "Could not find service " <> (styled yellowStyle $ toText serviceRef) <>
-    maybe "" (\x -> " in cluster " <> (styled yellowStyle $ toText x)) clusterRef
-
-handleAmbiguousServiceName :: AmbiguousServiceName -> GrootIO ()
-handleAmbiguousServiceName (AmbiguousServiceName' serviceRef clusters) =
-  let stringifyClusters = styleless $ "\n - " <> (T.intercalate "\n - " $ toText <$> clusters)
-  in putError $ "Service name " <> (styled yellowStyle $ toText serviceRef)
-       <> " is ambiguous. It was found in the following clusters:" <> stringifyClusters
-
-handleInactiveService :: InactiveService -> GrootIO ()
-handleInactiveService (InactiveService' serviceRef clusterRef) =
-  putError $ "Service " <> (styled yellowStyle $ toText serviceRef) <> " in cluster "
-    <> (styled yellowStyle $ toText $ clusterRef)
-    <> " is not active."
-
-handleTaskNotFound :: TaskNotFound -> GrootIO ()
-handleTaskNotFound (TaskNotFound' taskRef clusterRef) =
-  putError $ "Could not find task " <> (styled yellowStyle $ toText taskRef) <>
-    maybe "" (\x -> " in cluster " <> (styled yellowStyle $ toText x)) clusterRef
-
--- Main Program execution
-
-handleExceptions :: GrootIO () -> GrootIO ()
-handleExceptions act = catches act [
-    handler _TransportError          handleHttpException
-  , handler _ServiceError            handleServiceError
-  , handler _ClusterNotFound         handleClusterNotFound
-  , handler _InvalidClusterStatus    handleInvalidClusterStatus
-  , handler _ServiceNotFound         handleServiceNotFound
-  , handler _AmbiguousServiceName    handleAmbiguousServiceName
-  , handler _InactiveService         handleInactiveService
-  , handler _TaskNotFound            handleTaskNotFound
-  , handler _ManifestParseError      handleManifestParseError
-  ]
-
 -- |Groot main entry point from the Command line, able to interpret
 -- arguments and parameters passed to it
 execGrootCmd :: GrootCmd -> GrootIO ()
-execGrootCmd = handleExceptions . evalCmd
+execGrootCmd = handleExceptions_ . evalCmd
   where
     evalCmd :: GrootCmd -> GrootIO ()
     evalCmd (ClusterCmd opts)    = runClusterCmd opts
