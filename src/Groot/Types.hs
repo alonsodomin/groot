@@ -41,7 +41,7 @@ module Groot.Types
      , InstanceType(..)
      -- Auth
      , SerialNumber
-     , AuthToken
+     , AuthToken (..)
      , RoleArn
      , RoleArnPath (..)
      , MFADeviceArn

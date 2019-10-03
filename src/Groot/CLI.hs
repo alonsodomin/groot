@@ -37,7 +37,6 @@ import qualified Network.AWS                as AWS
 import           Options.Applicative
 import           System.IO
 
-import           Groot.Auth
 import           Groot.CLI.Cluster
 import           Groot.CLI.Common
 import           Groot.CLI.Introspect
@@ -49,6 +48,7 @@ import           Groot.Core
 import           Groot.Exception
 import           Groot.Internal.Data.Text
 import           Groot.Manifest
+import           Groot.Session
 import           Groot.Types
 
 data CredentialsOpt =
@@ -87,14 +87,14 @@ credsOpt =
     explicitCreds   = CredsExplicit <$>  accessKey <*> secretKey <*> (optional $ (SessionToken . fromString) <$> sessionToken)
     iamProfileCreds = CredsIamProfile <$> iamProfile
     fileCreds       = CredsFile <$> profile <*> file
-    envCreds        = CredsEnvVars <$> keyEnv <*> secretEnv <*> (optional $ T.pack <$> sessionToken) <*> (optional region)
+    envCreds        = CredsEnvVars <$> keyEnv <*> secretEnv <*> (optional $ T.pack <$> sessionToken) <*> (optional regionEnv)
 
     -- Individual items
     profile = T.pack <$> strOption
             ( long "profile"
            <> short 'p'
-           <> metavar "AWS_PROFILE"
-           <> help "AWS Profile" )
+           <> metavar "CREDENTIALS_PROFILE"
+           <> help "AWS Credentials Profile" )
 
     iamProfile = T.pack <$> strOption
            ( long "iam-profile"
@@ -132,28 +132,27 @@ credsOpt =
           <> metavar "SECRET_KEY_VAR"
           <> help "AWS Secret Key Environment variable" )
 
-    region = T.pack <$> strOption
-        ( long "region"
-       <> short 'r'
-       <> metavar "REGION"
-       <> help "AWS Region" )
+    regionEnv = T.pack <$> strOption
+        ( long "region-var"
+       <> metavar "REGION_VAR"
+       <> help "AWS Region Environment Variable" )
 
 regionOpt :: Parser Region
 regionOpt = option (attoReadM parser)
           ( long "region"
           <> short 'r'
-          <> metavar "AWS_REGION"
+          <> metavar "REGION"
           <> help "AWS Region identifier" )
 
-roleAuthOpt :: Parser RoleAuth
-roleAuthOpt = RoleAuth <$> roleName <*> mfaDevice <*> mfaCode <*> sessionName
+sessionAuthOpt :: Parser SessionAuth
+sessionAuthOpt = SessionAuth <$> roleName <*> mfaDevice <*> mfaCode <*> sessionName
   where
     mfaDevice = option (attoReadM parser)
       ( long "mfa-device"
       <> metavar "MFA_DEVICE"
       <> help "The serial number (or ARN) of the MFA device" )
 
-    mfaCode = fromString <$> strOption
+    mfaCode = optional $ fromString <$> strOption
       ( long "mfa-code"
       <> metavar "MFA_CODE"
       <> help "The temporary code from the MFA device" )
@@ -179,10 +178,10 @@ data GrootCmd =
 
 -- |Groot options for a given execution
 data GrootOpts = GrootOpts
-  { _grootCreds  :: Credentials
-  , _grootRegion :: Maybe Region
-  , _grootRole   :: Maybe RoleAuth
-  , _grootDebug  :: Bool
+  { _grootCreds   :: Credentials
+  , _grootRegion  :: Maybe Region
+  , _grootSession :: Maybe SessionAuth
+  , _grootDebug   :: Bool
   } deriving Eq
 
 makeLenses ''GrootOpts
@@ -203,7 +202,7 @@ grootOpts :: Parser GrootOpts
 grootOpts = GrootOpts
           <$> credsOpt
           <*> optional regionOpt
-          <*> optional roleAuthOpt
+          <*> optional sessionAuthOpt
           <*> switch
             ( long "debug"
            <> help "Enable debug mode when running" )
@@ -212,16 +211,16 @@ grootOpts = GrootOpts
 loadEnv :: GrootOpts -> IO Env
 loadEnv opts = do
   env <- newEnv $ opts ^. grootCreds
-  assignRegion (opts ^. grootRegion) <$> (setupRoleAuth =<< setupLogger env)
+  assignRegion (opts ^. grootRegion) <$> (setupSession =<< setupLogger env)
     where assignRegion :: Maybe Region -> Env -> Env
           assignRegion maybeRegion env =
             maybe id (\x -> envRegion .~ x) maybeRegion env
 
-          setupRoleAuth :: Env -> IO Env
-          setupRoleAuth env =
-            case opts ^. grootRole of
-              Just roleAuth -> authRole roleAuth env
-              Nothing       -> pure env
+          setupSession :: Env -> IO Env
+          setupSession env =
+            case opts ^. grootSession of
+              Just auth -> startSession auth env
+              Nothing   -> pure env
 
           setupLogger :: Env -> IO Env
           setupLogger env = if opts ^. grootDebug
