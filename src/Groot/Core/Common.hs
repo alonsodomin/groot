@@ -16,6 +16,8 @@ module Groot.Core.Common
      , awsResource
      , awsResource_
      , useResource
+     -- Re-exports
+     , Env
      ) where
 
 import           Control.Applicative

@@ -8,7 +8,7 @@ import           Options.Applicative
 import           Paths_groot         (version)
 
 import           Groot.CLI
-import           Groot.Core          (GrootIO, runGrootT)
+import           Groot.Core          (GrootIO, runGrootT, Env)
 import           Groot.Shell
 
 versionInfo :: String
@@ -41,8 +41,8 @@ makeLenses ''GrootMainOpts
 mainOpts :: Parser GrootMainOpts
 mainOpts = (GrootMainOpts <$> grootOpts <*> mainCommand) <**> versionOpt
 
-execMainCmd :: GrootMainCmd -> GrootIO ()
-execMainCmd (DefaultCmd cmd) = execGrootCmd cmd
+execMainCmd :: GrootMainCmd -> Env -> IO ()
+execMainCmd (DefaultCmd cmd) = runGrootT (execGrootCmd cmd)
 execMainCmd ShellCmd         = grootShell
 
 mainInfo :: ParserInfo GrootMainOpts
@@ -56,4 +56,4 @@ main = mainProg =<< (execParser mainInfo)
   where
     mainProg opts = do
       env <- loadEnv $ opts ^. gmOpts
-      runGrootT (execMainCmd $ opts ^. gmCmd) env
+      execMainCmd (opts ^. gmCmd) env
