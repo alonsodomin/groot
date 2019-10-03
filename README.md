@@ -11,7 +11,7 @@ Groot is a command line application with the purpose of remote managing AWS ECS 
 You will need `cabal-install` installed in your system, you either get it by installing the package using your favourite
  package manager or installing the Haskell Platform. Once you have it, just run:
 
-```
+```bash
 cabal install groot
 ```
 
@@ -20,7 +20,7 @@ cabal install groot
 You will need [Stack](http://haskellstack.org) installed in your local machine. Once you´ve got that, then clone this
  repository and install the binaries using Stack:
 
-```
+```bash
 git clone https://github.com/alonsodomin/groot
 cd groot
 stack install
@@ -33,12 +33,24 @@ Now step back, the whole of The Internet is going to be sucked into your machine
 Now that you have it installed in your system, run it with the `-h` (or `--help`) command line
  option to get an idea of what you can do.
 
-```
+```bash
 groot -h
 ```
 
 Groot supports several sub-commands, use the same `-h` flag to get some help on what they can do,
  i.e.: `groot ls tasks -h`.
+
+## Interactive Shell
+
+There is also the option of running in an interactive shell, run the `groot shell` command and you'll see a welcome message and the prompt:
+
+```bash
+Welcome to the Groot Shell.
+Type 'help' for a list of available commands
+groot>
+```
+
+Enter `exit` to get back to your main shell. All the other commands available from the command line are also available in the shell session.
 
 ## Status
 
