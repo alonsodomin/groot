@@ -7,13 +7,13 @@ import           Data.String
 import qualified Data.Text                as T
 import           Data.Version             (showVersion)
 import           Options.Applicative
-import           Options.Applicative.Help
+import           Options.Applicative.Help (parserHelp)
 import           Paths_groot              (version)
 import           System.Exit              (exitSuccess)
 import           System.Posix.Signals
 
 import           Groot.CLI
-import           Groot.Console            (askUser)
+import           Groot.Console            (askUser, display)
 import           Groot.Core
 import           Groot.Internal.Data.Text
 
@@ -50,6 +50,9 @@ shellInfo = info grootShellCommand mempty
 prompt :: StyledText
 prompt = styled blueStyle "groot>"
 
+welcomeMsg = (styleless "Welcome to the Groot Shell" <+> (styleless . T.pack $ showVersion version) <> (styleless "."))
+  </> ("Type '" <> (styled yellowStyle "help") <> "' for a list of available commands.")
+
 grootShell :: Env -> IO ()
 grootShell env = do
   initShell
@@ -59,8 +62,7 @@ grootShell env = do
     initShell :: IO ()
     initShell = do
       installHandler keyboardSignal interruptHandler Nothing
-      putStrLn ("Welcome to the Groot Shell " ++ (showVersion version) ++ ".")
-      putStrLn "Type 'help' for a list of available commands."
+      display welcomeMsg
 
     loop :: IO ()
     loop = do

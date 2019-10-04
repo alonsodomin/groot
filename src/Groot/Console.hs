@@ -27,6 +27,8 @@ module Groot.Console
      , putError
      , putSuccess
      , putDebug
+     -- Re-exports
+     , module Groot.Internal.Display
      ) where
 
 import           Control.Monad                   (when)

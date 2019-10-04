@@ -10,6 +10,7 @@ module Groot.Exception
      -- Handlers
      , handleExceptions
      , handleExceptions_
+     , handleExceptionsAndExit
      , handleHttpException
      , handleServiceError
      ) where
@@ -17,11 +18,13 @@ module Groot.Exception
 import           Control.Exception.Lens
 import           Control.Lens
 import           Control.Monad.Catch
+import           Control.Monad.IO.Class
 import qualified Data.Text                 as T
 import           Data.Typeable
 import           Network.AWS
 import           Network.HTTP.Conduit
 import           Network.HTTP.Types.Status
+import           System.Exit
 
 import           Groot.Console
 import           Groot.Exception.Cluster
@@ -89,18 +92,21 @@ handleServiceError err =
 
 -- Main Handler
 
-allHandlers :: (MonadCatch m, MonadConsole m, Typeable m) => [Handler m ()]
-allHandlers =
-  [ handler _TransportError          handleHttpException
-  , handler _ServiceError            handleServiceError
-  , handler _ClusterNotFound         handleClusterNotFound
-  , handler _InvalidClusterStatus    handleInvalidClusterStatus
-  , handler _ServiceNotFound         handleServiceNotFound
-  , handler _AmbiguousServiceName    handleAmbiguousServiceName
-  , handler _InactiveService         handleInactiveService
-  , handler _TaskNotFound            handleTaskNotFound
-  , handler _ManifestParseError      handleManifestParseError
+allHandlers' :: (MonadCatch m, MonadConsole m, Typeable m) => m a -> [Handler m a]
+allHandlers' cont =
+  [ handler _TransportError          $ \ex -> handleHttpException        ex >> cont
+  , handler _ServiceError            $ \ex -> handleServiceError         ex >> cont
+  , handler _ClusterNotFound         $ \ex -> handleClusterNotFound      ex >> cont
+  , handler _InvalidClusterStatus    $ \ex -> handleInvalidClusterStatus ex >> cont
+  , handler _ServiceNotFound         $ \ex -> handleServiceNotFound      ex >> cont
+  , handler _AmbiguousServiceName    $ \ex -> handleAmbiguousServiceName ex >> cont
+  , handler _InactiveService         $ \ex -> handleInactiveService      ex >> cont
+  , handler _TaskNotFound            $ \ex -> handleTaskNotFound         ex >> cont
+  , handler _ManifestParseError      $ \ex -> handleManifestParseError   ex >> cont
   ]
+
+allHandlers :: (MonadCatch m, MonadConsole m, Typeable m) => [Handler m ()]
+allHandlers = allHandlers' $ return ()
 
 handleExceptions :: (MonadCatch m, MonadConsole m, Typeable m) => a -> m a -> m a
 handleExceptions def action =
@@ -108,3 +114,6 @@ handleExceptions def action =
 
 handleExceptions_ :: (MonadCatch m, MonadConsole m, Typeable m) => m () -> m ()
 handleExceptions_ action = catches action allHandlers
+
+handleExceptionsAndExit :: (MonadIO m, MonadCatch m, MonadConsole m, Typeable m) => m a -> m a
+handleExceptionsAndExit action = catches action $ allHandlers' (liftIO exitFailure)

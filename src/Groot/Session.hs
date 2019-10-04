@@ -27,7 +27,7 @@ data SessionAuth = SessionAuth
 makeLenses ''SessionAuth
 
 startSession :: SessionAuth -> Env -> IO Env
-startSession cfg env = handleExceptions env $ do
+startSession cfg env = handleExceptionsAndExit $ do
   newAuth <- authWithMfa
   return $ env & envAuth .~ newAuth
 
