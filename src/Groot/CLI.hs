@@ -145,7 +145,7 @@ regionOpt = option (attoReadM parser)
 sessionAuthOpt :: Parser SessionAuth
 sessionAuthOpt = SessionAuth <$> roleName <*> mfaDevice <*> mfaCode <*> sessionName
   where
-    mfaDevice = option (attoReadM parser)
+    mfaDevice = optional $ option (attoReadM parser)
       ( long "mfa-device"
       <> metavar "MFA_DEVICE"
       <> help "The serial number (or ARN) of the MFA device" )
