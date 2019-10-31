@@ -16,10 +16,10 @@ mfaAuth serialNumber code = MaybeT $ (view STS.gstrsCredentials) <$> send tokenR
           $ STS.gstTokenCode ?~ code
           $ STS.getSessionToken
 
-assumeRole :: MonadAWS m => Maybe MFADeviceArn -> Maybe AuthToken -> RoleArn -> Text -> MaybeT m AuthEnv
-assumeRole deviceArn token roleArn sessionName =
+assumeRole :: MonadAWS m => Maybe MFACredentials -> RoleArn -> Text -> MaybeT m AuthEnv
+assumeRole mfaCreds roleArn sessionName =
   MaybeT $ (view STS.arrsCredentials) <$> send assumeRoleReq
   where assumeRoleReq =
-            STS.arTokenCode .~ (toText <$> token)
-          $ STS.arSerialNumber .~ (toText <$> deviceArn)
+            STS.arTokenCode .~ (toText . (view mfaCredsToken) <$> mfaCreds)
+          $ STS.arSerialNumber .~ (toText . (view mfaCredsDevice) <$> mfaCreds)
           $ STS.assumeRole (toText roleArn) sessionName

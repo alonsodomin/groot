@@ -46,6 +46,10 @@ module Groot.Types
      , RoleArnPath (..)
      , MFADeviceArn
      , MFADeviceArnPath (..)
+     , MFACredentials
+     , mfaCredentials
+     , mfaCredsDevice
+     , mfaCredsToken
      -- Cluster
      , ClusterName (..)
      , ClusterArnPath (..)
@@ -358,6 +362,18 @@ instance ToText MFADeviceArnPath where
     T.append mfaDevicePathPrefix userName
 
 type MFADeviceArn = Arn MFADeviceArnPath
+
+data MFACredentials = MFACredentials MFADeviceArn AuthToken
+  deriving (Eq, Data, Generic)
+
+mfaCredentials :: MFADeviceArn -> AuthToken -> MFACredentials
+mfaCredentials = MFACredentials
+
+mfaCredsDevice :: Getter MFACredentials MFADeviceArn
+mfaCredsDevice = to (\(MFACredentials arn _) -> arn)
+
+mfaCredsToken :: Getter MFACredentials AuthToken
+mfaCredsToken = to (\(MFACredentials _ token) -> token)
 
 -- Cluster
 

@@ -18,10 +18,9 @@ import           Groot.Internal.Data.Text
 import           Groot.Types
 
 data SessionAuth = SessionAuth
-  { _saRoleName    :: RoleArn
-  , _saMfaDevice   :: Maybe MFADeviceArn
-  , _saMfaToken    :: Maybe AuthToken
-  , _saSessionName :: Maybe Text
+  { _saRoleName       :: RoleArn
+  , _saMfaCredentials :: Maybe MFACredentials
+  , _saSessionName    :: Maybe Text
   } deriving Eq
 
 makeLenses ''SessionAuth
@@ -35,12 +34,11 @@ startSession cfg env = handleExceptionsAndExit $ do
     authWithMfa :: IO Auth
     authWithMfa = Auth <$> do
       let sessionName = maybe "groot" id $ cfg ^. saSessionName
-      let mfaDevice = cfg ^. saMfaDevice
-      let mfaToken  = cfg ^. saMfaToken
-      let roleName  = cfg ^. saRoleName
+      let mfaCreds = cfg ^. saMfaCredentials
+      let roleName = cfg ^. saRoleName
 
       runResourceT $ do
-        maybeAuth <- (runAWS env) . runMaybeT $ assumeRole mfaDevice mfaToken roleName sessionName
+        maybeAuth <- (runAWS env) . runMaybeT $ assumeRole mfaCreds roleName sessionName
         case maybeAuth of
           Just authEnv -> pure $ authEnv
           Nothing      -> fail "Could not retrieve a valid session token."

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b338a6f41a499ba98a4863d70c03f2a8f034f2440c14d1eed8f700687bee4475
+-- hash: 4f7d30b57d57cfb8e6bbb2e29e2fcdeb51c154720892abf48e9907b86dba0e42
 
 name:           groot
 version:        0.0.2.0
@@ -85,6 +85,7 @@ library
       Groot.Internal.Data.Text
       Groot.Types
   other-modules:
+      Groot.CLI.Auth
       Groot.CLI.Cluster
       Groot.CLI.Cluster.Events
       Groot.CLI.Cluster.Inspect
