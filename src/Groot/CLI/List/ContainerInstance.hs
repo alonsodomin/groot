@@ -61,5 +61,5 @@ printInstanceSummary :: Maybe ClusterRef -> GrootIO ()
 printInstanceSummary cId = useResource $ do
   desc <- awsResource $ summarizeInstances cId
   case desc of
-    [] -> putWarn ("No container instances found" :: Text)
+    [] -> putInfo ("No container instances found" :: Text)
     xs -> liftIO $ printTable xs

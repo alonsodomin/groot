@@ -54,5 +54,5 @@ printVolumesSummary :: ListVolumeOpts -> GrootIO ()
 printVolumesSummary _ = useResource $ do
   desc <- awsResource $ summarizeVolumes
   case desc of
-    [] -> putWarn ("No volumes found" :: Text)
+    [] -> putInfo ("No volumes found" :: Text)
     xs -> liftIO $ printTable xs

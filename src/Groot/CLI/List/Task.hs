@@ -78,5 +78,5 @@ printTaskSummary :: ListTaskOpts -> GrootIO ()
 printTaskSummary opts = useResource $ do
   desc <- awsResource $ summarizeTasks opts
   case desc of
-    [] -> putWarn ("No tasks found" :: Text)
+    [] -> putInfo ("No tasks found" :: Text)
     xs -> liftIO $ printTable xs

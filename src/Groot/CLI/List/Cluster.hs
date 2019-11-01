@@ -69,5 +69,5 @@ printClusterSummary :: Maybe ClusterRef -> GrootIO ()
 printClusterSummary x = useResource $ do
   desc <- awsResource $ summarizeClusters x
   case desc of
-    [] -> putWarn ("No clusters found" :: Text)
+    [] -> putInfo ("No clusters found" :: Text)
     xs -> liftIO $ printTable xs

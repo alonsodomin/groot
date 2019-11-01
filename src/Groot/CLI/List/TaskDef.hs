@@ -74,5 +74,5 @@ printTaskDefsSummary (ListTaskDefsOpts showInactive fam) =
   in useResource $ do
     desc <- awsResource $ summarizeTaskDefs filters
     case desc of
-      [] -> putWarn ("No task definitions found" :: Text)
+      [] -> putInfo ("No task definitions found" :: Text)
       xs -> liftIO $ printTable xs
