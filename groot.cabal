@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ec21fb4c419c4fd2ab28c1fad5d46772905eeb280b910e3d4816003eccdc0772
+-- hash: a1e88e8bcad5c34a0e884f0c93208a21dc9b4fdc46b8f4ee3136a9cb7f041903
 
 name:           groot
 version:        0.0.2.0
@@ -14,7 +14,7 @@ category:       AWS,Cloud
 homepage:       https://github.com/alonsodomin/groot#readme
 bug-reports:    https://github.com/alonsodomin/groot/issues
 author:         A. Alonso Dominguez
-maintainer:     alonso.domin@gmail.com
+maintainer:     work@alonsodomin.me
 copyright:      2017 A. Alonso Dominguez
 license:        Apache-2.0
 license-file:   LICENSE

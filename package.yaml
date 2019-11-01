@@ -3,7 +3,7 @@ version:             0.0.2.0
 category:            AWS,Cloud
 github:              alonsodomin/groot
 author:              A. Alonso Dominguez
-maintainer:          alonso.domin@gmail.com
+maintainer:          work@alonsodomin.me
 copyright:           2017 A. Alonso Dominguez
 license:             Apache-2.0
 license-file:        LICENSE
