@@ -62,7 +62,8 @@ library:
   source-dirs: src
   dependencies:
   - ansi-terminal
-  - ini  
+  - haskeline
+  - ini
   - prettyprinter
   - prettyprinter-ansi-terminal
   - prettyprinter-compat-ansi-wl-pprint

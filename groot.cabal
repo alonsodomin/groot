@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4f7d30b57d57cfb8e6bbb2e29e2fcdeb51c154720892abf48e9907b86dba0e42
+-- hash: ec21fb4c419c4fd2ab28c1fad5d46772905eeb280b910e3d4816003eccdc0772
 
 name:           groot
 version:        0.0.2.0
@@ -47,6 +47,7 @@ library
     , exceptions
     , free
     , hashable
+    , haskeline
     , http-conduit
     , http-types
     , ini
