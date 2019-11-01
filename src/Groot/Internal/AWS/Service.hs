@@ -60,7 +60,6 @@ fetchServiceBatch services cref =
 
 fetchServices :: MonadAWS m => ClusterRef -> ConduitT () ECS.ContainerService m ()
 fetchServices clusterRef =
-  --handleClusterNotFoundException clusterRef (paginate (ECS.lsCluster ?~ (toText clusterRef) $ ECS.listServices))
   paginate (ECS.lsCluster ?~ (toText clusterRef) $ ECS.listServices)
     .| CL.concatMapM (\x -> fetchServiceBatch (ContainerServiceRef <$> x ^. ECS.lsrsServiceARNs) clusterRef)
 

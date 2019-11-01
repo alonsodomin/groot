@@ -34,8 +34,8 @@ data ClusterSummary = ClusterSummary
   , runningTasks :: Int
   , pendingTasks :: Int
   , instances    :: Int
-  , memory       :: ResourceUsage
-  , cpu          :: ResourceUsage
+  , memory       :: Maybe ResourceUsage
+  , cpu          :: Maybe ResourceUsage
   } deriving (Eq, Show, Generic, Data)
 
 instance Tabulate ClusterSummary Tabs.ExpandWhenNested
@@ -43,9 +43,11 @@ instance Tabulate ClusterSummary Tabs.ExpandWhenNested
 data ClusterDetails = ClusterDetails ECS.Cluster (Maybe ResourceUsage) (Maybe ResourceUsage)
 
 instance HasSummary ClusterDetails ClusterSummary where
-  summarize (ClusterDetails cls mem cpu) = ClusterSummary
-       <$> cName <*> cStatus <*> cRunning <*> cPending <*> cInstances <*> mem <*> cpu
-     where cName      = T.unpack <$> cls ^. ECS.cClusterName
+  summarize (ClusterDetails cls mem cpu) = mkClusterSummary <$> cName <*> cStatus <*> cRunning <*> cPending <*> cInstances
+     where mkClusterSummary name status running pending instances =
+              ClusterSummary name status running pending instances mem cpu
+           
+           cName      = T.unpack <$> cls ^. ECS.cClusterName
            cStatus    = T.unpack <$> cls ^. ECS.cStatus
            cRunning   = cls ^. ECS.cRunningTasksCount
            cPending   = cls ^. ECS.cPendingTasksCount

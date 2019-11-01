@@ -60,18 +60,20 @@ instanceResourceUsage' resType inst = liftA2 (,) rUsed rTotal
           CPU    -> "CPU"
 
 instanceResourceUsage :: ResourceType -> ECS.ContainerInstance -> Maybe ResourceUsage
-instanceResourceUsage resType inst = (mkResourceUsage  resType) <$> instanceResourceUsage' resType inst
+instanceResourceUsage resType inst = (mkResourceUsage resType) <$> instanceResourceUsage' resType inst
 
 instanceResourceSummary :: ECS.ContainerInstance -> ResourceSummary
 instanceResourceSummary inst = runIdentity $ resourceSummary' (\x -> Identity $ (flip instanceResourceUsage) inst x)
 
 clusterResourceSummary :: (Foldable f, MonadAWS m) => f ResourceType -> ECS.Cluster -> m ResourceSummary
 clusterResourceSummary rs cluster = maybe (return Map.empty) id $ (summarizeResources rs) <$> clusterRef
-  where clusterRef = clusterName cluster
+  where clusterRef = ClusterRef <$> cluster ^. ECS.cClusterName
+        
         summarizeResources resTypes cref = fmap (Map.mapWithKey (\k v -> mkResourceUsage k $ mapPair getSum v))
            $ runConduit $ CL.sourceList (toList resTypes)
           .| (awaitForever $ \rt -> toProducer $ resourceConduit rt cref)
           .| hashMapWithC' fst snd
+
         resourceConduit rt cref = fetchInstances cref
           .| CL.mapMaybe (instanceResourceUsage' rt)
           .| CL.map (mapPair Sum)
