@@ -107,4 +107,6 @@ runServiceInspect (ServiceInspectOpts clusterRef serviceRef) = useResource $ do
   xs <- awsResource $ runMaybeT $ findService serviceRef clusterRef
   case xs of
     Nothing -> throwM $ serviceNotFound serviceRef clusterRef
-    Just  s -> liftIO . Doc.putDoc $ pprintService s
+    Just  s -> liftIO $ do
+      Doc.putDoc $ pprintService s
+      putStrLn ""

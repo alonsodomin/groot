@@ -91,7 +91,9 @@ runClusterInspect (ClusterInspectOpts clusterRef flags) = useResource $ do
     fromEc2     <- runConduit $ findEc2Instances ids .| CL.consume
     return (clus, pairInstances fromCluster fromEc2)
 
-  liftIO . Doc.putDoc $ pprintCluster cluster nodes flags
+  liftIO $ do
+    Doc.putDoc $ pprintCluster cluster nodes flags
+    putStrLn ""
 
   where pairInstances :: [ECS.ContainerInstance] -> [EC2.Instance] -> [(ECS.ContainerInstance, Maybe EC2.Instance)]
         pairInstances ecsInsts ec2Insts =
