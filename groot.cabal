@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.2.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a1e88e8bcad5c34a0e884f0c93208a21dc9b4fdc46b8f4ee3136a9cb7f041903
+-- hash: d66c41687ed14b1530c4dd1ce256f7981ad31e5af03e90f5a2f22b05c12dfb34
 
 name:           groot
 version:        0.0.2.0
@@ -55,7 +55,7 @@ library
     , lifted-base
     , mmorph
     , monad-control
-    , mtl >=2.2 && <2.3
+    , mtl ==2.2.*
     , optparse-applicative
     , pptable
     , prettyprinter
@@ -168,7 +168,7 @@ executable groot
     , lifted-base
     , mmorph
     , monad-control
-    , mtl >=2.2 && <2.3
+    , mtl ==2.2.*
     , optparse-applicative
     , resourcet
     , stm
@@ -223,7 +223,7 @@ test-suite groot-test
     , lifted-base
     , mmorph
     , monad-control
-    , mtl >=2.2 && <2.3
+    , mtl ==2.2.*
     , optparse-applicative
     , quickcheck-text
     , resourcet
